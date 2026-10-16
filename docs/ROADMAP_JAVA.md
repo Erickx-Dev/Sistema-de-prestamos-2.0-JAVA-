@@ -254,11 +254,11 @@ flowchart TD
   - `VP-008`: Prevención de sobrepago por un centavo adicional (`11333.34` rechazado).
   - Suites completas: `ClienteServiceTest`, `CreditoServiceTest`, `PagoServiceTest` y `MoraCuotasTest`.
 - **Tareas de la fase:**
-  - [ ] Implementar `ClienteService` (creación, actualización con validación de documento repetido, consulta y búsqueda).
-  - [ ] Implementar `CreditoService` (cálculo de interés simple, generación atómica transaccional de cuotas con ajuste residual, saldo pendiente, determinación de estado del crédito y sincronización masiva de mora).
-  - [ ] Implementar `PagoService` (registro de pagos totales/parciales con validaciones de sobrepago, transición de estados y generación de datos consolidados para recibo).
-  - [ ] Escribir y validar las pruebas unitarias y de integración de servicios con JUnit 5 y AssertJ en SQLite en memoria.
-- **Criterio de finalización:** Superación al centavo de los vectores `VP-001` a `VP-008` y 100% de pruebas en verde en las 4 suites de servicios core.
+  - [x] Implementar `ClienteService` (creación, actualización con validación de documento repetido, consulta y búsqueda).
+  - [x] Implementar `CreditoService` (cálculo de interés simple, generación atómica transaccional de cuotas con ajuste residual, saldo pendiente, determinación de estado del crédito y sincronización masiva de mora).
+  - [x] Implementar `PagoService` (registro de pagos totales/parciales con validaciones de sobrepago, transición de estados y generación de datos consolidados para recibo).
+  - [x] Escribir y validar las pruebas unitarias y de integración de servicios con JUnit 5 y AssertJ en SQLite en memoria.
+- **Criterio de finalización:** Superación al centavo de los vectores `VP-001` a `VP-008` y 100% de pruebas en verde en las 4 suites de servicios core. (Completada: 120/120 tests en verde).
 
 ---
 
