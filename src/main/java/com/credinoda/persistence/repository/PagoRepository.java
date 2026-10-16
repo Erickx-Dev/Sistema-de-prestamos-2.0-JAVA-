@@ -116,6 +116,25 @@ public class PagoRepository {
     }
 
     /**
+     * Lista todos los pagos registrados en el sistema ordenados cronológicamente.
+     * Requerido para consolidación de métricas financieras y reportes.
+     *
+     * @return Lista de todos los pagos.
+     * @throws SQLException Si ocurre un error JDBC.
+     */
+    public List<Pago> listarTodos() throws SQLException {
+        String sql = "SELECT id, credito_id, cuota_id, fecha_pago, monto FROM pagos ORDER BY fecha_pago ASC, id ASC";
+        List<Pago> pagos = new ArrayList<>();
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                pagos.add(mapPago(rs));
+            }
+        }
+        return pagos;
+    }
+
+    /**
      * Calcula la suma acumulada de pagos para una cuota específica (RN-010).
      * Se acumula en memoria con BigDecimal.add para evitar pérdida de precisión con SQLite SUM.
      *

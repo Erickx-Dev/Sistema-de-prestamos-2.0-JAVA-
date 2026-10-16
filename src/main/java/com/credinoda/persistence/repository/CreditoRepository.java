@@ -321,6 +321,29 @@ public class CreditoRepository {
         return items;
     }
 
+    /**
+     * Obtiene la lista completa de todas las cuotas registradas en el sistema.
+     * Requerido para agregaciones y proyecciones de reportes financieros.
+     *
+     * @return Lista de todas las cuotas ordenadas por fecha de vencimiento.
+     * @throws SQLException Si ocurre un error JDBC.
+     */
+    public List<Cuota> listarTodasLasCuotas() throws SQLException {
+        String sql = """
+                SELECT id, credito_id, numero_cuota, fecha_vencimiento, monto, estado, en_mora
+                FROM cuotas
+                ORDER BY fecha_vencimiento ASC, numero_cuota ASC
+                """;
+        List<Cuota> cuotas = new ArrayList<>();
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                cuotas.add(mapCuota(rs));
+            }
+        }
+        return cuotas;
+    }
+
     private Credito mapCredito(ResultSet rs) throws SQLException {
         return new Credito(
                 rs.getInt("id"),
