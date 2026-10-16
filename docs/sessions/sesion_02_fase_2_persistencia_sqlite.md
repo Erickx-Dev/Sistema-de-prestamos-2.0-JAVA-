@@ -2,7 +2,8 @@
 
 > **Proyecto:** CrediNoda 2.0 (Migración de Python a Java 21 LTS / JavaFX 21 / SQLite JDBC)  
 > **Fase del Roadmap:** Fase 2 — Capa de Persistencia SQLite Limpia y Repositorios JDBC  
-> **Protocolo Base:** [`docs/git_protocol.md`](../git_protocol.md) y [`AGENTS.md`](../../AGENTS.md)
+> **Plantilla Base:** [`docs/templates/session_summary_template.md`](../templates/session_summary_template.md)  
+> **Protocolo Operativo:** [`docs/git_protocol.md`](../git_protocol.md) y [`AGENTS.md`](../../AGENTS.md)
 
 ---
 
@@ -10,9 +11,9 @@
 
 - **Identificador de Sesión:** `SESION-02`
 - **Fecha de Ejecución:** 2026-10-16
-- **Responsables Técnicos:**
-  - **Tech Lead y Administrador Único:** Erickson Sojo *(Supervisión, Aprobación de Git y Gestión de PR)*
-  - **Desarrollador / Agente de IA:** Antigravity (Google DeepMind)
+- **Responsable(s) Técnico(s) Presente(s):**
+  - **Líder de Proyecto / Administrador:** Erickson Sojo *(Tech Lead / Aprobación Git)*
+  - **Desarrollador / Agente IA:** Antigravity (Google DeepMind)
 - **Rama Git Asociada:** `feature/fase-2-persistencia-sqlite`
 - **Objetivo General de la Sesión:**
   - Implementar la infraestructura de persistencia SQLite local y los repositorios JDBC de CrediNoda 2.0.
@@ -36,7 +37,7 @@
 
 ---
 
-## 2. Trazabilidad de Tareas (Roadmap - Fase 2)
+## 2. Trazabilidad de Tareas (Roadmap)
 
 ### Tareas Completadas en la Sesión
 - [x] `F2-T01`: Implementación de `DatabaseConnection` con activación obligatoria de `PRAGMA foreign_keys = ON;` y soporte para bases en memoria y disco.
@@ -49,77 +50,165 @@
 - [x] `F2-T08`: Actualización del Roadmap formal en `docs/ROADMAP_JAVA.md`.
 
 ### Tareas Pendientes o en Progreso
-- [ ] `F3-T01`: Inicio de la Fase 3 (Capa de Servicios Core: `ClienteService`, `CreditoService`, `PagoService`) tras aprobación y merge de la Fase 2.
+- [ ] `F3-T01`: Inicio de la Fase 3 (Capa de Servicios Core) tras integración en `main`.
 
-### Bloqueos / Impedimentos
-- **Ninguno.** La persistencia funciona de forma determinista y rápida sin problemas de concurrencia ni fallos de bloqueo SQLite.
-
----
-
-## 3. Desglose Técnico Exhaustivo por Archivo y Componente
-
-### 3.1. Infraestructura de Conexión y Esquema
-- **`DatabaseConnection.java` (`com.credinoda.persistence`):**
-  - Configura `SQLiteConfig.enforceForeignKeys(true)` y `setBusyTimeout(5000)`.
-  - Ejecuta explícitamente `PRAGMA foreign_keys = ON;` al inicializar la conexión.
-  - Provee sobrecargas `getConnection()`, `getConnection(Path)` y `getConnection(String jdbcUrl)`.
-- **`SchemaInitializer.java` (`com.credinoda.persistence`):**
-  - Sentencias DDL para `clientes`, `creditos`, `cuotas`, `pagos`.
-  - Columna `cuotas.en_mora INTEGER NOT NULL DEFAULT 0` nativa en el `CREATE TABLE`.
-  - Índices sobre claves foráneas y fechas de vencimiento.
-
-### 3.2. Repositorios JDBC (`com.credinoda.persistence.repository`)
-- **`ClienteRepository.java`:**
-  - `crear(Cliente)`: Inserta y asigna clave primaria mediante `RETURN_GENERATED_KEYS`.
-  - `obtenerPorId(int)` / `obtenerPorDocumento(String)`: Búsquedas con `Optional<Cliente>`.
-  - `buscarGeneral(String)`: Consulta combinada `WHERE nombre LIKE ? OR documento LIKE ?`.
-  - `actualizar(Cliente)`: Actualiza nombre, teléfono y documento.
-  - `listarTodos()`: Listado ordenado alfabéticamente por nombre.
-- **`CreditoRepository.java`:**
-  - `crear(Credito)` / `crearCuota(Cuota)`: Inserción de créditos y cuotas con claves generadas.
-  - `obtenerPorCliente(int)`: Historial de créditos de un cliente ordenado por ID descendente.
-  - `actualizarEstado(int, EstadoCredito)`: Transición de estado de crédito.
-  - `actualizarEstadoCuota(int, EstadoCuota)`: Actualiza cuota y limpia `en_mora = 0` si pasa a `PAGADA`.
-  - `actualizarMoraCuotas(LocalDate)`: Sentencia masiva de actualización en SQLite (`WHERE en_mora != (CASE ...)`).
-  - `obtenerCuotasPendientes(int)`: JOIN para el Dashboard ordenado por vencimiento ascendente de créditos activos.
-- **`PagoRepository.java`:**
-  - `crear(Pago)`: Inserción de abonos.
-  - `obtenerTotalPagadoCuota(int)` / `obtenerTotalPagadoCredito(int)`: Agregación con `BigDecimal.add()` en memoria.
-  - `listarTodosConDetalle(String, LocalDate, LocalDate)`: Consulta enriquecida con filtrado dinámico.
-  - `obtenerDetallePago(int)`: Cálculo relacional de saldos y porcentajes para comprobantes de pago.
+### Tareas Bloqueadas / Impedimentos
+- **Ninguno.** La persistencia opera de forma determinista y aislada.
 
 ---
 
-## 4. Resultados de Verificación y Pruebas Automatizadas
+## 3. Desglose Técnico Exhaustivo por Archivo y Función (Nivel Auditoría)
 
-```text
-[INFO] -------------------------------------------------------
-[INFO]  T E S T S
-[INFO] -------------------------------------------------------
-[INFO] Running com.credinoda.common.FormattersTest
-[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0
-[INFO] Running com.credinoda.common.ValidatorsTest
-[INFO] Tests run: 46, Failures: 0, Errors: 0, Skipped: 0
-[INFO] Running com.credinoda.domain.model.CuotaTest
-[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0
-[INFO] Running com.credinoda.persistence.DatabaseConnectionTest
-[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0
-[INFO] Running com.credinoda.persistence.repository.ClienteRepositoryTest
-[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0
-[INFO] Running com.credinoda.persistence.repository.CreditoRepositoryTest
-[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0
-[INFO] Running com.credinoda.persistence.repository.PagoRepositoryTest
-[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0
-[INFO] Running com.credinoda.persistence.SchemaInitializerTest
-[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0
-[INFO] 
-[INFO] Results:
-[INFO] Tests run: 75, Failures: 0, Errors: 0, Skipped: 0
-[INFO] BUILD SUCCESS
-```
+### Archivo: `src/main/java/com/credinoda/persistence/DatabaseConnection.java`
+- **Estado:** NUEVO
+- **Capa de Arquitectura:** `persistence`
+- **Clase(s) / Módulo:** `DatabaseConnection`
+- **Detalle Granular de Métodos / Funciones:**
 
-- **Cobertura:** 75 tests ejecutados al 100% en verde.
-- **Aislamiento:** Cero mutación de archivos `.db` en disco durante las pruebas unitarias (uso exclusivo de `:memory:` y `@TempDir`).
+| Nombre de la Función / Método | Parámetros y Tipos | Tipo Retorno | Propósito y Lógica Implementada |
+| :--- | :--- | :--- | :--- |
+| `getConnection` | `(ninguno)` | `Connection` | Abre conexión a `AppConfig.DATABASE_PATH`, asegura directorios locales y aplica claves foráneas. |
+| `getConnection` | `dbPath: Path` | `Connection` | Abre conexión a partir de una ruta de archivo local específica con `PRAGMA foreign_keys = ON;`. |
+| `getConnection` | `jdbcUrl: String` | `Connection` | Configura `SQLiteConfig.enforceForeignKeys(true)`, timeout de 5000ms y ejecuta `PRAGMA foreign_keys = ON;`. |
+
+---
+
+### Archivo: `src/main/java/com/credinoda/persistence/SchemaInitializer.java`
+- **Estado:** NUEVO
+- **Capa de Arquitectura:** `persistence`
+- **Clase(s) / Módulo:** `SchemaInitializer`
+- **Detalle Granular de Métodos / Funciones:**
+
+| Nombre de la Función / Método | Parámetros y Tipos | Tipo Retorno | Propósito y Lógica Implementada |
+| :--- | :--- | :--- | :--- |
+| `inicializar` | `conn: Connection` | `void` | Ejecuta sentencias DDL limpias para `clientes`, `creditos`, `cuotas`, `pagos` y 5 índices. |
+| `inicializarBaseDatos` | `(ninguno)` | `void` | Abre conexión predeterminada, ejecuta `inicializar(conn)` y cierra limpiamente. |
+| `inicializarBaseDatos` | `dbPath: Path` | `void` | Inicializa base de datos sobre una ruta de archivo específica. |
+| `inicializarBaseDatos` | `jdbcUrl: String` | `void` | Inicializa base de datos a partir de una URL JDBC (ej. `:memory:`). |
+
+---
+
+### Archivo: `src/main/java/com/credinoda/persistence/repository/ClienteRepository.java`
+- **Estado:** NUEVO
+- **Capa de Arquitectura:** `persistence/repository`
+- **Clase(s) / Módulo:** `ClienteRepository`
+- **Detalle Granular de Métodos / Funciones:**
+
+| Nombre de la Función / Método | Parámetros y Tipos | Tipo Retorno | Propósito y Lógica Implementada |
+| :--- | :--- | :--- | :--- |
+| `crear` | `cliente: Cliente` | `Cliente` | Inserta cliente en SQLite y asigna la clave autoincremental retornada por `getGeneratedKeys()`. |
+| `obtenerPorId` | `id: int` | `Optional<Cliente>` | Búsqueda por clave primaria con `PreparedStatement`. |
+| `obtenerPorDocumento` | `documento: String` | `Optional<Cliente>` | Consulta por documento único con coincidencia exacta (`RN-002`). |
+| `buscarGeneral` | `query: String` | `List<Cliente>` | Consulta parcial `WHERE nombre LIKE ? OR documento LIKE ? ORDER BY nombre ASC` (`RN-003`). |
+| `buscarPorNombre` | `query: String` | `List<Cliente>` | Búsqueda parcial por nombre `WHERE nombre LIKE ? ORDER BY nombre ASC`. |
+| `actualizar` | `cliente: Cliente` | `void` | Ejecuta `UPDATE clientes SET nombre = ?, telefono = ?, documento = ? WHERE id = ?`. |
+| `listarTodos` | `(ninguno)` | `List<Cliente>` | Consulta la totalidad de prestatarios ordenados alfabéticamente por nombre. |
+| `mapRow` | `rs: ResultSet` | `Cliente` | Mapea la fila relacional actual a la entidad `Cliente`. |
+
+---
+
+### Archivo: `src/main/java/com/credinoda/persistence/repository/CreditoRepository.java`
+- **Estado:** NUEVO
+- **Capa de Arquitectura:** `persistence/repository`
+- **Clase(s) / Módulo:** `CreditoRepository`
+- **Detalle Granular de Métodos / Funciones:**
+
+| Nombre de la Función / Método | Parámetros y Tipos | Tipo Retorno | Propósito y Lógica Implementada |
+| :--- | :--- | :--- | :--- |
+| `crear` | `credito: Credito` | `Credito` | Inserta crédito con valores monetarios formateados mediante `toPlainString()` y asigna clave autoincremental. |
+| `crearCuota` | `cuota: Cuota` | `Cuota` | Inserta cuota individual en la tabla `cuotas` asignando el ID generado. |
+| `obtenerPorId` | `id: int` | `Optional<Credito>` | Consulta crédito por ID. |
+| `obtenerPorCliente` | `clienteId: int` | `List<Credito>` | Consulta créditos de un cliente ordenados descendentemente por ID. |
+| `listarTodos` | `(ninguno)` | `List<Credito>` | Lista todos los créditos registrados en el sistema. |
+| `obtenerCuotasPorCredito` | `creditoId: int` | `List<Cuota>` | Retorna cronograma de cuotas ordenado por `numero_cuota ASC`. |
+| `obtenerCuotaPorId` | `cuotaId: int` | `Optional<Cuota>` | Consulta cuota por clave primaria. |
+| `actualizarEstado` | `creditoId: int, nuevoEstado: EstadoCredito` | `void` | Actualiza la columna `estado` en la tabla `creditos`. |
+| `actualizarEstadoCuota` | `cuotaId: int, nuevoEstado: EstadoCuota` | `void` | Actualiza estado de cuota y limpia `en_mora = 0` si pasa a `PAGADA`. |
+| `actualizarMoraCuotas` | `fechaReferencia: LocalDate` | `int` | Actualización masiva en SQLite: marca `en_mora = 1` si `fecha_vencimiento < corte` y estado no es `PAGADA`, solo mutando filas divergentes (`RN-008`). |
+| `obtenerCuotasPendientes` | `limite: int` | `List<ProximoPagoItem>` | JOIN para Dashboard de cuotas pendientes/parciales de créditos activos (`CU-012`, `RN-013`). |
+
+---
+
+### Archivo: `src/main/java/com/credinoda/persistence/repository/PagoRepository.java`
+- **Estado:** NUEVO
+- **Capa de Arquitectura:** `persistence/repository`
+- **Clase(s) / Módulo:** `PagoRepository`
+- **Detalle Granular de Métodos / Funciones:**
+
+| Nombre de la Función / Método | Parámetros y Tipos | Tipo Retorno | Propósito y Lógica Implementada |
+| :--- | :--- | :--- | :--- |
+| `crear` | `pago: Pago` | `Pago` | Inserta pago con monto exacto en texto y asigna ID autoincremental. |
+| `obtenerPorId` | `id: int` | `Optional<Pago>` | Consulta pago por clave primaria. |
+| `obtenerPorCuota` | `cuotaId: int` | `List<Pago>` | Consulta pagos aplicados a una cuota específica. |
+| `obtenerPorCredito` | `creditoId: int` | `List<Pago>` | Consulta pagos aplicados a un crédito completo. |
+| `obtenerTotalPagadoCuota` | `cuotaId: int` | `BigDecimal` | Suma en memoria con `BigDecimal.add()` todos los abonos de la cuota (`RN-010`). |
+| `obtenerTotalPagadoCredito`| `creditoId: int` | `BigDecimal` | Suma en memoria con `BigDecimal.add()` todos los abonos del crédito (`RN-010`). |
+| `listarTodosConDetalle` | `filtro: String, fIni: LocalDate, fFin: LocalDate` | `List<PagoDetalleItem>` | Historial consolidado con JOIN cuota/crédito/cliente y filtros dinámicos (`CU-010`, `RN-016`). |
+| `obtenerDetallePago` | `pagoId: int` | `Optional<DatosComprobante>` | Consulta completa para recibo formal `REC-xxxxx` con saldos y avance calculados (`CU-011`, `RN-012`). |
+
+---
+
+## 4. Impacto en Esquema de Persistencia y Base de Datos
+
+- **¿Hubo alteraciones al modelo de datos en esta sesión?:** SÍ (Aprovisionamiento inicial de la base de datos limpia de CrediNoda 2.0).
+- **Archivos de Persistencia Afectados:**
+  - `DatabaseConnection.java`: Conexión JDBC SQLite con `PRAGMA foreign_keys = ON;`.
+  - `SchemaInitializer.java`: DDL limpio de las 4 tablas e índices optimizados.
+
+### Detalle de Modificaciones DDL / DML
+- **Tablas Creadas:** `clientes`, `creditos`, `cuotas`, `pagos`.
+- **Sentencias DDL Aplicadas:**
+  ```sql
+  CREATE TABLE IF NOT EXISTS clientes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nombre TEXT NOT NULL,
+      telefono TEXT NOT NULL,
+      documento TEXT NOT NULL UNIQUE,
+      fecha_registro TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS creditos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      cliente_id INTEGER NOT NULL,
+      capital TEXT NOT NULL,
+      tasa_mensual TEXT NOT NULL,
+      plazo_meses INTEGER NOT NULL,
+      total_intereses TEXT NOT NULL,
+      total_pagar TEXT NOT NULL,
+      frecuencia_pago TEXT NOT NULL,
+      fecha_inicio TEXT NOT NULL,
+      estado TEXT NOT NULL DEFAULT 'ACTIVO',
+      FOREIGN KEY (cliente_id) REFERENCES clientes(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS cuotas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      credito_id INTEGER NOT NULL,
+      numero_cuota INTEGER NOT NULL,
+      fecha_vencimiento TEXT NOT NULL,
+      monto TEXT NOT NULL,
+      estado TEXT NOT NULL DEFAULT 'PENDIENTE',
+      en_mora INTEGER NOT NULL DEFAULT 0,
+      FOREIGN KEY (credito_id) REFERENCES creditos(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS pagos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      credito_id INTEGER NOT NULL,
+      cuota_id INTEGER NOT NULL,
+      fecha_pago TEXT NOT NULL,
+      monto TEXT NOT NULL,
+      FOREIGN KEY (credito_id) REFERENCES creditos(id),
+      FOREIGN KEY (cuota_id) REFERENCES cuotas(id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_creditos_cliente ON creditos(cliente_id);
+  CREATE INDEX IF NOT EXISTS idx_cuotas_credito ON cuotas(credito_id);
+  CREATE INDEX IF NOT EXISTS idx_cuotas_vencimiento ON cuotas(estado, fecha_vencimiento);
+  CREATE INDEX IF NOT EXISTS idx_pagos_cuota ON pagos(cuota_id);
+  CREATE INDEX IF NOT EXISTS idx_pagos_credito ON pagos(credito_id);
+  ```
+- **Razón Técnica:** Aprovisionamiento desde cero según la directriz de descartar datos de Python y contar con `cuotas.en_mora` nativo.
 
 ---
 
@@ -133,10 +222,8 @@
 
 ---
 
-## 6. Próximo Objetivo Prioritario (Fase 3)
+## 6. Deuda Técnica y Puntos Críticos para la Siguiente Sesión
 
-- **Rama a crear:** `feature/fase-3-servicios-core`
-- **Alcance:**
-  - `ClienteService`: Validaciones de negocio, sanitización, unicidad de documento antes de persistir.
-  - `CreditoService`: Cálculo financiero de interés simple mensual ($I = C \times i \times t$), factores de periodicidad (semanal 4, quincenal 2), cronograma de cuotas con redondeo `HALF_UP` y ajuste exacto de centavos en la última cuota (`RN-006`), creación atómica transaccional y sincronización periódica de mora.
-  - `PagoService`: Registro de abonos totales/parciales, liquidación de cuotas y crédito, y prevención estricta de sobrepagos (`RN-009`).
+- **Riesgos o Limitaciones Detectadas:** Ninguno.
+- **Refactorizaciones Pendientes:** Ninguna.
+- **Próximo Objetivo Prioritario:** Fase 3 — Capa de Servicios Core (`ClienteService`, `CreditoService`, `PagoService`).

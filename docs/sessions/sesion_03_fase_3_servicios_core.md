@@ -2,7 +2,8 @@
 
 > **Proyecto:** CrediNoda 2.0 (Migración de Python a Java 21 LTS / JavaFX 21 / SQLite JDBC)  
 > **Fase del Roadmap:** Fase 3 — Capa de Servicios Core (`ClienteService`, `CreditoService`, `PagoService`)  
-> **Protocolo Base:** [`docs/git_protocol.md`](../git_protocol.md) y [`AGENTS.md`](../../AGENTS.md)
+> **Plantilla Base:** [`docs/templates/session_summary_template.md`](../templates/session_summary_template.md)  
+> **Protocolo Operativo:** [`docs/git_protocol.md`](../git_protocol.md) y [`AGENTS.md`](../../AGENTS.md)
 
 ---
 
@@ -10,9 +11,9 @@
 
 - **Identificador de Sesión:** `SESION-03`
 - **Fecha de Ejecución:** 2026-10-16
-- **Responsables Técnicos:**
-  - **Tech Lead y Administrador Único:** Erickson Sojo *(Supervisión, Aprobación de Git y Gestión de PR)*
-  - **Desarrollador / Agente de IA:** Antigravity (Google DeepMind)
+- **Responsable(s) Técnico(s) Presente(s):**
+  - **Líder de Proyecto / Administrador:** Erickson Sojo *(Tech Lead / Aprobación Git)*
+  - **Desarrollador / Agente IA:** Antigravity (Google DeepMind)
 - **Rama Git Asociada:** `feature/fase-3-servicios-core`
 - **Objetivo General de la Sesión:**
   - Implementar la lógica financiera y transaccional central de CrediNoda 2.0.
@@ -38,7 +39,7 @@
 
 ---
 
-## 2. Trazabilidad de Tareas (Roadmap - Fase 3)
+## 2. Trazabilidad de Tareas (Roadmap)
 
 ### Tareas Completadas en la Sesión
 - [x] `F3-T01`: Implementación de `ClienteService` (alta, edición, validación de documento duplicado, consulta por ID, documento y búsqueda general).
@@ -51,98 +52,91 @@
 - [x] `F3-T08`: Ejecución y aprobación al 100% de la suite completa (`mvn clean test`, 120/120 tests en verde).
 - [x] `F3-T09`: Actualización de la documentación en `docs/ROADMAP_JAVA.md`.
 
----
+### Tareas Pendientes o en Progreso
+- [ ] `F4-T01`: Inicio de la Fase 4 (Servicios Especializados: Reportes, PDF con QR y Backup/Restauración).
 
-## 3. Desglose Técnico Exhaustivo por Archivo y Componente
-
-### 3.1. `ClienteService.java` (`com.credinoda.service`)
-- `crearCliente(String, String, String)`: Sanitiza campos con `.trim()`, verifica no vacuidad, valida que no exista el documento en BD (`RN-002`) y persiste mediante `ClienteRepository`.
-- `actualizarCliente(int, String, String, String)`: Verifica existencia, actualiza solo campos no nulos asegurando que el nuevo documento no colisione con otro cliente.
-- `obtenerClientePorId(int)`: Retorna cliente o lanza `ClienteNoEncontradoException`.
-- `buscarClientes(String)`: Búsqueda general por coincidencia en nombre o documento.
-- `obtenerCreditosCliente(int)`: Consulta los créditos del prestatario.
-
-### 3.2. `CreditoService.java` (`com.credinoda.service`)
-- `calcularIntereses(BigDecimal, BigDecimal, int)`: $I = C \times i \times t$ (`RoundingMode.HALF_UP` a 2 decimales).
-- `calcularNumeroCuotas(int, FrecuenciaPago)`: Semanal $\times 4$, Quincenal $\times 2$.
-- `generarPlanPagos(BigDecimal, int, FrecuenciaPago, LocalDate)`: Cuota base `total / N` y ajuste de residuo en la cuota $N$ (`RN-006`). Fechas con múltiplos de 7 o 15 días (`RN-007`).
-- `crearCredito(int, BigDecimal, BigDecimal, int, FrecuenciaPago, LocalDate)`: Creación atómica transaccional (`connection.setAutoCommit(false)` $\to$ `commit()` / `rollback()`).
-- `calcularSaldoPendiente(int)`: Total a pagar menos abonos acumulados (`RN-010`).
-- `determinarEstadoCredito(int)`: Evalúa cuotas; si todas están `PAGADA`, actualiza a `PAGADO` (`RN-011`). Preserva `CANCELADO`.
-- `actualizarCuotasEnMora(LocalDate)`: Ejecuta actualización masiva optimizada (`RN-008`).
-
-### 3.3. `PagoService.java` (`com.credinoda.service`)
-- `registrarPago(int, int, BigDecimal, LocalDate)`:
-  - Valida `monto > 0`, existencia de crédito y cuota, pertenencia de la cuota al crédito y estado no `PAGADA`.
-  - Calcula el saldo insoluto de la cuota y previene sobrepagos: `monto > saldoCuota` $\implies$ `MontoInvalidoException`.
-  - En bloque transaccional: registra el pago, transiciona cuota (`PARCIAL` o `PAGADA`) y evalúa crédito mediante `creditoService.determinarEstadoCredito`.
-- `obtenerDatosComprobante(int)`: Obtiene `DatosComprobante` para comprobante y QR.
-- `calcularSaldoPendienteCuota(int)`: Saldo de la cuota individual.
+### Tareas Bloqueadas / Impedimentos
+- **Ninguno.** Las transacciones atómicas y cálculos de centavos operan con exactitud matemática.
 
 ---
 
-## 4. Resultados de Verificación y Pruebas Automatizadas
+## 3. Desglose Técnico Exhaustivo por Archivo y Función (Nivel Auditoría)
 
-```text
-[INFO] -------------------------------------------------------
-[INFO]  T E S T S
-[INFO] -------------------------------------------------------
-[INFO] Running com.credinoda.common.FormattersTest
-[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0
-[INFO] Running com.credinoda.common.ValidatorsTest
-[INFO] Tests run: 46, Failures: 0, Errors: 0, Skipped: 0
-[INFO] Running com.credinoda.domain.model.CuotaTest
-[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0
-[INFO] Running com.credinoda.persistence.DatabaseConnectionTest
-[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0
-[INFO] Running com.credinoda.persistence.repository.ClienteRepositoryTest
-[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0
-[INFO] Running com.credinoda.persistence.repository.CreditoRepositoryTest
-[INFO] Tests run: 6, Failures: 0, Errors: 0, Skipped: 0
-[INFO] Running com.credinoda.persistence.repository.PagoRepositoryTest
-[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0
-[INFO] Running com.credinoda.persistence.SchemaInitializerTest
-[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0
-[INFO] Running com.credinoda.service.ClienteServiceTest
-[INFO] Tests run: 18, Failures: 0, Errors: 0, Skipped: 0
-[INFO] Running com.credinoda.service.CreditoServiceTest
-[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0
-[INFO] Running com.credinoda.service.MoraCuotasTest
-[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0
-[INFO] Running com.credinoda.service.PagoServiceTest
-[INFO] Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
-[INFO] 
-[INFO] Results:
-[INFO] Tests run: 120, Failures: 0, Errors: 0, Skipped: 0
-[INFO] BUILD SUCCESS
-```
+### Archivo: `src/main/java/com/credinoda/service/ClienteService.java`
+- **Estado:** NUEVO
+- **Capa de Arquitectura:** `service`
+- **Clase(s) / Módulo:** `ClienteService`
+- **Detalle Granular de Métodos / Funciones:**
 
-- **Cobertura de Vectores de Prueba:**
-  - `VP-001`: Interés simple a 1 mes superado al centavo (`120000.00`).
-  - `VP-002`: Interés simple a 3 meses superado al centavo (`360000.00`).
-  - `VP-003`: Interés simple a 6 meses superado al centavo (`360000.00`).
-  - `VP-004`: Ajuste de centavos semanal 12 cuotas superado (`11333.33` x11, `11333.37` x1, total `136000.00`).
-  - `VP-005`: Ajuste de centavos semanal 12 cuotas superado (`113333.33` x11, `113333.37` x1, total `1360000.00`).
-  - `VP-006`: Proyección de vencimientos semanal (+7) y quincenal (+15) superada.
-  - `VP-007`: Secuencia de abonos y liquidación de cuota superada.
-  - `VP-008`: Prevención de sobrepago por 1 centavo (`360000.01`) superada con rechazo estricto.
+| Nombre de la Función / Método | Parámetros y Tipos | Tipo Retorno | Propósito y Lógica Implementada |
+| :--- | :--- | :--- | :--- |
+| `crearCliente` | `nombre: String, telefono: String, documento: String` | `Cliente` | Sanitiza campos con `.trim()`, verifica no vacuidad (`RN-001`), valida unicidad de documento (`RN-002`) y persiste vía repositorio. |
+| `actualizarCliente` | `id: int, nombre: String, tel: String, doc: String` | `Cliente` | Valida existencia, actualiza campos no nulos asegurando que el nuevo documento no colisione con otro prestatario. |
+| `obtenerClientePorId` | `id: int` | `Cliente` | Obtiene cliente por ID o lanza `ClienteNoEncontradoException`. |
+| `buscarPorDocumento` | `documento: String` | `Optional<Cliente>` | Búsqueda por documento único exacto. |
+| `buscarClientes` | `termino: String` | `List<Cliente>` | Si término es vacío retorna todos; si tiene texto busca por coincidencia en nombre o documento (`RN-003`). |
+| `listarTodos` | `(ninguno)` | `List<Cliente>` | Lista todos los clientes en orden alfabético. |
+| `obtenerCreditosCliente` | `clienteId: int` | `List<Credito>` | Valida existencia del cliente y retorna su historial de créditos (`CU-004`). |
+| `sanitizarObligatorio` | `valor: String, mensaje: String` | `String` | Valida que el texto no sea nulo ni vacío tras `strip()`; de lo contrario lanza `DatosInvalidosException`. |
+
+---
+
+### Archivo: `src/main/java/com/credinoda/service/CreditoService.java`
+- **Estado:** NUEVO
+- **Capa de Arquitectura:** `service`
+- **Clase(s) / Módulo:** `CreditoService`
+- **Detalle Granular de Métodos / Funciones:**
+
+| Nombre de la Función / Método | Parámetros y Tipos | Tipo Retorno | Propósito y Lógica Implementada |
+| :--- | :--- | :--- | :--- |
+| `calcularIntereses` | `capital: BigDecimal, tasa: BigDecimal, plazo: int` | `BigDecimal` | $I = \text{round\_half\_up}(C \times i \times t, 2)$ validando $C > 0$, $i \ge 0$, $t > 0$ (`RN-004`). |
+| `calcularTotalPagar` | `capital: BigDecimal, intereses: BigDecimal` | `BigDecimal` | $C + I$ con escala 2 decimales. |
+| `calcularNumeroCuotas` | `plazoMeses: int, frecuencia: FrecuenciaPago` | `int` | Semanal $\times 4$, Quincenal $\times 2$ (`RN-005`). |
+| `generarPlanPagos` | `total: BigDecimal, n: int, freq: FrecuenciaPago, fIni: LocalDate` | `List<Cuota>` | Cuota base $total / n$ y ajuste de residuo en la cuota $n$ (`RN-006`). Vencimientos cada 7 o 15 días (`RN-007`). |
+| `crearCredito` | `cliId: int, cap: BigDecimal, tasa: BigDecimal, plazo: int, freq: FrecuenciaPago, fIni: LocalDate` | `Credito` | Transacción atómica JDBC (`connection.setAutoCommit(false)`): persiste crédito y sus $n$ cuotas (`CU-006`). |
+| `obtenerCreditoPorId` | `id: int` | `Credito` | Consulta crédito por ID o lanza `CreditoNoEncontradoException`. |
+| `obtenerCuotasCredito`| `creditoId: int` | `List<Cuota>` | Retorna cronograma de cuotas ordenado. |
+| `calcularSaldoPendiente` | `creditoId: int` | `BigDecimal` | Total a pagar menos pagos acumulados en el crédito (`RN-010`). |
+| `determinarEstadoCredito` | `creditoId: int` | `EstadoCredito` | Evalúa cuotas: si todas están `PAGADA` transiciona a `PAGADO` (`RN-011`). Preserva `CANCELADO`. |
+| `actualizarCuotasEnMora` | `fechaReferencia: LocalDate` | `int` | Ejecuta actualización masiva optimizada delegando en `CreditoRepository` (`RN-008`). |
+| `obtenerProximasCuotas`| `limite: int` | `List<ProximoPagoItem>` | Consulta cuotas pendientes de créditos activos para Dashboard (`CU-012`, `RN-013`). |
+
+---
+
+### Archivo: `src/main/java/com/credinoda/service/PagoService.java`
+- **Estado:** NUEVO
+- **Capa de Arquitectura:** `service`
+- **Clase(s) / Módulo:** `PagoService`
+- **Detalle Granular de Métodos / Funciones:**
+
+| Nombre de la Función / Método | Parámetros y Tipos | Tipo Retorno | Propósito y Lógica Implementada |
+| :--- | :--- | :--- | :--- |
+| `registrarPago` | `creditoId: int, cuotaId: int, monto: BigDecimal, fPago: LocalDate` | `Pago` | Valida monto $>0$, crédito, cuota, pertenencia, no pagada, bloquea sobrepago (`RN-009`). Transacción atómica: inserta pago, actualiza estado de cuota y evalúa liquidación de crédito (`RN-011`). |
+| `listarPagosConDetalle` | `filtro: String, fIni: LocalDate, fFin: LocalDate` | `List<PagoDetalleItem>` | Historial consolidado con filtros de texto y fechas (`CU-010`, `RN-016`). |
+| `obtenerDatosComprobante` | `pagoId: int` | `DatosComprobante` | Obtiene registro consolidado para recibos PDF y QR (`CU-011`, `RN-012`). |
+| `calcularSaldoPendienteCuota` | `cuotaId: int` | `BigDecimal` | Calcula saldo insoluto de una cuota individual (`RN-010`). |
+
+---
+
+## 4. Impacto en Esquema de Persistencia y Base de Datos
+
+- **¿Hubo alteraciones al modelo de datos en esta sesión?:** NO (La estructura DDL de las 4 tablas e índices se mantiene intacta desde la Fase 2).
+- **Archivos de Persistencia Afectados:** Ninguno (Cero mutaciones DDL).
 
 ---
 
 ## 5. Checklist Obligatorio de Calidad Pre-Cierre
 
-- [x] **Aislamiento de Capas:** Cero importaciones de JavaFX en `service`.
-- [x] **Transacciones ACID:** Operaciones de crédito y pago protegidas con rollback explícito.
-- [x] **Precisión Decimal:** Todos los cálculos monetarios con `BigDecimal` y `RoundingMode.HALF_UP`.
-- [x] **Integridad de Pruebas:** 100% de tests en verde sin atenuaciones ni aserciones relajadas.
+- [x] **Aislamiento Estricto de Capas:** Cero importaciones de paquetes gráficos `javafx.*` en `com.credinoda.service`.
+- [x] **Transacciones ACID:** Creación de créditos y aplicación de pagos encapsuladas bajo control transaccional explícito (`setAutoCommit(false)` con `commit`/`rollback`).
+- [x] **Precisión Decimal:** Todos los cálculos con `BigDecimal` y `RoundingMode.HALF_UP`, cumpliendo al centavo los vectores `VP-001` a `VP-008`.
+- [x] **Integridad de Pruebas:** 100% de tests en verde (120 pruebas automatizadas) sin rebajar ni modificar aserciones de prueba.
 - [x] **Gobernanza Git:** Trabajo contenido en la sub-rama `feature/fase-3-servicios-core`.
 
 ---
 
-## 6. Próximo Objetivo Prioritario (Fase 4)
+## 6. Deuda Técnica y Puntos Críticos para la Siguiente Sesión
 
-- **Rama a crear:** `feature/fase-4-servicios-reportes-pdf-backup`
-- **Alcance:**
-  - `ReporteService`: 10 KPIs financieros (`RN-014`), ganancia líquida proporcional (`VP-010`), morosidad (`VP-011`), distribución de cartera y series temporales semanales.
-  - `PdfService`: Maquetación de recibos PDF tamaño carta con OpenPDF y matriz QR ZXing (`RN-012`, `VP-009`).
-  - `BackupService`: Respaldo en caliente SQLite (`RN-017`) y restauración con triple validación y copia preventiva (`RN-018`).
+- **Riesgos o Limitaciones Detectadas:** Ninguno.
+- **Refactorizaciones Pendientes:** Ninguna.
+- **Próximo Objetivo Prioritario:** Fase 4 — Servicios Especializados (`ReporteService`, `PdfService`, `BackupService`).
