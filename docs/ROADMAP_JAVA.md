@@ -209,13 +209,13 @@ flowchart TD
   - `CreditoRepositoryTest`: Inserción de crédito y cuotas, actualización de estados, `actualizarMoraCuotas` y `obtenerCuotasPendientes(10)`.
   - `PagoRepositoryTest`: Registro de pagos, sumatorias y `obtenerDetallePago(pagoId)`.
 - **Tareas de la fase:**
-  - [ ] Implementar `DatabaseConnection` asegurando la ejecución obligatoria de `PRAGMA foreign_keys = ON`.
-  - [ ] Implementar `SchemaInitializer` para aprovisionar las 4 tablas (`clientes`, `creditos`, `cuotas`, `pagos`) con `cuotas.en_mora INTEGER NOT NULL DEFAULT 0` nativo.
-  - [ ] Implementar `ClienteRepository` con consultas preparadas (`crear`, `obtenerPorId`, `obtenerPorDocumento`, `buscarGeneral`, `actualizar`, `listarTodos`).
-  - [ ] Implementar `CreditoRepository` (`crear`, `crearCuota`, `obtenerPorId`, `obtenerPorCliente`, `obtenerCuotasPorCredito`, `actualizarEstado`, `actualizarMoraCuotas`, `obtenerCuotasPendientes`).
-  - [ ] Implementar `PagoRepository` (`crear`, `obtenerPorCuota`, `obtenerTotalPagadoCuota`, `obtenerTotalPagadoCredito`, `listarTodosConDetalle`, `obtenerDetallePago`).
-  - [ ] Desarrollar pruebas unitarias de persistencia en SQLite `:memory:` y archivos temporales aislados.
-- **Criterio de finalización:** Esquema limpio creado y validado al 100% en pruebas automatizadas sobre bases de datos en memoria y temporales de Java. Cero dependencia de datos de Python.
+  - [x] Implementar `DatabaseConnection` asegurando la ejecución obligatoria de `PRAGMA foreign_keys = ON`.
+  - [x] Implementar `SchemaInitializer` para aprovisionar las 4 tablas (`clientes`, `creditos`, `cuotas`, `pagos`) con `cuotas.en_mora INTEGER NOT NULL DEFAULT 0` nativo.
+  - [x] Implementar `ClienteRepository` con consultas preparadas (`crear`, `obtenerPorId`, `obtenerPorDocumento`, `buscarGeneral`, `actualizar`, `listarTodos`).
+  - [x] Implementar `CreditoRepository` (`crear`, `crearCuota`, `obtenerPorId`, `obtenerPorCliente`, `obtenerCuotasPorCredito`, `actualizarEstado`, `actualizarMoraCuotas`, `obtenerCuotasPendientes`).
+  - [x] Implementar `PagoRepository` (`crear`, `obtenerPorCuota`, `obtenerTotalPagadoCuota`, `obtenerTotalPagadoCredito`, `listarTodosConDetalle`, `obtenerDetallePago`).
+  - [x] Desarrollar pruebas unitarias de persistencia en SQLite `:memory:` y archivos temporales aislados.
+- **Criterio de finalización:** Esquema limpio creado y validado al 100% en pruebas automatizadas sobre bases de datos en memoria y temporales de Java. Cero dependencia de datos de Python. (Completada: 75/75 tests en verde).
 
 ---
 
