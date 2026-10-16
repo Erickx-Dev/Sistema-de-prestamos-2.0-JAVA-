@@ -286,11 +286,11 @@ flowchart TD
   - `PdfServiceTest`: Creación de PDF en memoria/disco con cabecera `%PDF-`, sanitización de caracteres en nombre de archivo e incrustación de matriz QR.
   - `BackupServiceTest`: Respaldo rápido, respaldo en ruta personalizada, rechazo de archivos corruptos o sin tablas de CrediNoda, y ciclo completo de restauración con creación de `pre_restauracion_*.db`.
 - **Tareas de la fase:**
-  - [ ] Implementar `ReporteService` con resolución de rangos predefinidos, cálculo de KPIs financieros exactos, clasificación de cartera en 3 bolsas y proyección semanal.
-  - [ ] Implementar `PdfService` con OpenPDF y generador de matriz QR con ZXing en memoria.
-  - [ ] Implementar `BackupService` utilizando `VACUUM INTO` o backup nativo de SQLite, validación triple y restauración atómica con respaldo preventivo.
-  - [ ] Desarrollar y ejecutar suites de pruebas de reportes, PDFs y respaldos en `@TempDir`.
-- **Criterio de finalización:** Aprobación del 100% de vectores `VP-009` a `VP-012`, generación exitosa de documentos PDF con QR válido y pruebas de backup/restauración ejecutadas limpiamente.
+  - [x] Implementar `ReporteService` con resolución de rangos predefinidos, cálculo de KPIs financieros exactos, clasificación de cartera en 3 bolsas y proyección semanal.
+  - [x] Implementar `PdfService` con OpenPDF y generador de matriz QR con ZXing en memoria.
+  - [x] Implementar `BackupService` utilizando `VACUUM INTO` o backup nativo de SQLite, validación triple y restauración atómica con respaldo preventivo.
+  - [x] Desarrollar y ejecutar suites de pruebas de reportes, PDFs y respaldos en `@TempDir`.
+- **Criterio de finalización:** Aprobación del 100% de vectores `VP-009` a `VP-012`, generación exitosa de documentos PDF con QR válido y pruebas de backup/restauración ejecutadas limpiamente. (Completada: 137/137 tests en verde).
 
 ---
 
