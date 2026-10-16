@@ -169,15 +169,16 @@ flowchart TD
   - `VP-014`: Formateo de moneda exacto (`$1.000.000`, `$113.333,33`, `$0`) en `FormattersTest`.
   - `CuotaTest`: Validación de transiciones de `etiquetaEstado()` ante combinaciones de `enMora` y `EstadoCuota`.
 - **Tareas de la fase:**
-  - [ ] Configurar `pom.xml` con dependencias Maven (Java 21, JavaFX 21, SQLite JDBC, OpenPDF, ZXing, JUnit 5, AssertJ).
-  - [ ] Implementar la jerarquía de excepciones de negocio en `com.credinoda.domain.exception` heredando de `RuntimeException`.
-  - [ ] Crear las entidades del modelo en `com.credinoda.domain.model` (`Cliente`, `Credito`, `Cuota`, `Pago`) y enums asociados.
-  - [ ] Crear los registros DTO inmutables en `com.credinoda.domain.dto`.
-  - [ ] Implementar `AppConfig` con parámetros globales inmutables.
-  - [ ] Implementar `Validators` con algoritmo `parsearMonto()` tolerante a miles/decimales.
-  - [ ] Implementar `Formatters` con formateo contable estricto para moneda, fecha y porcentajes.
-  - [ ] Desarrollar y ejecutar suites de pruebas unitarias (`FormattersTest`, `ValidatorsTest`, `CuotaTest`).
-- **Criterio de finalización:** Compilación limpia del proyecto (`mvn compile`) y 100% de tests unitarios pasando en verde (`mvn test`).
+  - [x] Configurar `pom.xml` con dependencias Maven (Java 21, JavaFX 21, SQLite JDBC, OpenPDF, ZXing, JUnit 5, AssertJ).
+  - [x] Implementar la jerarquía de excepciones de negocio en `com.credinoda.domain.exception` heredando de `RuntimeException`.
+  - [x] Crear las entidades del modelo en `com.credinoda.domain.model` (`Cliente`, `Credito`, `Cuota`, `Pago`) y enums asociados.
+  - [x] Crear los registros DTO inmutables en `com.credinoda.domain.dto`.
+  - [x] Implementar `AppConfig` con parámetros globales inmutables.
+  - [x] Implementar `Validators` con algoritmo `parsearMonto()` tolerante a miles/decimales.
+  - [x] Implementar `Formatters` con formateo contable estricto para moneda, fecha y porcentajes.
+  - [x] Desarrollar y ejecutar suites de pruebas unitarias (`FormattersTest`, `ValidatorsTest`, `CuotaTest`).
+- **Criterio de finalización:** Compilación limpia del proyecto (`mvn compile`) y 100% de tests unitarios pasando en verde (`mvn test`). (Completada: 51/51 tests en verde).
+
 
 ---
 
