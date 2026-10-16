@@ -1,0 +1,44 @@
+# ==========================================
+# CrediNoda 2.0 - Git Ignore Configuration
+# ==========================================
+
+# Target / Maven Build
+target/
+*.class
+
+# IDE y Editores
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.project
+.classpath
+bin/
+
+# Sistema Operativo
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# Archivos de Ejecución Local y Datos Temporales (Runtime)
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+backups/*.db
+comprobantes/*.pdf
+
+# Preservar carpetas operativas en Git
+!.gitkeep
+!data/.gitkeep
+!backups/.gitkeep
+!comprobantes/.gitkeep
+
+# Logs y Crash Dumps
+*.log
+hs_err_pid*
+replay_pid*
