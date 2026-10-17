@@ -6,6 +6,7 @@ import com.credinoda.service.PagoService;
 import com.credinoda.service.PdfService;
 import com.credinoda.ui.components.DetallePagoDialog;
 import com.credinoda.ui.components.SectionHeader;
+import com.credinoda.ui.components.TableColumnHelper;
 import com.credinoda.ui.components.ToastNotification;
 import com.credinoda.ui.navigation.NavAction;
 import com.credinoda.ui.navigation.ViewRouter;
@@ -103,31 +104,53 @@ public class PagosView extends VBox implements ViewRouter.RoutableView {
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         table.setPlaceholder(new Label("No se encontraron pagos registrados."));
 
-        TableColumn<PagoDetalleItem, String> colRecibo = new TableColumn<>("Recibo");
-        colRecibo.setMaxWidth(130);
-        colRecibo.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().codigoRecibo()));
+        TableColumn<PagoDetalleItem, String> colRecibo = TableColumnHelper.textoColumn(
+                "Recibo",
+                PagoDetalleItem::codigoRecibo,
+                Pos.CENTER,
+                130
+        );
+        colRecibo.setMaxWidth(140);
 
-        TableColumn<PagoDetalleItem, String> colFecha = new TableColumn<>("Fecha");
-        colFecha.setCellValueFactory(d -> new SimpleStringProperty(
-                Formatters.formatoFecha(d.getValue().fechaPago())));
+        TableColumn<PagoDetalleItem, String> colFecha = TableColumnHelper.fechaColumn(
+                "Fecha",
+                PagoDetalleItem::fechaPago,
+                120
+        );
 
-        TableColumn<PagoDetalleItem, String> colCliente = new TableColumn<>("Cliente");
-        colCliente.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().clienteNombre()));
+        TableColumn<PagoDetalleItem, String> colCliente = TableColumnHelper.textoColumn(
+                "Cliente",
+                PagoDetalleItem::clienteNombre,
+                Pos.CENTER_LEFT,
+                200
+        );
 
-        TableColumn<PagoDetalleItem, String> colCredito = new TableColumn<>("Crédito");
-        colCredito.setMaxWidth(110);
-        colCredito.setCellValueFactory(d -> new SimpleStringProperty("#" + d.getValue().creditoId()));
+        TableColumn<PagoDetalleItem, String> colCredito = TableColumnHelper.textoColumn(
+                "Crédito",
+                d -> "#" + d.creditoId(),
+                Pos.CENTER,
+                90
+        );
+        colCredito.setMaxWidth(100);
 
-        TableColumn<PagoDetalleItem, String> colCuota = new TableColumn<>("Cuota");
-        colCuota.setMaxWidth(110);
-        colCuota.setCellValueFactory(d -> new SimpleStringProperty(String.valueOf(d.getValue().numeroCuota())));
+        TableColumn<PagoDetalleItem, String> colCuota = TableColumnHelper.textoColumn(
+                "Cuota",
+                d -> String.valueOf(d.numeroCuota()),
+                Pos.CENTER,
+                80
+        );
+        colCuota.setMaxWidth(90);
 
-        TableColumn<PagoDetalleItem, String> colMonto = new TableColumn<>("Monto Abonado");
-        colMonto.setCellValueFactory(d -> new SimpleStringProperty(
-                Formatters.formatoMoneda(d.getValue().montoAbonado())));
+        TableColumn<PagoDetalleItem, String> colMonto = TableColumnHelper.monedaColumn(
+                "Monto Abonado",
+                PagoDetalleItem::montoAbonado,
+                140
+        );
 
         TableColumn<PagoDetalleItem, Void> colAccion = new TableColumn<>("Comprobante");
+        colAccion.setPrefWidth(140);
         colAccion.setMaxWidth(150);
+        TableColumnHelper.setHeaderAlignment(colAccion, Pos.CENTER);
         colAccion.setCellFactory(col -> new TableCell<>() {
             private final Button btnDetalle = new Button("📄 Recibo PDF");
 
@@ -144,7 +167,12 @@ public class PagosView extends VBox implements ViewRouter.RoutableView {
             @Override
             protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
-                setGraphic(empty ? null : btnDetalle);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    setAlignment(Pos.CENTER);
+                    setGraphic(btnDetalle);
+                }
             }
         });
 

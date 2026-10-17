@@ -9,6 +9,7 @@ import com.credinoda.service.CreditoService;
 import com.credinoda.ui.components.ClienteDialog;
 import com.credinoda.ui.components.MetricCard;
 import com.credinoda.ui.components.SectionHeader;
+import com.credinoda.ui.components.TableColumnHelper;
 import com.credinoda.ui.components.ToastNotification;
 import com.credinoda.ui.navigation.NavAction;
 import com.credinoda.ui.navigation.ViewRouter;
@@ -126,51 +127,25 @@ public class ClienteDetailView extends VBox implements ViewRouter.RoutableView {
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         table.setPlaceholder(new Label("Este cliente aún no registra créditos otorgados."));
 
-        TableColumn<Credito, String> colId = new TableColumn<>("Crédito");
+        TableColumn<Credito, String> colId = TableColumnHelper.textoColumn("Crédito", c -> "#" + c.getId(), Pos.CENTER, 90);
         colId.setMaxWidth(100);
-        colId.setCellValueFactory(d -> new SimpleStringProperty("#" + d.getValue().getId()));
 
-        TableColumn<Credito, String> colFecha = new TableColumn<>("Fecha Inicio");
-        colFecha.setCellValueFactory(d -> new SimpleStringProperty(Formatters.formatoFecha(d.getValue().getFechaInicio())));
+        TableColumn<Credito, String> colFecha = TableColumnHelper.fechaColumn("Fecha Inicio", Credito::getFechaInicio, 120);
 
-        TableColumn<Credito, String> colCapital = new TableColumn<>("Capital");
-        colCapital.setCellValueFactory(d -> new SimpleStringProperty(Formatters.formatoMoneda(d.getValue().getCapital())));
+        TableColumn<Credito, String> colCapital = TableColumnHelper.monedaColumn("Capital", Credito::getCapital, 130);
 
-        TableColumn<Credito, String> colTotal = new TableColumn<>("Total a Pagar");
-        colTotal.setCellValueFactory(d -> new SimpleStringProperty(Formatters.formatoMoneda(d.getValue().getTotalPagar())));
+        TableColumn<Credito, String> colTotal = TableColumnHelper.monedaColumn("Total a Pagar", Credito::getTotalPagar, 140);
 
-        TableColumn<Credito, String> colSaldo = new TableColumn<>("Saldo Pendiente");
-        colSaldo.setCellValueFactory(d -> {
-            BigDecimal saldo = creditoService.calcularSaldoPendiente(d.getValue().getId());
-            return new SimpleStringProperty(Formatters.formatoMoneda(saldo));
-        });
+        TableColumn<Credito, String> colSaldo = TableColumnHelper.monedaColumn("Saldo Pendiente",
+                c -> creditoService.calcularSaldoPendiente(c.getId()), 140);
 
-        TableColumn<Credito, String> colFrecuencia = new TableColumn<>("Frecuencia");
-        colFrecuencia.setCellValueFactory(d -> new SimpleStringProperty(
-                d.getValue().getFrecuenciaPago().name() + " (" + d.getValue().getPlazoMeses() + " m)"));
+        TableColumn<Credito, String> colFrecuencia = TableColumnHelper.textoColumn("Frecuencia",
+                c -> c.getFrecuenciaPago().name() + " (" + c.getPlazoMeses() + " m)", Pos.CENTER, 150);
 
-        TableColumn<Credito, String> colEstado = new TableColumn<>("Estado");
-        colEstado.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().getEstado().name()));
-        colEstado.setCellFactory(col -> new TableCell<>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setGraphic(null);
-                    setText(null);
-                } else {
-                    Label badge = new Label(item);
-                    if ("PAGADO".equalsIgnoreCase(item)) {
-                        badge.getStyleClass().add("badge-success");
-                    } else if ("ACTIVO".equalsIgnoreCase(item)) {
-                        badge.getStyleClass().add("badge-info");
-                    } else {
-                        badge.getStyleClass().add("badge-danger");
-                    }
-                    setGraphic(badge);
-                }
-            }
-        });
+        TableColumn<Credito, String> colEstado = TableColumnHelper.badgeColumn("Estado",
+                c -> c.getEstado().name(),
+                item -> "PAGADO".equalsIgnoreCase(item) ? "badge-success" : ("ACTIVO".equalsIgnoreCase(item) ? "badge-info" : "badge-danger"),
+                110);
 
         table.getColumns().setAll(List.of(colId, colFecha, colCapital, colTotal, colSaldo, colFrecuencia, colEstado));
 
