@@ -146,6 +146,9 @@ public final class TableColumnHelper {
                         }
                     }
                     setAlignment(Pos.CENTER);
+                    if (!getStyleClass().contains("cell-center")) {
+                        getStyleClass().add("cell-center");
+                    }
                     setGraphic(badge);
                 }
             }

@@ -422,6 +422,11 @@
     -fx-padding: 0 8px 0 8px;
 }
 
+.table-view .column-header.col-right,
+.table-view .col-right.column-header {
+    -fx-alignment: CENTER_RIGHT;
+}
+
 .table-view .column-header.col-right .label,
 .table-view .col-right.column-header .label {
     -fx-alignment: CENTER_RIGHT;
@@ -429,11 +434,21 @@
     -fx-padding: 0 14px 0 10px;
 }
 
+.table-view .column-header.col-center,
+.table-view .col-center.column-header {
+    -fx-alignment: CENTER;
+}
+
 .table-view .column-header.col-center .label,
 .table-view .col-center.column-header .label {
     -fx-alignment: CENTER;
     -fx-text-alignment: center;
     -fx-padding: 0 8px 0 8px;
+}
+
+.table-view .column-header.col-left,
+.table-view .col-left.column-header {
+    -fx-alignment: CENTER_LEFT;
 }
 
 .table-view .column-header.col-left .label,

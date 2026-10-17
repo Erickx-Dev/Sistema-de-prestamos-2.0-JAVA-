@@ -140,6 +140,9 @@ public class ClientesView extends VBox implements ViewRouter.RoutableView {
                     setGraphic(null);
                 } else {
                     setAlignment(Pos.CENTER);
+                    if (!getStyleClass().contains("cell-center")) {
+                        getStyleClass().add("cell-center");
+                    }
                     setGraphic(box);
                 }
             }
