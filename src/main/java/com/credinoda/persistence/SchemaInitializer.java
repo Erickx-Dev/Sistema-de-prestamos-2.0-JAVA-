@@ -16,8 +16,8 @@ public final class SchemaInitializer {
             CREATE TABLE IF NOT EXISTS clientes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 nombre TEXT NOT NULL,
-                telefono TEXT NOT NULL,
-                documento TEXT NOT NULL UNIQUE,
+                telefono NUMERIC NOT NULL,
+                documento NUMERIC NOT NULL UNIQUE,
                 fecha_registro TEXT NOT NULL
             );
             """;
@@ -26,11 +26,11 @@ public final class SchemaInitializer {
             CREATE TABLE IF NOT EXISTS creditos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 cliente_id INTEGER NOT NULL,
-                capital TEXT NOT NULL,
-                tasa_mensual TEXT NOT NULL,
+                capital NUMERIC NOT NULL,
+                tasa_mensual NUMERIC NOT NULL,
                 plazo_meses INTEGER NOT NULL,
-                total_intereses TEXT NOT NULL,
-                total_pagar TEXT NOT NULL,
+                total_intereses NUMERIC NOT NULL,
+                total_pagar NUMERIC NOT NULL,
                 frecuencia_pago TEXT NOT NULL,
                 fecha_inicio TEXT NOT NULL,
                 estado TEXT NOT NULL DEFAULT 'ACTIVO',
@@ -44,7 +44,7 @@ public final class SchemaInitializer {
                 credito_id INTEGER NOT NULL,
                 numero_cuota INTEGER NOT NULL,
                 fecha_vencimiento TEXT NOT NULL,
-                monto TEXT NOT NULL,
+                monto NUMERIC NOT NULL,
                 estado TEXT NOT NULL DEFAULT 'PENDIENTE',
                 en_mora INTEGER NOT NULL DEFAULT 0,
                 FOREIGN KEY (credito_id) REFERENCES creditos(id)
@@ -57,7 +57,7 @@ public final class SchemaInitializer {
                 credito_id INTEGER NOT NULL,
                 cuota_id INTEGER NOT NULL,
                 fecha_pago TEXT NOT NULL,
-                monto TEXT NOT NULL,
+                monto NUMERIC NOT NULL,
                 FOREIGN KEY (credito_id) REFERENCES creditos(id),
                 FOREIGN KEY (cuota_id) REFERENCES cuotas(id)
             );
