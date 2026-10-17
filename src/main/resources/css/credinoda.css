@@ -683,3 +683,138 @@
     -fx-border-color: #21865A;
     -fx-text-fill: #FFFFFF;
 }
+
+/* ==========================================================================
+ * 12. GRÁFICOS ANALÍTICOS NATIVOS JAVAFX (.chart-credinoda, Donut, Tooltips)
+ * ========================================================================== */
+
+.card-title {
+    -fx-text-fill: #26352D;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+}
+
+.card-header-row {
+    -fx-alignment: CENTER_LEFT;
+    -fx-spacing: 8px;
+    -fx-padding: 0 0 6px 0;
+}
+
+.chart-credinoda {
+    -fx-padding: 8px;
+}
+
+.chart-credinoda .chart-plot-background {
+    -fx-background-color: transparent;
+}
+
+.chart-credinoda .chart-vertical-grid-lines {
+    -fx-stroke: transparent;
+}
+
+.chart-credinoda .chart-horizontal-grid-lines {
+    -fx-stroke: #E2E8F0;
+    -fx-stroke-dash-array: 3 3;
+}
+
+.chart-credinoda .axis {
+    -fx-tick-label-fill: #647067;
+    -fx-tick-label-font-size: 11px;
+}
+
+.chart-credinoda .axis:bottom {
+    -fx-border-color: #DCE5DE transparent transparent transparent;
+    -fx-border-width: 1px 0 0 0;
+}
+
+.chart-credinoda .axis:left {
+    -fx-border-color: transparent #DCE5DE transparent transparent;
+    -fx-border-width: 0 1px 0 0;
+}
+
+.chart-credinoda .chart-legend {
+    -fx-background-color: transparent;
+    -fx-padding: 8px 0 0 0;
+}
+
+.chart-credinoda .chart-legend-item {
+    -fx-text-fill: #26352D;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+
+/* Serie 0: Proyectado (Gris Pizarra #64748B) */
+.chart-credinoda .default-color0.chart-bar {
+    -fx-bar-fill: #64748B;
+    -fx-background-color: #64748B;
+    -fx-background-radius: 4px 4px 0 0;
+}
+
+.chart-credinoda .default-color0.chart-bar:hover {
+    -fx-background-color: #475569;
+}
+
+.chart-credinoda .default-color0.chart-legend-item-symbol {
+    -fx-background-color: #64748B;
+    -fx-background-radius: 3px;
+}
+
+/* Serie 1: Recaudado (Verde Esmeralda Institucional #21865A) */
+.chart-credinoda .default-color1.chart-bar {
+    -fx-bar-fill: #21865A;
+    -fx-background-color: #21865A;
+    -fx-background-radius: 4px 4px 0 0;
+}
+
+.chart-credinoda .default-color1.chart-bar:hover {
+    -fx-background-color: #166534;
+}
+
+.chart-credinoda .default-color1.chart-legend-item-symbol {
+    -fx-background-color: #21865A;
+    -fx-background-radius: 3px;
+}
+
+/* Donut Chart Center Floating Node */
+.donut-center {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 999px;
+    -fx-border-color: #DCE5DE;
+    -fx-border-width: 1.5px;
+    -fx-border-radius: 999px;
+    -fx-min-width: 104px;
+    -fx-min-height: 104px;
+    -fx-max-width: 104px;
+    -fx-max-height: 104px;
+    -fx-alignment: CENTER;
+    -fx-effect: dropshadow(gaussian, rgba(38, 53, 45, 0.08), 8, 0, 0, 2);
+}
+
+.donut-center-value {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #26352D;
+}
+
+.donut-center-label {
+    -fx-font-size: 10px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #647067;
+}
+
+.donut-center-sublabel {
+    -fx-font-size: 9px;
+    -fx-text-fill: #21865A;
+    -fx-font-weight: bold;
+}
+
+/* Tooltip Institucional para Gráficos */
+.chart-tooltip {
+    -fx-background-color: #1E293B;
+    -fx-background-radius: 6px;
+    -fx-text-fill: #F8FAFC;
+    -fx-font-size: 12px;
+    -fx-padding: 8px 12px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.25), 8, 0, 0, 2);
+}
+

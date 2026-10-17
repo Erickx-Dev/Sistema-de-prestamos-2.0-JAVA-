@@ -13,6 +13,7 @@ import com.credinoda.ui.components.ToastNotification;
 import com.credinoda.ui.navigation.ViewRouter;
 import javafx.collections.FXCollections;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.chart.BarChart;
 import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.NumberAxis;
@@ -22,16 +23,20 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.util.StringConverter;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -73,11 +78,18 @@ public class ReportesView extends VBox implements ViewRouter.RoutableView {
     private final MetricCard cardTicketPromedio;
     private final MetricCard cardPlazoPromedio;
 
-    // Gráficos vectoriales nativos JavaFX
+    // Gráficos vectoriales nativos JavaFX y elementos analíticos enriquecidos (Fase 6.1)
     private final BarChart<String, Number> barChart;
     private final Label barEmptyLabel;
+    private final Label barBadgeCumplimiento;
+
     private final PieChart pieChart;
     private final Label pieEmptyLabel;
+    private final Label pieBadgeTotal;
+    private final VBox donutCenter;
+    private final Label donutCenterValue;
+    private final Label donutCenterLabel;
+    private final Label donutCenterSublabel;
 
     public ReportesView(ReporteService reporteService,
                         BiConsumer<String, ToastNotification.Type> notifier) {
@@ -134,20 +146,40 @@ public class ReportesView extends VBox implements ViewRouter.RoutableView {
         HBox chartsRow = new HBox(16);
         VBox.setVgrow(chartsRow, Priority.ALWAYS);
 
-        // Gráfico 1: BarChart Recaudo vs Proyección Semanal
+        // Gráfico 1: BarChart Recaudo vs Proyección Semanal con eje Y compacto y badge
         VBox barCard = new VBox(8);
         barCard.getStyleClass().add("card");
         HBox.setHgrow(barCard, Priority.ALWAYS);
 
+        HBox barHeader = new HBox(8);
+        barHeader.getStyleClass().add("card-header-row");
         Label barTitle = new Label("Recaudo vs. Proyección Semanal");
         barTitle.getStyleClass().add("card-title");
+        Region barSpacer = new Region();
+        HBox.setHgrow(barSpacer, Priority.ALWAYS);
+        this.barBadgeCumplimiento = new Label("Cumplimiento: 0%");
+        this.barBadgeCumplimiento.getStyleClass().addAll("badge", "badge-info");
+        barHeader.getChildren().addAll(barTitle, barSpacer, barBadgeCumplimiento);
 
         CategoryAxis xAxis = new CategoryAxis();
         NumberAxis yAxis = new NumberAxis();
+        yAxis.setTickLabelFormatter(new StringConverter<>() {
+            @Override
+            public String toString(Number object) {
+                return Formatters.formatoMonedaCompacta(object);
+            }
+
+            @Override
+            public Number fromString(String string) {
+                return 0;
+            }
+        });
+
         this.barChart = new BarChart<>(xAxis, yAxis);
         this.barChart.setAnimated(false);
         this.barChart.setLegendVisible(true);
-        this.barChart.setMinHeight(250);
+        this.barChart.setMinHeight(260);
+        this.barChart.getStyleClass().add("chart-credinoda");
 
         this.barEmptyLabel = new Label("Sin cuotas ni recaudos registrados en este período");
         this.barEmptyLabel.getStyleClass().add("section-subtitle");
@@ -155,29 +187,52 @@ public class ReportesView extends VBox implements ViewRouter.RoutableView {
 
         StackPane barStack = new StackPane(barChart, barEmptyLabel);
         VBox.setVgrow(barStack, Priority.ALWAYS);
-        barCard.getChildren().addAll(barTitle, barStack);
+        barCard.getChildren().addAll(barHeader, barStack);
 
-        // Gráfico 2: PieChart Distribución de Cartera
+        // Gráfico 2: PieChart transformado en Donut Chart con centro informativo
         VBox pieCard = new VBox(8);
         pieCard.getStyleClass().add("card");
-        pieCard.setPrefWidth(380);
-        pieCard.setMinWidth(320);
+        pieCard.setPrefWidth(390);
+        pieCard.setMinWidth(330);
 
+        HBox pieHeader = new HBox(8);
+        pieHeader.getStyleClass().add("card-header-row");
         Label pieTitle = new Label("Distribución de Cartera");
         pieTitle.getStyleClass().add("card-title");
+        Region pieSpacer = new Region();
+        HBox.setHgrow(pieSpacer, Priority.ALWAYS);
+        this.pieBadgeTotal = new Label("0 créditos");
+        this.pieBadgeTotal.getStyleClass().addAll("badge", "badge-info");
+        pieHeader.getChildren().addAll(pieTitle, pieSpacer, pieBadgeTotal);
 
         this.pieChart = new PieChart();
         this.pieChart.setAnimated(false);
         this.pieChart.setLabelsVisible(true);
-        this.pieChart.setMinHeight(250);
+        this.pieChart.setMinHeight(260);
+        this.pieChart.getStyleClass().add("chart-credinoda");
 
         this.pieEmptyLabel = new Label("Sin créditos en este período");
         this.pieEmptyLabel.getStyleClass().add("section-subtitle");
         this.pieEmptyLabel.setVisible(false);
 
-        StackPane pieStack = new StackPane(pieChart, pieEmptyLabel);
+        this.donutCenterValue = new Label("0");
+        this.donutCenterValue.getStyleClass().add("donut-center-value");
+
+        this.donutCenterLabel = new Label("Créditos");
+        this.donutCenterLabel.getStyleClass().add("donut-center-label");
+
+        this.donutCenterSublabel = new Label("100% Cartera");
+        this.donutCenterSublabel.getStyleClass().add("donut-center-sublabel");
+
+        this.donutCenter = new VBox(2, donutCenterValue, donutCenterLabel, donutCenterSublabel);
+        this.donutCenter.getStyleClass().add("donut-center");
+        this.donutCenter.setAlignment(Pos.CENTER);
+        this.donutCenter.setMouseTransparent(true);
+        this.donutCenter.setVisible(false);
+
+        StackPane pieStack = new StackPane(pieChart, donutCenter, pieEmptyLabel);
         VBox.setVgrow(pieStack, Priority.ALWAYS);
-        pieCard.getChildren().addAll(pieTitle, pieStack);
+        pieCard.getChildren().addAll(pieHeader, pieStack);
 
         chartsRow.getChildren().addAll(barCard, pieCard);
 
@@ -351,11 +406,16 @@ public class ReportesView extends VBox implements ViewRouter.RoutableView {
         if (!hasValues) {
             barChart.setVisible(false);
             barEmptyLabel.setVisible(true);
+            barBadgeCumplimiento.setText("Sin proyección");
+            barBadgeCumplimiento.getStyleClass().setAll("badge", "badge-info");
             return;
         }
 
         barChart.setVisible(true);
         barEmptyLabel.setVisible(false);
+
+        BigDecimal totalProyectado = BigDecimal.ZERO;
+        BigDecimal totalRecaudado = BigDecimal.ZERO;
 
         XYChart.Series<String, Number> serieProyectado = new XYChart.Series<>();
         serieProyectado.setName("Proyectado");
@@ -364,11 +424,71 @@ public class ReportesView extends VBox implements ViewRouter.RoutableView {
         serieRecaudado.setName("Recaudado");
 
         for (ProyeccionSemanalItem item : items) {
-            serieProyectado.getData().add(new XYChart.Data<>(item.etiqueta(), item.proyectado()));
-            serieRecaudado.getData().add(new XYChart.Data<>(item.etiqueta(), item.recaudado()));
+            String etiquetaEjeX = "Sem. " + item.semanaIndex() + "\n" + item.etiqueta();
+            totalProyectado = totalProyectado.add(item.proyectado());
+            totalRecaudado = totalRecaudado.add(item.recaudado());
+
+            XYChart.Data<String, Number> dataProy = new XYChart.Data<>(etiquetaEjeX, item.proyectado());
+            XYChart.Data<String, Number> dataRec = new XYChart.Data<>(etiquetaEjeX, item.recaudado());
+
+            serieProyectado.getData().add(dataProy);
+            serieRecaudado.getData().add(dataRec);
+
+            // Instalar tooltips interactivos enriquecidos
+            String tooltipProyText = String.format(
+                    "Semana %d: %s\nTipo: Proyección esperada\nMonto: %s\nTotal cuotas por vencer en el período",
+                    item.semanaIndex(), item.etiqueta(), Formatters.formatoMoneda(item.proyectado())
+            );
+            instalarTooltip(dataProy, tooltipProyText);
+
+            BigDecimal pctSemana = BigDecimal.ZERO;
+            if (item.proyectado().compareTo(BigDecimal.ZERO) > 0) {
+                pctSemana = item.recaudado().multiply(BigDecimal.valueOf(100))
+                        .divide(item.proyectado(), 1, RoundingMode.HALF_UP);
+            }
+            String tooltipRecText = String.format(
+                    "Semana %d: %s\nTipo: Recaudo cobrado\nMonto: %s\nCumplimiento: %s%% del proyectado (%s)",
+                    item.semanaIndex(), item.etiqueta(), Formatters.formatoMoneda(item.recaudado()),
+                    pctSemana.toPlainString().replace('.', ','), Formatters.formatoMoneda(item.proyectado())
+            );
+            instalarTooltip(dataRec, tooltipRecText);
         }
 
         barChart.getData().addAll(List.of(serieProyectado, serieRecaudado));
+
+        // Calcular y asignar badge de cumplimiento global
+        if (totalProyectado.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal pctGlobal = totalRecaudado.multiply(BigDecimal.valueOf(100))
+                    .divide(totalProyectado, 1, RoundingMode.HALF_UP);
+            String pctStr = pctGlobal.toPlainString().replace('.', ',') + "%";
+            barBadgeCumplimiento.setText("Cumplimiento: " + pctStr);
+            if (pctGlobal.compareTo(BigDecimal.valueOf(90)) >= 0) {
+                barBadgeCumplimiento.getStyleClass().setAll("badge", "badge-activo");
+            } else if (pctGlobal.compareTo(BigDecimal.valueOf(70)) >= 0) {
+                barBadgeCumplimiento.getStyleClass().setAll("badge", "badge-parcial");
+            } else {
+                barBadgeCumplimiento.getStyleClass().setAll("badge", "badge-mora");
+            }
+        } else if (totalRecaudado.compareTo(BigDecimal.ZERO) > 0) {
+            barBadgeCumplimiento.setText("Cumplimiento: 100% (Anticipado)");
+            barBadgeCumplimiento.getStyleClass().setAll("badge", "badge-activo");
+        } else {
+            barBadgeCumplimiento.setText("Sin proyección");
+            barBadgeCumplimiento.getStyleClass().setAll("badge", "badge-info");
+        }
+    }
+
+    private void instalarTooltip(XYChart.Data<String, Number> data, String text) {
+        Tooltip tooltip = new Tooltip(text);
+        tooltip.getStyleClass().add("chart-tooltip");
+        if (data.getNode() != null) {
+            Tooltip.install(data.getNode(), tooltip);
+        }
+        data.nodeProperty().addListener((obs, oldNode, newNode) -> {
+            if (newNode != null) {
+                Tooltip.install(newNode, tooltip);
+            }
+        });
     }
 
     private void updatePieChart(DistribucionCartera dist) {
@@ -376,17 +496,73 @@ public class ReportesView extends VBox implements ViewRouter.RoutableView {
         if (dist.total() <= 0) {
             pieChart.setVisible(false);
             pieEmptyLabel.setVisible(true);
+            donutCenter.setVisible(false);
+            pieBadgeTotal.setText("0 créditos");
+            pieBadgeTotal.getStyleClass().setAll("badge", "badge-info");
             return;
         }
 
         pieChart.setVisible(true);
         pieEmptyLabel.setVisible(false);
+        donutCenter.setVisible(true);
 
-        pieChart.setData(FXCollections.observableArrayList(
-                new PieChart.Data("Al Día (" + dist.alDia() + ")", dist.alDia()),
-                new PieChart.Data("En Mora (" + dist.enMora() + ")", dist.enMora()),
-                new PieChart.Data("Saldados (" + dist.saldados() + ")", dist.saldados())
-        ));
+        donutCenterValue.setText(String.valueOf(dist.total()));
+        donutCenterLabel.setText(dist.total() == 1 ? "Crédito" : "Créditos");
+        pieBadgeTotal.setText("Total: " + dist.total() + " créditos");
+        pieBadgeTotal.getStyleClass().setAll("badge", "badge-info");
+
+        List<PieChart.Data> slices = new ArrayList<>();
+
+        if (dist.alDia() > 0) {
+            int pct = (int) Math.round((dist.alDia() * 100.0) / dist.total());
+            PieChart.Data sliceAlDia = new PieChart.Data("Al Día: " + dist.alDia() + " (" + pct + "%)", dist.alDia());
+            slices.add(sliceAlDia);
+            String tt = String.format("Categoría: Cartera Al Día\nCantidad: %d créditos (%d%%)\nEstado: Créditos al corriente sin mora activa",
+                    dist.alDia(), pct);
+            configurarSectorDonut(sliceAlDia, "#166534", tt);
+        }
+
+        if (dist.enMora() > 0) {
+            int pct = (int) Math.round((dist.enMora() * 100.0) / dist.total());
+            PieChart.Data sliceMora = new PieChart.Data("En Mora: " + dist.enMora() + " (" + pct + "%)", dist.enMora());
+            slices.add(sliceMora);
+            String tt = String.format("Categoría: Cartera En Mora\nCantidad: %d créditos (%d%%)\nEstado: Requiere gestión de cobranza inmediata",
+                    dist.enMora(), pct);
+            configurarSectorDonut(sliceMora, "#B91C1C", tt);
+        }
+
+        if (dist.saldados() > 0) {
+            int pct = (int) Math.round((dist.saldados() * 100.0) / dist.total());
+            PieChart.Data sliceSaldados = new PieChart.Data("Saldados: " + dist.saldados() + " (" + pct + "%)", dist.saldados());
+            slices.add(sliceSaldados);
+            String tt = String.format("Categoría: Créditos Saldados\nCantidad: %d créditos (%d%%)\nEstado: Totalmente liquidados y cancelados",
+                    dist.saldados(), pct);
+            configurarSectorDonut(sliceSaldados, "#2563EB", tt);
+        }
+
+        pieChart.setData(FXCollections.observableArrayList(slices));
+    }
+
+    private void configurarSectorDonut(PieChart.Data slice, String colorHex, String tooltipText) {
+        Tooltip tooltip = new Tooltip(tooltipText);
+        tooltip.getStyleClass().add("chart-tooltip");
+
+        Runnable apply = () -> {
+            Node node = slice.getNode();
+            if (node != null) {
+                node.setStyle("-fx-pie-color: " + colorHex + ";");
+                Tooltip.install(node, tooltip);
+            }
+        };
+
+        if (slice.getNode() != null) {
+            apply.run();
+        }
+        slice.nodeProperty().addListener((obs, oldN, newN) -> {
+            if (newN != null) {
+                apply.run();
+            }
+        });
     }
 
     private void notifyError(String msg) {
@@ -407,7 +583,35 @@ public class ReportesView extends VBox implements ViewRouter.RoutableView {
         return barChart;
     }
 
+    public Label getBarBadgeCumplimiento() {
+        return barBadgeCumplimiento;
+    }
+
+    public Label getBarEmptyLabel() {
+        return barEmptyLabel;
+    }
+
     public PieChart getPieChart() {
         return pieChart;
+    }
+
+    public Label getPieBadgeTotal() {
+        return pieBadgeTotal;
+    }
+
+    public Label getPieEmptyLabel() {
+        return pieEmptyLabel;
+    }
+
+    public VBox getDonutCenter() {
+        return donutCenter;
+    }
+
+    public Label getDonutCenterValue() {
+        return donutCenterValue;
+    }
+
+    public Label getDonutCenterLabel() {
+        return donutCenterLabel;
     }
 }

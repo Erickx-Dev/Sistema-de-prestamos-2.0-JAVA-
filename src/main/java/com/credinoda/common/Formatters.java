@@ -75,4 +75,35 @@ public final class Formatters {
         // Si tiene decimales, redondear a 1 o 2 decimales
         return pct.setScale(1, RoundingMode.HALF_UP).toPlainString().replace('.', ',') + "%";
     }
+
+    /**
+     * Formatea un valor monetario de manera compacta para ejes y etiquetas reducidas:
+     * - null o 0 -> "$0"
+     * - >= 1.000.000 -> "$1M", "$1,5M"
+     * - >= 1.000 -> "$500k", "$10k"
+     * - < 1.000 -> "$500"
+     */
+    public static String formatoMonedaCompacta(Number valor) {
+        if (valor == null) {
+            return "$0";
+        }
+        double val = valor.doubleValue();
+        double abs = Math.abs(val);
+        if (abs < 0.0001) {
+            return "$0";
+        }
+        String sign = val < 0 ? "-" : "";
+        if (abs >= 1_000_000) {
+            double m = abs / 1_000_000.0;
+            BigDecimal bd = BigDecimal.valueOf(m).setScale(1, RoundingMode.HALF_UP).stripTrailingZeros();
+            return sign + "$" + bd.toPlainString().replace('.', ',') + "M";
+        }
+        if (abs >= 1_000) {
+            double k = abs / 1_000.0;
+            BigDecimal bd = BigDecimal.valueOf(k).setScale(1, RoundingMode.HALF_UP).stripTrailingZeros();
+            return sign + "$" + bd.toPlainString().replace('.', ',') + "k";
+        }
+        return sign + "$" + Math.round(abs);
+    }
 }
+

@@ -47,4 +47,21 @@ class FormattersTest {
         assertThat(Formatters.formatoPorcentaje(new BigDecimal("0.10"))).isEqualTo("10%");
         assertThat(Formatters.formatoPorcentaje(null)).isEqualTo("0%");
     }
+
+    @Test
+    @DisplayName("Formateo de moneda compacta para gráficos y ejes")
+    void testFormatoMonedaCompacta() {
+        assertThat(Formatters.formatoMonedaCompacta(null)).isEqualTo("$0");
+        assertThat(Formatters.formatoMonedaCompacta(0)).isEqualTo("$0");
+        assertThat(Formatters.formatoMonedaCompacta(0.0)).isEqualTo("$0");
+        assertThat(Formatters.formatoMonedaCompacta(500)).isEqualTo("$500");
+        assertThat(Formatters.formatoMonedaCompacta(1000)).isEqualTo("$1k");
+        assertThat(Formatters.formatoMonedaCompacta(10000)).isEqualTo("$10k");
+        assertThat(Formatters.formatoMonedaCompacta(500000)).isEqualTo("$500k");
+        assertThat(Formatters.formatoMonedaCompacta(1000000)).isEqualTo("$1M");
+        assertThat(Formatters.formatoMonedaCompacta(1500000)).isEqualTo("$1,5M");
+        assertThat(Formatters.formatoMonedaCompacta(2000000)).isEqualTo("$2M");
+        assertThat(Formatters.formatoMonedaCompacta(-500000)).isEqualTo("-$500k");
+    }
 }
+
