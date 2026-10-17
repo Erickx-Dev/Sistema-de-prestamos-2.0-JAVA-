@@ -317,15 +317,15 @@ flowchart TD
   - Restricción I.2: Cero paneles laterales secundarios o encabezados fijos globales fuera del área de contenido dinámica.
 - **Vectores de prueba y Tests JUnit 5:**
   - `ViewRouterTest`: Registro, navegación, alternancia fluida de nodos en `ContentArea`, invalidación de caché ante mutación de datos.
-  - Verificación de ventana principal: Inicial `1200x700`, mínima `1000x600`, BorderPane con Left=NavigationBar y Center=ContentArea.
+  - Verificación de ventana principal: Inicial `1200x700`, mínima `1000x600`, BorderPane con Top=NavigationBar (Navbar horizontal) y Center=ContentArea.
 - **Tareas de la fase:**
-  - [ ] Crear la hoja de estilos `credinoda.css` con variables y clases semánticas para botones, tarjetas, tablas y badges.
-  - [ ] Implementar `NavigationBar` (VBox de 220px) con marca, 5 botones de navegación y botón de acción de respaldo anclado al fondo.
-  - [ ] Implementar `ViewRouter` con mapa de vistas en memoria y control de invalidación por `dataVersion`.
-  - [ ] Implementar componentes visuales: `SectionHeader`, `MetricCard`, `ToastNotification` y `ConfirmDialog`.
-  - [ ] Implementar `CrediNodaApplication` orquestando la inicialización de SQLite, servicios y la carga del `MainShell`.
-  - [ ] Crear tests unitarios del enrutador y componentes.
-- **Criterio de finalización:** La ventana principal abre en `1200x700` con `NavigationBar` y `ContentArea` como únicas regiones permanentes, permitiendo alternar vistas limpiamente sin parpadeos ni ventanas adicionales.
+  - [x] Crear la hoja de estilos `credinoda.css` con variables y clases semánticas para botones, tarjetas, tablas y badges.
+  - [x] Implementar `NavigationBar` (Navbar superior horizontal `HBox` de 56px) con marca, 5 botones de navegación y botón de acción de respaldo a la derecha.
+  - [x] Implementar `ViewRouter` con mapa de vistas en memoria y control de invalidación por `dataVersion`.
+  - [x] Implementar componentes visuales: `SectionHeader`, `MetricCard`, `ToastNotification` y `ConfirmDialog`.
+  - [x] Implementar `CrediNodaApplication` orquestando la inicialización de SQLite, servicios y la carga del `MainShell`.
+  - [x] Crear tests unitarios del enrutador y componentes.
+- **Criterio de finalización:** La ventana principal abre en `1200x700` con `NavigationBar` (Navbar superior horizontal) y `ContentArea` como únicas regiones permanentes, permitiendo alternar vistas limpiamente sin parpadeos ni ventanas adicionales. (Completada: 148/148 tests en verde).
 
 ---
 
