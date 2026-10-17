@@ -370,6 +370,38 @@ flowchart TD
 
 ---
 
+### Fase 6.1: Modernización y Enriquecimiento Analítico de Gráficos Nativos en ReportesView (Prioridad Próxima Sesión)
+- **Objetivo:** Rediseñar visual y funcionalmente los gráficos analíticos de `ReportesView.java` para que dejen de usar estilos y colores genéricos de JavaFX Modena, dotándolos de un diseño institucional SaaS, interactividad con Tooltips detallados, semántica financiera estricta y formato monetario compacto en ejes.
+- **Archivos a modificar / crear:**
+  - `src/main/resources/css/credinoda.css` (Estilos específicos para `.chart`, series de barras, sectores de pastel/dona y leyendas institucionales).
+  - `src/main/java/com/credinoda/ui/views/ReportesView.java` (Formateador compacto de eje Y `$500k / $1M`, Donut Chart con centro informativo, Tooltips con desglose contable y badges de cumplimiento).
+  - `src/test/java/com/credinoda/ui/views/ReportesViewTest.java` (Pruebas unitarias de controladores, actualización de series y asignación de Tooltips).
+- **Alcance y Mejoras Funcionales:**
+  - **Gráfico de Barras (Recaudo vs. Proyección Semanal):**
+    - Eje Y con escala monetaria compacta abreviada (`$0`, `$500k`, `$1M`, `$1.5M`).
+    - Eje X con nombres descriptivos de bloques semanales (`Semana 1: dd/mm - dd/mm`).
+    - Tooltips enriquecidos al pasar el cursor sobre cada barra (Período, Tipo, Monto exacto formateado y porcentaje de avance).
+    - Paleta institucional: Verde esmeralda (`#21865A`) para lo recaudado y gris azulado/pizarra (`#64748B`) para lo proyectado.
+    - Badge superior en tarjeta con tasa global de efectividad de cobranza (`% Cumplimiento`).
+  - **Gráfico Donut (Distribución de Cartera):**
+    - Transformación visual a Donut Chart con círculo central flotante que muestre el total de créditos y capital total en cartera.
+    - Semántica financiera estricta de colores: Verde esmeralda institucional (`#166534`) para cartera *Al Día*, rojo preventivo (`#B91C1C`) para cartera *En Mora* y azul pizarra (`#2563EB`) para *Saldados*.
+    - Indicación de porcentaje de participación exacto por categoría (`Al Día: 3 (100%)`).
+    - Tooltips enriquecidos por sector con detalle de créditos y saldo expuesto.
+  - **Estructura y Tipografía del Módulo:**
+    - Estilo centralizado para `.card-title` en `credinoda.css` para evitar el colapso visual de cabeceras de gráficos.
+    - Ajuste de espaciados y alturas mínimas para evitar recortes verticales en las tarjetas KPI y gráficos al redimensionar.
+- **Tareas pendientes (para abordar en la siguiente sesión):**
+  - [ ] Añadir en `credinoda.css` las clases de estilo completas para JavaFX Charts, series de barras, sectores Donut y `.card-title`.
+  - [ ] Implementar el formateador de eje Y monetario abreviado (`$500k`, `$1M`) en el `BarChart` de `ReportesView.java`.
+  - [ ] Implementar la instalación dinámica de `Tooltip` en barras y porciones de torta/dona con información detallada de montos y porcentajes.
+  - [ ] Transformar `PieChart` a Donut Chart con centro de resumen numérico (`Total Créditos`) y colores semánticos (verde/rojo/azul).
+  - [ ] Incorporar badges de cumplimiento y resumen ejecutivo en las cabeceras de las tarjetas de gráficos.
+  - [ ] Desarrollar suite de pruebas unitarias en `ReportesViewTest.java` y verificar 100% verde en `mvn test`.
+- **Criterio de Aceptación:** Ambos gráficos describen con total claridad y riqueza informativa la cartera y el recaudo semanal, con paleta institucional verde/rojo/azul, Tooltips interactivos y visualización impecable sin desbordes ni elementos cortados.
+
+---
+
 ### Fase 7: Pruebas de Integración End-to-End (E2E) con Base de Datos Limpia y Empaquetado Nativo
 - **Objetivo:** Ejecutar la suite integral de pruebas End-to-End validando el ciclo de vida completo de préstamos, cobranzas, emisión de recibos PDF y copias de seguridad sobre una base de datos limpia creada por Java. Configurar el empaquetado nativo para Windows (`jpackage` / `javafx-maven-plugin`).
 - **Archivos exactos a crear:**

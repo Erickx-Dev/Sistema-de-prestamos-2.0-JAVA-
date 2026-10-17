@@ -1,6 +1,5 @@
 package com.credinoda.ui.views;
 
-import com.credinoda.common.Formatters;
 import com.credinoda.domain.dto.PagoDetalleItem;
 import com.credinoda.service.PagoService;
 import com.credinoda.service.PdfService;
@@ -10,7 +9,6 @@ import com.credinoda.ui.components.TableColumnHelper;
 import com.credinoda.ui.components.ToastNotification;
 import com.credinoda.ui.navigation.NavAction;
 import com.credinoda.ui.navigation.ViewRouter;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
@@ -171,6 +169,9 @@ public class PagosView extends VBox implements ViewRouter.RoutableView {
                     setGraphic(null);
                 } else {
                     setAlignment(Pos.CENTER);
+                    if (!getStyleClass().contains("cell-center")) {
+                        getStyleClass().add("cell-center");
+                    }
                     setGraphic(btnDetalle);
                 }
             }

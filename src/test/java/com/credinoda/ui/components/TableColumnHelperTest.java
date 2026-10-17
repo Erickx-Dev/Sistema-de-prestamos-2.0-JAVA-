@@ -2,7 +2,6 @@ package com.credinoda.ui.components;
 
 import javafx.application.Platform;
 import javafx.geometry.Pos;
-import javafx.scene.control.Label;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import org.junit.jupiter.api.BeforeAll;

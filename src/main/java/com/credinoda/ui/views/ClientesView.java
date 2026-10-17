@@ -8,7 +8,6 @@ import com.credinoda.ui.components.TableColumnHelper;
 import com.credinoda.ui.components.ToastNotification;
 import com.credinoda.ui.navigation.NavAction;
 import com.credinoda.ui.navigation.ViewRouter;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
@@ -140,6 +139,9 @@ public class ClientesView extends VBox implements ViewRouter.RoutableView {
                     setGraphic(null);
                 } else {
                     setAlignment(Pos.CENTER);
+                    if (!getStyleClass().contains("cell-center")) {
+                        getStyleClass().add("cell-center");
+                    }
                     setGraphic(box);
                 }
             }

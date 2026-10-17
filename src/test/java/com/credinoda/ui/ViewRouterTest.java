@@ -39,12 +39,10 @@ class ViewRouterTest {
      * Vista de prueba que implementa {@link ViewRouter.RoutableView} para auditar invocaciones a onShow.
      */
     private static class TestRoutableView extends VBox implements ViewRouter.RoutableView {
-        private final String name;
         private int showCount = 0;
         private int lastVersionReceived = 0;
 
         TestRoutableView(String name) {
-            this.name = name;
             getChildren().add(new Label(name));
         }
 
