@@ -210,17 +210,17 @@ class ViewRouterTest {
     }
 
     @Test
-    @DisplayName("Restricción I.2: MainShell contiene exclusivamente NavigationBar (Left) y ContentArea (Center)")
+    @DisplayName("Restricción I.2: MainShell contiene exclusivamente NavigationBar superior (Top) y ContentArea (Center)")
     void mainShellDebeContenerExclusivamenteNavigationBarYContentArea() {
         CrediNodaApplication app = new CrediNodaApplication();
         BorderPane mainShell = app.buildMainShell();
 
-        assertThat(mainShell.getLeft()).isInstanceOf(NavigationBar.class);
+        assertThat(mainShell.getTop()).isInstanceOf(NavigationBar.class);
         assertThat(mainShell.getCenter()).isInstanceOf(StackPane.class);
-        assertThat(mainShell.getTop()).isNull();
+        assertThat(mainShell.getLeft()).isNull();
         assertThat(mainShell.getRight()).isNull();
         assertThat(mainShell.getBottom()).isNull();
-        assertThat(app.getNavigationBar().getPrefWidth()).isEqualTo(220.0);
+        assertThat(app.getNavigationBar().getPrefHeight()).isEqualTo(NavigationBar.FIXED_HEIGHT);
         assertThat(CrediNodaApplication.INITIAL_WIDTH).isEqualTo(1200.0);
         assertThat(CrediNodaApplication.INITIAL_HEIGHT).isEqualTo(700.0);
         assertThat(CrediNodaApplication.MIN_WIDTH).isEqualTo(1000.0);

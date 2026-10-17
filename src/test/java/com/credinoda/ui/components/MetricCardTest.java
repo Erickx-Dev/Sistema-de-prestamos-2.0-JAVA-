@@ -105,13 +105,13 @@ class MetricCardTest {
     }
 
     @Test
-    @DisplayName("NavigationBar tiene ancho fijo de 220px y contiene estrictamente las 6 opciones reales del sistema")
-    void navigationBarDebeTenerAncho220YSeisOpcionesReales() {
+    @DisplayName("NavigationBar superior horizontal tiene altura fija de 56px y contiene estrictamente las 6 opciones reales del sistema")
+    void navigationBarDebeTenerAltura56YSeisOpcionesReales() {
         NavigationBar navBar = new NavigationBar();
 
-        assertThat(navBar.getPrefWidth()).isEqualTo(220.0);
-        assertThat(navBar.getMinWidth()).isEqualTo(220.0);
-        assertThat(navBar.getMaxWidth()).isEqualTo(220.0);
+        assertThat(navBar.getPrefHeight()).isEqualTo(NavigationBar.FIXED_HEIGHT);
+        assertThat(navBar.getMinHeight()).isEqualTo(NavigationBar.FIXED_HEIGHT);
+        assertThat(navBar.getMaxHeight()).isEqualTo(NavigationBar.FIXED_HEIGHT);
         assertThat(navBar.getButtons()).hasSize(6);
         assertThat(navBar.getButtons().keySet()).containsExactlyInAnyOrder(
                 NavAction.DASHBOARD,

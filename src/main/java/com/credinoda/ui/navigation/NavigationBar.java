@@ -14,13 +14,15 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * Barra de Navegación Persistente lateral izquierda (220px) de CrediNoda 2.0.
- * Contiene exclusivamente la identidad de marca, los 5 módulos principales de vista
- * (Inicio, Clientes, Nuevo Crédito, Pagos, Reportes) y la acción inferior de Copia de Seguridad.
+ * Barra de Navegación Superior Horizontal (Navbar, 56px de alto) de CrediNoda 2.0.
+ * Diseñada según la pantalla 'DashboardView - Inicio (Navbar Superior)' de Google Stitch:
+ * Contiene en disposición horizontal la identidad de marca a la izquierda, los 5 módulos
+ * principales de vista (Inicio, Clientes, Nuevo Crédito, Pagos, Reportes) y la acción
+ * de Copia de Seguridad anclada en el extremo derecho.
  */
-public class NavigationBar extends VBox {
+public class NavigationBar extends HBox {
 
-    public static final double FIXED_WIDTH = 220.0;
+    public static final double FIXED_HEIGHT = 56.0;
     public static final String ACTIVE_STYLE_CLASS = "nav-button-active";
 
     private final Map<NavAction, Button> buttons = new EnumMap<>(NavAction.class);
@@ -38,20 +40,22 @@ public class NavigationBar extends VBox {
 
     private void initializeLayout() {
         getStyleClass().add("nav-bar");
-        setPrefWidth(FIXED_WIDTH);
-        setMinWidth(FIXED_WIDTH);
-        setMaxWidth(FIXED_WIDTH);
-        setFillWidth(true);
+        setPrefHeight(FIXED_HEIGHT);
+        setMinHeight(FIXED_HEIGHT);
+        setMaxHeight(FIXED_HEIGHT);
+        setMaxWidth(Double.MAX_VALUE);
+        setAlignment(Pos.CENTER_LEFT);
 
-        // 1. Cabecera de Marca: CrediNoda 2.0
+        // 1. Bloque de Marca a la izquierda: Isotipo "C" + CrediNoda 2.0
         HBox brandBox = buildBrandHeader();
 
-        // 2. Separador superior
-        Region topSeparator = createSeparator();
+        // 2. Divisor vertical sutil
+        Region leftDivider = createVerticalDivider();
 
-        // 3. Opciones de navegación de módulos principales
-        VBox navItemsBox = new VBox(6);
-        navItemsBox.setFillWidth(true);
+        // 3. Menú horizontal de los 5 módulos principales
+        HBox navItemsBox = new HBox(6);
+        navItemsBox.getStyleClass().add("nav-menu-items");
+        navItemsBox.setAlignment(Pos.CENTER_LEFT);
         for (NavAction action : NavAction.values()) {
             if (!action.isActionOnly()) {
                 Button btn = createNavButton(action);
@@ -60,17 +64,17 @@ public class NavigationBar extends VBox {
             }
         }
 
-        // 4. Espaciador elástico para anclar Copia de Seguridad al fondo
+        // 4. Espaciador horizontal elástico para anclar Copia de Seguridad a la derecha
         Region spacer = new Region();
-        VBox.setVgrow(spacer, Priority.ALWAYS);
+        HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        // 5. Separador inferior y botón de Copia de Seguridad
-        Region bottomSeparator = createSeparator();
+        // 5. Divisor vertical derecho y botón de acción Copia de Seguridad
+        Region rightDivider = createVerticalDivider();
         Button backupButton = createNavButton(NavAction.BACKUP);
         backupButton.getStyleClass().add("nav-button-backup");
         buttons.put(NavAction.BACKUP, backupButton);
 
-        getChildren().addAll(brandBox, topSeparator, navItemsBox, spacer, bottomSeparator, backupButton);
+        getChildren().addAll(brandBox, leftDivider, navItemsBox, spacer, rightDivider, backupButton);
     }
 
     private HBox buildBrandHeader() {
@@ -82,6 +86,8 @@ public class NavigationBar extends VBox {
         logoBadge.getStyleClass().add("nav-logo-badge");
 
         VBox titlesBox = new VBox(1);
+        titlesBox.setAlignment(Pos.CENTER_LEFT);
+
         Label titleLabel = new Label("CrediNoda 2.0");
         titleLabel.getStyleClass().add("nav-brand-title");
 
@@ -93,18 +99,17 @@ public class NavigationBar extends VBox {
         return brandBox;
     }
 
-    private Region createSeparator() {
-        Region sep = new Region();
-        sep.getStyleClass().add("nav-separator");
-        return sep;
+    private Region createVerticalDivider() {
+        Region divider = new Region();
+        divider.getStyleClass().add("nav-divider");
+        return divider;
     }
 
     private Button createNavButton(NavAction action) {
         String text = action.getIcon() + "  " + action.getLabel();
         Button btn = new Button(text);
         btn.getStyleClass().add("nav-button");
-        btn.setMaxWidth(Double.MAX_VALUE);
-        btn.setAlignment(Pos.CENTER_LEFT);
+        btn.setAlignment(Pos.CENTER);
         btn.setOnAction(e -> handleActionClick(action));
         return btn;
     }

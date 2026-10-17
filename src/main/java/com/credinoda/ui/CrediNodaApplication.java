@@ -144,7 +144,7 @@ public class CrediNodaApplication extends Application {
 
     /**
      * Construye el contenedor raíz MainShell respetando estrictamente la restricción de dos regiones:
-     * Left = NavigationBar (220px), Center = ContentArea (100% restante con ToastNotification flotante).
+     * Top = NavigationBar horizontal (56px), Center = ContentArea (100% restante con ToastNotification flotante).
      */
     public BorderPane buildMainShell() {
         BorderPane shell = new BorderPane();
@@ -161,7 +161,7 @@ public class CrediNodaApplication extends Application {
         centerWrapper.getStyleClass().add("content-root");
         StackPane.setAlignment(toastNotification, Pos.TOP_CENTER);
 
-        shell.setLeft(navigationBar);
+        shell.setTop(navigationBar);
         shell.setCenter(centerWrapper);
         return shell;
     }
