@@ -228,6 +228,19 @@ public class CreditoService {
     }
 
     /**
+     * Lista la totalidad de créditos registrados en el sistema (CU-012).
+     *
+     * @return Lista completa de créditos.
+     */
+    public List<Credito> listarCreditos() {
+        try {
+            return creditoRepository.listarTodos();
+        } catch (SQLException e) {
+            throw new CrediNodaException("Error al listar créditos: " + e.getMessage(), e);
+        }
+    }
+
+    /**
      * Obtiene el cronograma de cuotas asociadas a un crédito ordenadas cronológicamente.
      *
      * @param creditoId ID del crédito.

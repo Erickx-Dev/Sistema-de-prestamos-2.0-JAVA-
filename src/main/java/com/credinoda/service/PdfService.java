@@ -462,4 +462,32 @@ public class PdfService {
         p.setFont(FontFactory.getFont(FontFactory.HELVETICA, 1));
         return p;
     }
+
+    /**
+     * Retorna el directorio configurado por defecto para almacenar comprobantes PDF.
+     */
+    public Path getDefaultOutputDir() {
+        return defaultOutputDir;
+    }
+
+    /**
+     * Abre un archivo PDF con el visor predeterminado del sistema operativo si está disponible (CU-011).
+     *
+     * @param pdfPath Ruta al archivo PDF.
+     */
+    public void abrirDocumento(Path pdfPath) {
+        if (pdfPath == null || !Files.exists(pdfPath)) {
+            return;
+        }
+        try {
+            if (java.awt.Desktop.isDesktopSupported()) {
+                java.awt.Desktop desktop = java.awt.Desktop.getDesktop();
+                if (desktop.isSupported(java.awt.Desktop.Action.OPEN)) {
+                    desktop.open(pdfPath.toFile());
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Advertencia al abrir documento PDF: " + e.getMessage());
+        }
+    }
 }
