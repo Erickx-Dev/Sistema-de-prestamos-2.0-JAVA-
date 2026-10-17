@@ -246,4 +246,119 @@ public final class Validators {
             return ResultadoValidacion.error("El campo " + campo + " debe ser un número entero.");
         }
     }
+
+    /**
+     * Valida el nombre completo de un cliente (2 a 100 caracteres, presencia de letras reales).
+     */
+    public static ResultadoValidacion validarNombreCliente(String nombre) {
+        if (nombre == null || nombre.strip().isEmpty()) {
+            return ResultadoValidacion.error("El nombre del cliente es obligatorio.");
+        }
+        String limpio = nombre.strip();
+        if (limpio.length() < 2 || limpio.length() > 100) {
+            return ResultadoValidacion.error("El nombre debe tener entre 2 y 100 caracteres.");
+        }
+        if (!limpio.matches("^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\\s.'-]+$")) {
+            return ResultadoValidacion.error("El nombre contiene caracteres especiales o números no permitidos.");
+        }
+        long letras = limpio.chars().filter(Character::isLetter).count();
+        if (letras < 2) {
+            return ResultadoValidacion.error("El nombre debe contener al menos 2 letras válidas.");
+        }
+        return ResultadoValidacion.ok();
+    }
+
+    /**
+     * Valida el documento de identidad de un cliente (4 a 20 caracteres alfanuméricos con presencia obligatoria de dígitos o formato).
+     * Rechaza entradas inválidas o abreviaturas como "mk" o cadenas de solo letras.
+     */
+    public static ResultadoValidacion validarDocumentoCliente(String documento) {
+        if (documento == null || documento.strip().isEmpty()) {
+            return ResultadoValidacion.error("El documento de identidad es obligatorio.");
+        }
+        String limpio = documento.strip();
+        if (limpio.length() < 4 || limpio.length() > 20) {
+            return ResultadoValidacion.error("El documento debe tener entre 4 y 20 caracteres.");
+        }
+        if (!limpio.matches("^[A-Za-z0-9-]+$")) {
+            return ResultadoValidacion.error("El documento solo puede contener números, letras y guiones (sin espacios).");
+        }
+        boolean tieneDigitoOGuion = limpio.chars().anyMatch(ch -> Character.isDigit(ch) || ch == '-');
+        if (!tieneDigitoOGuion) {
+            return ResultadoValidacion.error("El documento de identidad debe contener números o formato válido.");
+        }
+        return ResultadoValidacion.ok();
+    }
+
+    /**
+     * Valida el número de teléfono (4 a 20 caracteres, 4 a 15 dígitos reales, prohíbe letras).
+     */
+    public static ResultadoValidacion validarTelefonoCliente(String telefono) {
+        if (telefono == null || telefono.strip().isEmpty()) {
+            return ResultadoValidacion.error("El teléfono del cliente es obligatorio.");
+        }
+        String limpio = telefono.strip();
+        if (!limpio.matches("^[+]?[0-9\\s\\-()]+$")) {
+            return ResultadoValidacion.error("El teléfono debe contener únicamente números y signos de formato (+, -, ()).");
+        }
+        long digitos = limpio.chars().filter(Character::isDigit).count();
+        if (digitos < 4 || digitos > 15) {
+            return ResultadoValidacion.error("El teléfono debe contener entre 4 y 15 dígitos numéricos.");
+        }
+        return ResultadoValidacion.ok();
+    }
+
+    /**
+     * Valida el plazo en meses de un crédito (entre 1 y 120 meses).
+     */
+    public static ResultadoValidacion validarPlazoMeses(String texto) {
+        if (texto == null || texto.strip().isEmpty()) {
+            return ResultadoValidacion.error("El plazo en meses es obligatorio.");
+        }
+        try {
+            int plazo = Integer.parseInt(texto.strip());
+            if (plazo < 1 || plazo > 120) {
+                return ResultadoValidacion.error("El plazo debe ser de entre 1 y 120 meses.");
+            }
+            return ResultadoValidacion.ok();
+        } catch (NumberFormatException e) {
+            return ResultadoValidacion.error("El plazo debe ser un número entero de meses.");
+        }
+    }
+
+    /**
+     * Valida la tasa de interés mensual en porcentaje (entre 0% y 100%).
+     */
+    public static ResultadoValidacion validarTasaMensual(String texto) {
+        if (texto == null || texto.strip().isEmpty()) {
+            return ResultadoValidacion.error("La tasa de interés mensual es obligatoria.");
+        }
+        try {
+            BigDecimal tasa = parsearMonto(texto);
+            if (tasa.compareTo(BigDecimal.ZERO) < 0 || tasa.compareTo(BigDecimal.valueOf(100)) > 0) {
+                return ResultadoValidacion.error("La tasa mensual debe estar entre 0% y 100%.");
+            }
+            return ResultadoValidacion.ok();
+        } catch (Exception e) {
+            return ResultadoValidacion.error("La tasa de interés debe ser un valor numérico válido.");
+        }
+    }
+
+    /**
+     * Valida el capital a prestar (monto mayor a cero).
+     */
+    public static ResultadoValidacion validarCapital(String texto) {
+        if (texto == null || texto.strip().isEmpty()) {
+            return ResultadoValidacion.error("El capital a prestar es obligatorio.");
+        }
+        try {
+            BigDecimal capital = parsearMonto(texto);
+            if (capital.compareTo(BigDecimal.ZERO) <= 0) {
+                return ResultadoValidacion.error("El capital a prestar debe ser mayor a cero.");
+            }
+            return ResultadoValidacion.ok();
+        } catch (Exception e) {
+            return ResultadoValidacion.error("El capital debe ser un monto numérico válido.");
+        }
+    }
 }

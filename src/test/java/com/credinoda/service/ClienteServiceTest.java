@@ -183,4 +183,23 @@ class ClienteServiceTest {
         assertThat(creditos).hasSize(1);
         assertThat(creditos.get(0).getClienteId()).isEqualTo(cliente.getId());
     }
+
+    @Test
+    @DisplayName("Debe rechazar clientes con datos falsos o erróneos como 'mk' en documento o teléfono")
+    void testRechazarClienteConDatosFalsosOMalFormato() {
+        // Documento 'mk' (muy corto, sin números ni guión)
+        assertThatThrownBy(() -> clienteService.crearCliente("Erickson Sojo", "3001234567", "mk"))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessageContaining("documento");
+
+        // Teléfono 'mk' (letras en vez de números)
+        assertThatThrownBy(() -> clienteService.crearCliente("Erickson Sojo", "mk", "10987654"))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessageContaining("teléfono");
+
+        // Nombre de solo 1 letra
+        assertThatThrownBy(() -> clienteService.crearCliente("E", "3001234567", "10987654"))
+                .isInstanceOf(DatosInvalidosException.class)
+                .hasMessageContaining("nombre");
+    }
 }

@@ -112,4 +112,70 @@ class ValidatorsTest {
         assertThat(noNumerico.valido()).isFalse();
         assertThat(noNumerico.mensaje()).contains("número entero");
     }
+
+    @Test
+    @DisplayName("Validación de nombre de cliente: debe rechazar vacíos, muy cortos o sin letras")
+    void testValidarNombreCliente() {
+        assertThat(Validators.validarNombreCliente("Erickson Sojo").valido()).isTrue();
+        assertThat(Validators.validarNombreCliente("María José Peña").valido()).isTrue();
+        assertThat(Validators.validarNombreCliente("O'Connor").valido()).isTrue();
+
+        assertThat(Validators.validarNombreCliente("").valido()).isFalse();
+        assertThat(Validators.validarNombreCliente("   ").valido()).isFalse();
+        assertThat(Validators.validarNombreCliente("a").valido()).isFalse();
+        assertThat(Validators.validarNombreCliente("123456").valido()).isFalse();
+        assertThat(Validators.validarNombreCliente("!@#$%").valido()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Validación de documento de cliente: debe rechazar 'mk', solo letras, muy cortos o con espacios")
+    void testValidarDocumentoCliente() {
+        // Válidos
+        assertThat(Validators.validarDocumentoCliente("10987654").valido()).isTrue();
+        assertThat(Validators.validarDocumentoCliente("CC10987654").valido()).isTrue();
+        assertThat(Validators.validarDocumentoCliente("DOC-001").valido()).isTrue();
+        assertThat(Validators.validarDocumentoCliente("DOC-A").valido()).isTrue();
+        assertThat(Validators.validarDocumentoCliente("900123456-1").valido()).isTrue();
+
+        // Inválidos (incluyendo el caso 'mk' detectado)
+        assertThat(Validators.validarDocumentoCliente("mk").valido()).isFalse();
+        assertThat(Validators.validarDocumentoCliente("abc").valido()).isFalse();
+        assertThat(Validators.validarDocumentoCliente("12").valido()).isFalse();
+        assertThat(Validators.validarDocumentoCliente("1098 7654").valido()).isFalse();
+        assertThat(Validators.validarDocumentoCliente("soloLetrasSinNumerosNiFormato").valido()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Validación de teléfono de cliente: debe rechazar 'mk', letras y longitud incorrecta")
+    void testValidarTelefonoCliente() {
+        // Válidos
+        assertThat(Validators.validarTelefonoCliente("3105551234").valido()).isTrue();
+        assertThat(Validators.validarTelefonoCliente("+57 300 123 4567").valido()).isTrue();
+        assertThat(Validators.validarTelefonoCliente("6012345678").valido()).isTrue();
+        assertThat(Validators.validarTelefonoCliente("3001").valido()).isTrue();
+
+        // Inválidos (incluyendo el caso 'mk' detectado)
+        assertThat(Validators.validarTelefonoCliente("mk").valido()).isFalse();
+        assertThat(Validators.validarTelefonoCliente("abc").valido()).isFalse();
+        assertThat(Validators.validarTelefonoCliente("300abc12").valido()).isFalse();
+        assertThat(Validators.validarTelefonoCliente("12").valido()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Validación de plazo, tasa y capital")
+    void testValidarCreditoCampos() {
+        assertThat(Validators.validarPlazoMeses("12").valido()).isTrue();
+        assertThat(Validators.validarPlazoMeses("0").valido()).isFalse();
+        assertThat(Validators.validarPlazoMeses("200").valido()).isFalse();
+        assertThat(Validators.validarPlazoMeses("abc").valido()).isFalse();
+
+        assertThat(Validators.validarTasaMensual("12").valido()).isTrue();
+        assertThat(Validators.validarTasaMensual("0").valido()).isTrue();
+        assertThat(Validators.validarTasaMensual("-5").valido()).isFalse();
+        assertThat(Validators.validarTasaMensual("150").valido()).isFalse();
+
+        assertThat(Validators.validarCapital("1000000").valido()).isTrue();
+        assertThat(Validators.validarCapital("0").valido()).isFalse();
+        assertThat(Validators.validarCapital("-500").valido()).isFalse();
+    }
 }

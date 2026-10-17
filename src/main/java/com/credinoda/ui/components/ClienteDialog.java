@@ -9,6 +9,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextFormatter;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
@@ -78,9 +79,24 @@ public class ClienteDialog {
 
         this.documentoField = new TextField();
         this.documentoField.setPromptText("Ej: 1020304050");
+        this.documentoField.setTextFormatter(new TextFormatter<>(change -> {
+            String newText = change.getControlNewText();
+            if (newText.isEmpty() || newText.matches("^[A-Za-z0-9-]*$")) {
+                change.setText(change.getText().toUpperCase());
+                return change;
+            }
+            return null;
+        }));
 
         this.telefonoField = new TextField();
         this.telefonoField.setPromptText("Ej: 3001234567");
+        this.telefonoField.setTextFormatter(new TextFormatter<>(change -> {
+            String newText = change.getControlNewText();
+            if (newText.isEmpty() || newText.matches("^[+]?[0-9\\s\\-()]*$")) {
+                return change;
+            }
+            return null;
+        }));
 
         if (editMode) {
             this.nombreField.setText(clienteExistente.getNombre());
@@ -152,18 +168,32 @@ public class ClienteDialog {
         String documento = documentoField.getText();
         String telefono = telefonoField.getText();
 
-        Validators.ResultadoValidacion valNombre = Validators.validarTextoNoVacio(nombre, "Nombre");
+        Validators.ResultadoValidacion valNombre = Validators.validarNombreCliente(nombre);
         if (!valNombre.valido()) {
+            if (!nombreField.getStyleClass().contains("input-error")) {
+                nombreField.getStyleClass().add("input-error");
+            }
+            nombreField.requestFocus();
             showError(valNombre.mensaje());
             return false;
         }
-        Validators.ResultadoValidacion valDoc = Validators.validarTextoNoVacio(documento, "Documento");
+
+        Validators.ResultadoValidacion valDoc = Validators.validarDocumentoCliente(documento);
         if (!valDoc.valido()) {
+            if (!documentoField.getStyleClass().contains("input-error")) {
+                documentoField.getStyleClass().add("input-error");
+            }
+            documentoField.requestFocus();
             showError(valDoc.mensaje());
             return false;
         }
-        Validators.ResultadoValidacion valTel = Validators.validarTextoNoVacio(telefono, "Teléfono");
+
+        Validators.ResultadoValidacion valTel = Validators.validarTelefonoCliente(telefono);
         if (!valTel.valido()) {
+            if (!telefonoField.getStyleClass().contains("input-error")) {
+                telefonoField.getStyleClass().add("input-error");
+            }
+            telefonoField.requestFocus();
             showError(valTel.mensaje());
             return false;
         }
@@ -195,6 +225,9 @@ public class ClienteDialog {
         errorLabel.setText("");
         errorLabel.setVisible(false);
         errorLabel.setManaged(false);
+        nombreField.getStyleClass().remove("input-error");
+        documentoField.getStyleClass().remove("input-error");
+        telefonoField.getStyleClass().remove("input-error");
     }
 
     public Optional<Cliente> showAndWait() {
