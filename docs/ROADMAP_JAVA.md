@@ -391,14 +391,14 @@ flowchart TD
   - **Estructura y Tipografía del Módulo:**
     - Estilo centralizado para `.card-title` en `credinoda.css` para evitar el colapso visual de cabeceras de gráficos.
     - Ajuste de espaciados y alturas mínimas para evitar recortes verticales en las tarjetas KPI y gráficos al redimensionar.
-- **Tareas pendientes (para abordar en la siguiente sesión):**
-  - [ ] Añadir en `credinoda.css` las clases de estilo completas para JavaFX Charts, series de barras, sectores Donut y `.card-title`.
-  - [ ] Implementar el formateador de eje Y monetario abreviado (`$500k`, `$1M`) en el `BarChart` de `ReportesView.java`.
-  - [ ] Implementar la instalación dinámica de `Tooltip` en barras y porciones de torta/dona con información detallada de montos y porcentajes.
-  - [ ] Transformar `PieChart` a Donut Chart con centro de resumen numérico (`Total Créditos`) y colores semánticos (verde/rojo/azul).
-  - [ ] Incorporar badges de cumplimiento y resumen ejecutivo en las cabeceras de las tarjetas de gráficos.
-  - [ ] Desarrollar suite de pruebas unitarias en `ReportesViewTest.java` y verificar 100% verde en `mvn test`.
-- **Criterio de Aceptación:** Ambos gráficos describen con total claridad y riqueza informativa la cartera y el recaudo semanal, con paleta institucional verde/rojo/azul, Tooltips interactivos y visualización impecable sin desbordes ni elementos cortados.
+- **Tareas de la fase:**
+  - [x] Añadir en `credinoda.css` las clases de estilo completas para JavaFX Charts, series de barras, sectores Donut y `.card-title`.
+  - [x] Implementar el formateador de eje Y monetario abreviado (`$500k`, `$1M`) en el `BarChart` de `ReportesView.java`.
+  - [x] Implementar la instalación dinámica de `Tooltip` en barras y porciones de torta/dona con información detallada de montos y porcentajes.
+  - [x] Transformar `PieChart` a Donut Chart con centro de resumen numérico (`Total Créditos`) y colores semánticos (verde/rojo/azul).
+  - [x] Incorporar badges de cumplimiento y resumen ejecutivo en las cabeceras de las tarjetas de gráficos.
+  - [x] Desarrollar suite de pruebas unitarias en `ReportesViewTest.java` y verificar 100% verde en `mvn test`.
+- **Criterio de Aceptación:** Ambos gráficos describen con total claridad y riqueza informativa la cartera y el recaudo semanal, con paleta institucional verde/rojo/azul, Tooltips interactivos y visualización impecable sin desbordes ni elementos cortados. (Completada: 169/169 tests en verde).
 
 ---
 
