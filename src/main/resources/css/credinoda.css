@@ -1,0 +1,628 @@
+/* ==========================================================================
+ * CrediNoda 2.0 — Hoja de Estilos Institucional JavaFX 21
+ * Sistema de Diseño: Credinoda 2.0 Desktop (Corporate Modern Forest Green)
+ * Paleta Oficial:
+ *   Brand Dark (Sidebar / Header):   #164E3B
+ *   Interactive Green (Primario):    #21865A
+ *   Favorable / Hover Green:         #166534
+ *   Subtle Surface Green:            #DDF5E6
+ *   Secondary Surface Tint:          #F1FAF4
+ *   Canvas Root (ContentArea):       #F3F6F4
+ *   Surface Elevation (Cards/Grid):  #FFFFFF
+ *   Foreground Primary:              #26352D
+ *   Foreground Muted:                #647067
+ *   Structural Border:               #DCE5DE
+ *   Warning:                         #B45309 / #FEF3C7
+ *   Delinquency / Error (Mora):      #B91C1C / #FEE2E2
+ *   Neutral / Info:                  #475569 / #F1F5F9
+ * ========================================================================== */
+
+.root {
+    -fx-font-family: "Inter", "Segoe UI", "System";
+    -fx-font-size: 13px;
+    -fx-background-color: #F3F6F4;
+    -fx-text-fill: #26352D;
+}
+
+/* ==========================================================================
+ * 1. ESTRUCTURA BASE (MainShell: NavigationBar + ContentArea)
+ * ========================================================================== */
+
+.main-shell {
+    -fx-background-color: #F3F6F4;
+}
+
+.content-root {
+    -fx-background-color: #F3F6F4;
+}
+
+.content-area {
+    -fx-background-color: #F3F6F4;
+    -fx-padding: 24px;
+}
+
+.view-container {
+    -fx-background-color: transparent;
+    -fx-spacing: 18px;
+}
+
+/* ==========================================================================
+ * 2. BARRA DE NAVEGACIÓN PERSISTENTE (NavigationBar - 220px)
+ * ========================================================================== */
+
+.nav-bar {
+    -fx-background-color: #164E3B;
+    -fx-padding: 18px 12px 18px 12px;
+    -fx-spacing: 6px;
+    -fx-border-color: #0F3629;
+    -fx-border-width: 0 1px 0 0;
+}
+
+.nav-brand {
+    -fx-padding: 4px 8px 12px 8px;
+    -fx-spacing: 10px;
+    -fx-alignment: CENTER_LEFT;
+}
+
+.nav-logo-badge {
+    -fx-background-color: #21865A;
+    -fx-background-radius: 6px;
+    -fx-border-color: rgba(255, 255, 255, 0.22);
+    -fx-border-radius: 6px;
+    -fx-border-width: 1px;
+    -fx-min-width: 34px;
+    -fx-min-height: 34px;
+    -fx-max-width: 34px;
+    -fx-max-height: 34px;
+    -fx-alignment: CENTER;
+    -fx-text-fill: #FFFFFF;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+}
+
+.nav-brand-title {
+    -fx-text-fill: #FFFFFF;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+}
+
+.nav-brand-subtitle {
+    -fx-text-fill: #9BD2B9;
+    -fx-font-size: 11px;
+}
+
+.nav-separator {
+    -fx-background-color: rgba(255, 255, 255, 0.12);
+    -fx-min-height: 1px;
+    -fx-pref-height: 1px;
+    -fx-max-height: 1px;
+}
+
+.nav-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 6px;
+    -fx-text-fill: #DDF5E6;
+    -fx-font-size: 13px;
+    -fx-font-weight: normal;
+    -fx-padding: 9px 12px 9px 12px;
+    -fx-alignment: CENTER_LEFT;
+    -fx-cursor: hand;
+    -fx-graphic-text-gap: 10px;
+}
+
+.nav-button:hover {
+    -fx-background-color: rgba(255, 255, 255, 0.10);
+    -fx-text-fill: #FFFFFF;
+}
+
+.nav-button-active {
+    -fx-background-color: #21865A;
+    -fx-text-fill: #FFFFFF;
+    -fx-font-weight: bold;
+}
+
+.nav-button-active:hover {
+    -fx-background-color: #21865A;
+    -fx-text-fill: #FFFFFF;
+}
+
+.nav-button-backup {
+    -fx-background-color: rgba(0, 0, 0, 0.18);
+    -fx-border-color: rgba(255, 255, 255, 0.14);
+    -fx-border-radius: 6px;
+    -fx-border-width: 1px;
+    -fx-text-fill: #B6EFD4;
+}
+
+.nav-button-backup:hover {
+    -fx-background-color: #21865A;
+    -fx-border-color: #21865A;
+    -fx-text-fill: #FFFFFF;
+}
+
+/* ==========================================================================
+ * 3. CABECERAS DE SECCIÓN (SectionHeader)
+ * ========================================================================== */
+
+.section-header {
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 0 0 6px 0;
+    -fx-spacing: 12px;
+}
+
+.section-title {
+    -fx-text-fill: #26352D;
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+}
+
+.section-subtitle {
+    -fx-text-fill: #647067;
+    -fx-font-size: 12px;
+}
+
+.subsection-title {
+    -fx-text-fill: #26352D;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+}
+
+/* ==========================================================================
+ * 4. TARJETAS Y KPIs (Card & MetricCard)
+ * ========================================================================== */
+
+.card {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 8px;
+    -fx-border-color: #DCE5DE;
+    -fx-border-radius: 8px;
+    -fx-border-width: 1px;
+    -fx-padding: 18px;
+    -fx-effect: dropshadow(gaussian, rgba(38, 53, 45, 0.04), 4, 0, 0, 1);
+}
+
+.card-subtle {
+    -fx-background-color: #F1FAF4;
+    -fx-background-radius: 6px;
+    -fx-border-color: #DCE5DE;
+    -fx-border-radius: 6px;
+    -fx-border-width: 1px;
+    -fx-padding: 14px;
+}
+
+.metric-card {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 8px;
+    -fx-border-color: #21865A #DCE5DE #DCE5DE #DCE5DE;
+    -fx-border-width: 3px 1px 1px 1px;
+    -fx-border-radius: 8px;
+    -fx-padding: 14px 16px 14px 16px;
+    -fx-spacing: 6px;
+    -fx-effect: dropshadow(gaussian, rgba(38, 53, 45, 0.04), 4, 0, 0, 1);
+}
+
+.metric-accent-primary {
+    -fx-border-color: #21865A #DCE5DE #DCE5DE #DCE5DE;
+}
+
+.metric-accent-success {
+    -fx-border-color: #166534 #DCE5DE #DCE5DE #DCE5DE;
+}
+
+.metric-accent-warning {
+    -fx-border-color: #B45309 #DCE5DE #DCE5DE #DCE5DE;
+}
+
+.metric-accent-danger {
+    -fx-border-color: #B91C1C #DCE5DE #DCE5DE #DCE5DE;
+}
+
+.metric-accent-info {
+    -fx-border-color: #475569 #DCE5DE #DCE5DE #DCE5DE;
+}
+
+.metric-header-row {
+    -fx-alignment: CENTER_LEFT;
+    -fx-spacing: 8px;
+}
+
+.metric-label {
+    -fx-text-fill: #647067;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+
+.metric-icon {
+    -fx-text-fill: #21865A;
+    -fx-font-size: 14px;
+}
+
+.metric-value {
+    -fx-text-fill: #26352D;
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+}
+
+.metric-subtitle {
+    -fx-text-fill: #647067;
+    -fx-font-size: 11px;
+}
+
+/* ==========================================================================
+ * 5. BOTONES (.btn, .btn-primary, .btn-secondary, .btn-danger)
+ * ========================================================================== */
+
+.button {
+    -fx-background-radius: 4px;
+    -fx-border-radius: 4px;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-padding: 7px 14px 7px 14px;
+    -fx-cursor: hand;
+}
+
+.btn-primary {
+    -fx-background-color: #21865A;
+    -fx-text-fill: #FFFFFF;
+    -fx-border-color: transparent;
+}
+
+.btn-primary:hover {
+    -fx-background-color: #166534;
+    -fx-text-fill: #FFFFFF;
+}
+
+.btn-primary:focused {
+    -fx-border-color: #164E3B;
+    -fx-border-width: 1.5px;
+}
+
+.btn-primary:disabled {
+    -fx-opacity: 0.55;
+}
+
+.btn-secondary {
+    -fx-background-color: #FFFFFF;
+    -fx-text-fill: #26352D;
+    -fx-border-color: #DCE5DE;
+    -fx-border-width: 1px;
+}
+
+.btn-secondary:hover {
+    -fx-background-color: #F1FAF4;
+    -fx-border-color: #21865A;
+    -fx-text-fill: #164E3B;
+}
+
+.btn-danger {
+    -fx-background-color: #FEE2E2;
+    -fx-text-fill: #B91C1C;
+    -fx-border-color: #FCA5A5;
+    -fx-border-width: 1px;
+}
+
+.btn-danger:hover {
+    -fx-background-color: #B91C1C;
+    -fx-text-fill: #FFFFFF;
+    -fx-border-color: #B91C1C;
+}
+
+.btn-warning {
+    -fx-background-color: #FEF3C7;
+    -fx-text-fill: #B45309;
+    -fx-border-color: #FCD34D;
+    -fx-border-width: 1px;
+}
+
+.btn-warning:hover {
+    -fx-background-color: #B45309;
+    -fx-text-fill: #FFFFFF;
+    -fx-border-color: #B45309;
+}
+
+.btn-link {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-text-fill: #21865A;
+    -fx-padding: 4px 8px 4px 8px;
+    -fx-underline: false;
+}
+
+.btn-link:hover {
+    -fx-text-fill: #166534;
+    -fx-underline: true;
+}
+
+/* ==========================================================================
+ * 6. CONTROLES DE FORMULARIO (TextField, ComboBox, DatePicker, RadioButton)
+ * ========================================================================== */
+
+.form-label {
+    -fx-text-fill: #26352D;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+
+.form-helper {
+    -fx-text-fill: #647067;
+    -fx-font-size: 11px;
+}
+
+.form-error {
+    -fx-text-fill: #B91C1C;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+
+.text-field, .combo-box-base, .date-picker {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 4px;
+    -fx-border-color: #DCE5DE;
+    -fx-border-radius: 4px;
+    -fx-border-width: 1px;
+    -fx-text-fill: #26352D;
+    -fx-prompt-text-fill: #647067;
+    -fx-padding: 6px 10px 6px 10px;
+    -fx-font-size: 13px;
+}
+
+.text-field:focused, .combo-box-base:focused, .date-picker:focused {
+    -fx-border-color: #21865A;
+    -fx-border-width: 1.5px;
+    -fx-background-color: #FFFFFF;
+}
+
+.input-error {
+    -fx-border-color: #B91C1C !important;
+    -fx-background-color: #FFF5F5;
+}
+
+/* ==========================================================================
+ * 7. TABLAS DE DATOS (TableView)
+ * ========================================================================== */
+
+.table-view {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 8px;
+    -fx-border-color: #DCE5DE;
+    -fx-border-radius: 8px;
+    -fx-border-width: 1px;
+    -fx-padding: 0;
+}
+
+.table-view .column-header-background {
+    -fx-background-color: #F1FAF4;
+    -fx-background-radius: 8px 8px 0 0;
+    -fx-border-color: transparent transparent #DCE5DE transparent;
+    -fx-border-width: 0 0 1px 0;
+}
+
+.table-view .column-header {
+    -fx-background-color: transparent;
+    -fx-size: 34px;
+    -fx-border-color: transparent #E6EFE9 transparent transparent;
+    -fx-border-width: 0 1px 0 0;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: #647067;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-padding: 0 8px 0 8px;
+}
+
+.table-view .table-row-cell {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: transparent transparent #F1F5F2 transparent;
+    -fx-border-width: 0 0 1px 0;
+    -fx-cell-size: 36px;
+}
+
+.table-view .table-row-cell:odd {
+    -fx-background-color: #FAFCFA;
+}
+
+.table-view .table-row-cell:hover {
+    -fx-background-color: #E6F8EC;
+    -fx-cursor: hand;
+}
+
+.table-view .table-row-cell:selected {
+    -fx-background-color: #DDF5E6;
+}
+
+.table-view .table-cell {
+    -fx-text-fill: #26352D;
+    -fx-font-size: 13px;
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 0 10px 0 10px;
+    -fx-border-color: transparent;
+}
+
+.table-view .table-row-cell:selected .table-cell {
+    -fx-text-fill: #164E3B;
+    -fx-font-weight: bold;
+}
+
+.cell-center {
+    -fx-alignment: CENTER;
+}
+
+.cell-right {
+    -fx-alignment: CENTER_RIGHT;
+}
+
+/* ==========================================================================
+ * 8. ETIQUETAS DE ESTADO (Status Badges)
+ * ========================================================================== */
+
+.badge {
+    -fx-background-radius: 4px;
+    -fx-border-radius: 4px;
+    -fx-padding: 2px 8px 2px 8px;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-alignment: CENTER;
+}
+
+.badge-activo, .badge-pagado, .badge-pagada {
+    -fx-background-color: #DDF5E6;
+    -fx-text-fill: #166534;
+}
+
+.badge-parcial, .badge-pendiente {
+    -fx-background-color: #FEF3C7;
+    -fx-text-fill: #B45309;
+}
+
+.badge-mora, .badge-vencido, .badge-vencida {
+    -fx-background-color: #FEE2E2;
+    -fx-text-fill: #B91C1C;
+    -fx-border-color: #FCA5A5;
+    -fx-border-width: 1px;
+}
+
+.badge-cancelado, .badge-info {
+    -fx-background-color: #F1F5F9;
+    -fx-text-fill: #475569;
+}
+
+/* ==========================================================================
+ * 9. NOTIFICACIONES FLOTANTES (ToastNotification)
+ * ========================================================================== */
+
+.toast-notification {
+    -fx-background-radius: 6px;
+    -fx-border-radius: 6px;
+    -fx-border-width: 1px;
+    -fx-padding: 10px 16px 10px 16px;
+    -fx-spacing: 10px;
+    -fx-alignment: CENTER_LEFT;
+    -fx-effect: dropshadow(gaussian, rgba(22, 78, 59, 0.18), 14, 0, 0, 4);
+}
+
+.toast-success {
+    -fx-background-color: #DDF5E6;
+    -fx-border-color: #166534;
+}
+
+.toast-success .label {
+    -fx-text-fill: #166534;
+    -fx-font-weight: bold;
+}
+
+.toast-error {
+    -fx-background-color: #FEE2E2;
+    -fx-border-color: #B91C1C;
+}
+
+.toast-error .label {
+    -fx-text-fill: #B91C1C;
+    -fx-font-weight: bold;
+}
+
+.toast-warning {
+    -fx-background-color: #FEF3C7;
+    -fx-border-color: #B45309;
+}
+
+.toast-warning .label {
+    -fx-text-fill: #B45309;
+    -fx-font-weight: bold;
+}
+
+.toast-info {
+    -fx-background-color: #F1F5F9;
+    -fx-border-color: #475569;
+}
+
+.toast-info .label {
+    -fx-text-fill: #26352D;
+    -fx-font-weight: bold;
+}
+
+/* ==========================================================================
+ * 10. DIÁLOGOS MODALES (ConfirmDialog, ClienteDialog, PagoDialog, etc.)
+ * ========================================================================== */
+
+.dialog-root {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #DCE5DE;
+    -fx-border-width: 1px;
+}
+
+.dialog-header {
+    -fx-background-color: #164E3B;
+    -fx-padding: 14px 20px 14px 20px;
+    -fx-alignment: CENTER_LEFT;
+    -fx-spacing: 10px;
+}
+
+.dialog-header-title {
+    -fx-text-fill: #FFFFFF;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+}
+
+.dialog-header-subtitle {
+    -fx-text-fill: #B6EFD4;
+    -fx-font-size: 11px;
+}
+
+.dialog-body {
+    -fx-background-color: #FFFFFF;
+    -fx-padding: 20px;
+    -fx-spacing: 14px;
+}
+
+.dialog-message {
+    -fx-text-fill: #26352D;
+    -fx-font-size: 13px;
+}
+
+.dialog-footer {
+    -fx-background-color: #F3F6F4;
+    -fx-border-color: #DCE5DE transparent transparent transparent;
+    -fx-border-width: 1px 0 0 0;
+    -fx-padding: 12px 20px 12px 20px;
+    -fx-spacing: 10px;
+    -fx-alignment: CENTER_RIGHT;
+}
+
+/* ==========================================================================
+ * 11. SCROLLPANE Y CONTROLES SEGMENTADOS
+ * ========================================================================== */
+
+.scroll-pane {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+    -fx-border-color: transparent;
+}
+
+.scroll-pane > .viewport {
+    -fx-background-color: transparent;
+}
+
+.segmented-button {
+    -fx-background-color: #FFFFFF;
+    -fx-text-fill: #647067;
+    -fx-border-color: #DCE5DE;
+    -fx-border-width: 1px;
+    -fx-background-radius: 4px;
+    -fx-border-radius: 4px;
+    -fx-padding: 6px 12px 6px 12px;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+}
+
+.segmented-button:hover {
+    -fx-background-color: #F1FAF4;
+    -fx-text-fill: #164E3B;
+}
+
+.segmented-button:selected {
+    -fx-background-color: #21865A;
+    -fx-border-color: #21865A;
+    -fx-text-fill: #FFFFFF;
+}
