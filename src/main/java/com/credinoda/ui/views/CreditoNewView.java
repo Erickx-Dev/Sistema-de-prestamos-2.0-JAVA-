@@ -14,6 +14,7 @@ import com.credinoda.ui.components.ClienteDialog;
 import com.credinoda.ui.components.ConfirmDialog;
 import com.credinoda.ui.components.MetricCard;
 import com.credinoda.ui.components.SectionHeader;
+import com.credinoda.ui.components.TableColumnHelper;
 import com.credinoda.ui.components.ToastNotification;
 import com.credinoda.ui.navigation.NavAction;
 import com.credinoda.ui.navigation.ViewRouter;
@@ -227,16 +228,26 @@ public class CreditoNewView extends VBox implements ViewRouter.RoutableView {
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         table.setPlaceholder(new Label("Ingrese capital y plazo válidos para previsualizar el plan de pagos."));
 
-        TableColumn<Cuota, String> colNum = new TableColumn<>("N° Cuota");
-        colNum.setMaxWidth(100);
-        colNum.setCellValueFactory(d -> new SimpleStringProperty("Cuota #" + d.getValue().getNumeroCuota()));
+        TableColumn<Cuota, String> colNum = TableColumnHelper.textoColumn(
+                "N° Cuota",
+                c -> "Cuota #" + c.getNumeroCuota(),
+                Pos.CENTER,
+                110
+        );
+        colNum.setMaxWidth(130);
 
-        TableColumn<Cuota, String> colVenc = new TableColumn<>("Fecha Vencimiento");
-        colVenc.setCellValueFactory(d -> new SimpleStringProperty(
-                Formatters.formatoFecha(d.getValue().getFechaVencimiento())));
+        TableColumn<Cuota, String> colVenc = TableColumnHelper.fechaColumn(
+                "Fecha Vencimiento",
+                Cuota::getFechaVencimiento,
+                160
+        );
+        colVenc.setMaxWidth(180);
 
-        TableColumn<Cuota, String> colMonto = new TableColumn<>("Valor de Cuota");
-        colMonto.setCellValueFactory(d -> new SimpleStringProperty(Formatters.formatoMoneda(d.getValue().getMonto())));
+        TableColumn<Cuota, String> colMonto = TableColumnHelper.monedaColumn(
+                "Valor de Cuota",
+                Cuota::getMonto,
+                180
+        );
 
         table.getColumns().setAll(List.of(colNum, colVenc, colMonto));
         return table;

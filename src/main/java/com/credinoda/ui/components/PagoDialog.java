@@ -59,6 +59,7 @@ public class PagoDialog {
     private final CheckBox generarPdfCheck;
     private final Label errorLabel;
     private final Button saveButton;
+    private final BorderPane root;
 
     private Pago pagoRegistrado;
     private Path comprobanteGenerado;
@@ -86,10 +87,12 @@ public class PagoDialog {
         this.stage.initModality(Modality.APPLICATION_MODAL);
         this.stage.setTitle("Registrar Pago — Crédito #" + credito.getId());
         this.stage.setResizable(false);
+        this.stage.setMinWidth(500);
+        this.stage.setMinHeight(460);
 
-        BorderPane root = new BorderPane();
+        this.root = new BorderPane();
         root.getStyleClass().add("dialog-root");
-        root.setPrefWidth(480);
+        root.setPrefWidth(500);
 
         // 1. Cabecera
         HBox header = new HBox(10);
@@ -306,12 +309,23 @@ public class PagoDialog {
         errorLabel.setText(message);
         errorLabel.setManaged(true);
         errorLabel.setVisible(true);
+        if (stage.isShowing()) {
+            root.applyCss();
+            root.layout();
+            stage.sizeToScene();
+        }
     }
 
     private void hideError() {
+        boolean wasVisible = errorLabel.isVisible();
         errorLabel.setText("");
         errorLabel.setVisible(false);
         errorLabel.setManaged(false);
+        if (wasVisible && stage.isShowing()) {
+            root.applyCss();
+            root.layout();
+            stage.sizeToScene();
+        }
     }
 
     public Optional<Pago> showAndWait() {

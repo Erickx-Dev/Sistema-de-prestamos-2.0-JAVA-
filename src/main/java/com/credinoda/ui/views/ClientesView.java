@@ -4,6 +4,7 @@ import com.credinoda.domain.model.Cliente;
 import com.credinoda.service.ClienteService;
 import com.credinoda.ui.components.ClienteDialog;
 import com.credinoda.ui.components.SectionHeader;
+import com.credinoda.ui.components.TableColumnHelper;
 import com.credinoda.ui.components.ToastNotification;
 import com.credinoda.ui.navigation.NavAction;
 import com.credinoda.ui.navigation.ViewRouter;
@@ -92,28 +93,28 @@ public class ClientesView extends VBox implements ViewRouter.RoutableView {
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         table.setPlaceholder(new Label("No se encontraron clientes registrados."));
 
-        TableColumn<Cliente, String> colId = new TableColumn<>("ID");
+        TableColumn<Cliente, String> colId = TableColumnHelper.textoColumn("ID", c -> "#" + c.getId(), Pos.CENTER, 80);
         colId.setMaxWidth(90);
-        colId.setCellValueFactory(d -> new SimpleStringProperty("#" + d.getValue().getId()));
 
-        TableColumn<Cliente, String> colNombre = new TableColumn<>("Nombre Completo");
-        colNombre.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().getNombre()));
+        TableColumn<Cliente, String> colNombre = TableColumnHelper.textoColumn("Nombre Completo", Cliente::getNombre, Pos.CENTER_LEFT, 240);
 
-        TableColumn<Cliente, String> colDocumento = new TableColumn<>("Documento");
-        colDocumento.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().getDocumento()));
+        TableColumn<Cliente, String> colDocumento = TableColumnHelper.textoColumn("Documento", Cliente::getDocumento, Pos.CENTER, 140);
+        colDocumento.setMaxWidth(160);
 
-        TableColumn<Cliente, String> colTelefono = new TableColumn<>("Teléfono");
-        colTelefono.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().getTelefono()));
+        TableColumn<Cliente, String> colTelefono = TableColumnHelper.textoColumn("Teléfono", Cliente::getTelefono, Pos.CENTER, 140);
+        colTelefono.setMaxWidth(160);
 
         TableColumn<Cliente, Void> colAcciones = new TableColumn<>("Acciones");
+        colAcciones.setPrefWidth(200);
         colAcciones.setMaxWidth(220);
+        TableColumnHelper.setHeaderAlignment(colAcciones, Pos.CENTER);
         colAcciones.setCellFactory(col -> new TableCell<>() {
             private final Button btnVer = new Button("Ver Ficha");
             private final Button btnEditar = new Button("Editar");
             private final HBox box = new HBox(8, btnVer, btnEditar);
 
             {
-                box.setAlignment(Pos.CENTER_LEFT);
+                box.setAlignment(Pos.CENTER);
                 btnVer.getStyleClass().addAll("btn-secondary", "btn-sm");
                 btnEditar.getStyleClass().addAll("btn-secondary", "btn-sm");
 
@@ -135,7 +136,12 @@ public class ClientesView extends VBox implements ViewRouter.RoutableView {
             @Override
             protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
-                setGraphic(empty ? null : box);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    setAlignment(Pos.CENTER);
+                    setGraphic(box);
+                }
             }
         });
 

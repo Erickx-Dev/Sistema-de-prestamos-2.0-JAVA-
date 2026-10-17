@@ -13,6 +13,7 @@ import com.credinoda.service.PdfService;
 import com.credinoda.ui.components.MetricCard;
 import com.credinoda.ui.components.PagoDialog;
 import com.credinoda.ui.components.SectionHeader;
+import com.credinoda.ui.components.TableColumnHelper;
 import com.credinoda.ui.components.ToastNotification;
 import com.credinoda.ui.navigation.NavAction;
 import com.credinoda.ui.navigation.ViewRouter;
@@ -157,50 +158,44 @@ public class CreditoDetailView extends VBox implements ViewRouter.RoutableView {
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         table.setPlaceholder(new Label("No hay cuotas asociadas a este crédito."));
 
-        TableColumn<CuotaRowItem, String> colNum = new TableColumn<>("N° Cuota");
+        TableColumn<CuotaRowItem, String> colNum = TableColumnHelper.textoColumn(
+                "N° Cuota",
+                d -> "#" + d.cuota().getNumeroCuota(),
+                Pos.CENTER,
+                90
+        );
         colNum.setMaxWidth(100);
-        colNum.setCellValueFactory(d -> new SimpleStringProperty("#" + d.getValue().cuota().getNumeroCuota()));
 
-        TableColumn<CuotaRowItem, String> colVenc = new TableColumn<>("Vencimiento");
-        colVenc.setCellValueFactory(d -> new SimpleStringProperty(
-                Formatters.formatoFecha(d.getValue().cuota().getFechaVencimiento())));
+        TableColumn<CuotaRowItem, String> colVenc = TableColumnHelper.fechaColumn(
+                "Vencimiento",
+                d -> d.cuota().getFechaVencimiento(),
+                120
+        );
 
-        TableColumn<CuotaRowItem, String> colMonto = new TableColumn<>("Valor Cuota");
-        colMonto.setCellValueFactory(d -> new SimpleStringProperty(
-                Formatters.formatoMoneda(d.getValue().cuota().getMonto())));
+        TableColumn<CuotaRowItem, String> colMonto = TableColumnHelper.monedaColumn(
+                "Valor Cuota",
+                d -> d.cuota().getMonto(),
+                140
+        );
 
-        TableColumn<CuotaRowItem, String> colPagado = new TableColumn<>("Abonado");
-        colPagado.setCellValueFactory(d -> new SimpleStringProperty(
-                Formatters.formatoMoneda(d.getValue().montoPagado())));
+        TableColumn<CuotaRowItem, String> colPagado = TableColumnHelper.monedaColumn(
+                "Abonado",
+                CuotaRowItem::montoPagado,
+                140
+        );
 
-        TableColumn<CuotaRowItem, String> colPendiente = new TableColumn<>("Pendiente");
-        colPendiente.setCellValueFactory(d -> new SimpleStringProperty(
-                Formatters.formatoMoneda(d.getValue().saldoPendiente())));
+        TableColumn<CuotaRowItem, String> colPendiente = TableColumnHelper.monedaColumn(
+                "Pendiente",
+                CuotaRowItem::saldoPendiente,
+                140
+        );
 
-        TableColumn<CuotaRowItem, String> colEstado = new TableColumn<>("Estado");
-        colEstado.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().etiquetaEstado()));
-        colEstado.setCellFactory(col -> new TableCell<>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setGraphic(null);
-                    setText(null);
-                } else {
-                    Label badge = new Label(item);
-                    if (item.contains("EN MORA")) {
-                        badge.getStyleClass().add("badge-danger");
-                    } else if (item.startsWith("PAGADA")) {
-                        badge.getStyleClass().add("badge-success");
-                    } else if (item.startsWith("PARCIAL")) {
-                        badge.getStyleClass().add("badge-warning");
-                    } else {
-                        badge.getStyleClass().add("badge-info");
-                    }
-                    setGraphic(badge);
-                }
-            }
-        });
+        TableColumn<CuotaRowItem, String> colEstado = TableColumnHelper.badgeColumn(
+                "Estado",
+                CuotaRowItem::etiquetaEstado,
+                item -> item.contains("EN MORA") ? "badge-danger" : (item.startsWith("PAGADA") ? "badge-success" : (item.startsWith("PARCIAL") ? "badge-warning" : "badge-info")),
+                140
+        );
 
         table.getColumns().setAll(List.of(colNum, colVenc, colMonto, colPagado, colPendiente, colEstado));
 

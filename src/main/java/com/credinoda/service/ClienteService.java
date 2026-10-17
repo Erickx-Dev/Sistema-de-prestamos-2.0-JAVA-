@@ -42,9 +42,23 @@ public class ClienteService {
      * @throws RuntimeException Si ocurre un error de persistencia.
      */
     public Cliente crearCliente(String nombre, String telefono, String documento) {
-        String nombreSanitizado = sanitizarObligatorio(nombre, "El nombre del cliente es obligatorio.");
-        String telefonoSanitizado = sanitizarObligatorio(telefono, "El teléfono del cliente es obligatorio.");
-        String documentoSanitizado = sanitizarObligatorio(documento, "El documento del cliente es obligatorio.");
+        Validators.ResultadoValidacion valNom = Validators.validarNombreCliente(nombre);
+        if (!valNom.valido()) {
+            throw new DatosInvalidosException(valNom.mensaje());
+        }
+        String nombreSanitizado = nombre.strip();
+
+        Validators.ResultadoValidacion valTel = Validators.validarTelefonoCliente(telefono);
+        if (!valTel.valido()) {
+            throw new DatosInvalidosException(valTel.mensaje());
+        }
+        String telefonoSanitizado = telefono.strip();
+
+        Validators.ResultadoValidacion valDoc = Validators.validarDocumentoCliente(documento);
+        if (!valDoc.valido()) {
+            throw new DatosInvalidosException(valDoc.mensaje());
+        }
+        String documentoSanitizado = documento.strip();
 
         try {
             Optional<Cliente> existente = clienteRepository.obtenerPorDocumento(documentoSanitizado);
@@ -75,13 +89,25 @@ public class ClienteService {
         Cliente cliente = obtenerClientePorId(id);
 
         if (nombre != null) {
-            cliente.setNombre(sanitizarObligatorio(nombre, "El nombre no puede estar vacío."));
+            Validators.ResultadoValidacion valNom = Validators.validarNombreCliente(nombre);
+            if (!valNom.valido()) {
+                throw new DatosInvalidosException(valNom.mensaje());
+            }
+            cliente.setNombre(nombre.strip());
         }
         if (telefono != null) {
-            cliente.setTelefono(sanitizarObligatorio(telefono, "El teléfono no puede estar vacío."));
+            Validators.ResultadoValidacion valTel = Validators.validarTelefonoCliente(telefono);
+            if (!valTel.valido()) {
+                throw new DatosInvalidosException(valTel.mensaje());
+            }
+            cliente.setTelefono(telefono.strip());
         }
         if (documento != null) {
-            String nuevoDoc = sanitizarObligatorio(documento, "El documento no puede estar vacío.");
+            Validators.ResultadoValidacion valDoc = Validators.validarDocumentoCliente(documento);
+            if (!valDoc.valido()) {
+                throw new DatosInvalidosException(valDoc.mensaje());
+            }
+            String nuevoDoc = documento.strip();
             if (!nuevoDoc.equals(cliente.getDocumento())) {
                 try {
                     Optional<Cliente> existente = clienteRepository.obtenerPorDocumento(nuevoDoc);

@@ -7,6 +7,7 @@ import com.credinoda.domain.model.EstadoCredito;
 import com.credinoda.service.CreditoService;
 import com.credinoda.ui.components.MetricCard;
 import com.credinoda.ui.components.SectionHeader;
+import com.credinoda.ui.components.TableColumnHelper;
 import com.credinoda.ui.components.ToastNotification;
 import com.credinoda.ui.navigation.NavAction;
 import com.credinoda.ui.navigation.ViewRouter;
@@ -106,43 +107,38 @@ public class DashboardView extends VBox implements ViewRouter.RoutableView {
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         table.setPlaceholder(new Label("No hay cuotas pendientes por cobrar."));
 
-        TableColumn<ProximoPagoItem, String> colCliente = new TableColumn<>("Cliente");
-        colCliente.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().clienteNombre()));
+        TableColumn<ProximoPagoItem, String> colCliente = TableColumnHelper.textoColumn(
+                "Cliente",
+                ProximoPagoItem::clienteNombre,
+                Pos.CENTER_LEFT,
+                220
+        );
 
-        TableColumn<ProximoPagoItem, String> colCuota = new TableColumn<>("Cuota");
-        colCuota.setCellValueFactory(d -> new SimpleStringProperty(
-                "Crédito #" + d.getValue().creditoId() + " — Cuota #" + d.getValue().numeroCuota()));
+        TableColumn<ProximoPagoItem, String> colCuota = TableColumnHelper.textoColumn(
+                "Cuota",
+                d -> "Crédito #" + d.creditoId() + " — Cuota #" + d.numeroCuota(),
+                Pos.CENTER_LEFT,
+                180
+        );
 
-        TableColumn<ProximoPagoItem, String> colMonto = new TableColumn<>("Monto");
-        colMonto.setCellValueFactory(d -> new SimpleStringProperty(Formatters.formatoMoneda(d.getValue().monto())));
+        TableColumn<ProximoPagoItem, String> colMonto = TableColumnHelper.monedaColumn(
+                "Monto",
+                ProximoPagoItem::monto,
+                140
+        );
 
-        TableColumn<ProximoPagoItem, String> colVencimiento = new TableColumn<>("Vencimiento");
-        colVencimiento.setCellValueFactory(d -> new SimpleStringProperty(
-                Formatters.formatoFecha(d.getValue().fechaVencimiento())));
+        TableColumn<ProximoPagoItem, String> colVencimiento = TableColumnHelper.fechaColumn(
+                "Vencimiento",
+                ProximoPagoItem::fechaVencimiento,
+                130
+        );
 
-        TableColumn<ProximoPagoItem, String> colEstado = new TableColumn<>("Estado");
-        colEstado.setCellValueFactory(d -> new SimpleStringProperty(d.getValue().etiquetaEstado()));
-        colEstado.setCellFactory(col -> new TableCell<>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setGraphic(null);
-                    setText(null);
-                } else {
-                    Label badge = new Label(item);
-                    if (item.contains("EN MORA")) {
-                        badge.getStyleClass().add("badge-danger");
-                    } else if (item.startsWith("PARCIAL")) {
-                        badge.getStyleClass().add("badge-warning");
-                    } else {
-                        badge.getStyleClass().add("badge-info");
-                    }
-                    setAlignment(Pos.CENTER_LEFT);
-                    setGraphic(badge);
-                }
-            }
-        });
+        TableColumn<ProximoPagoItem, String> colEstado = TableColumnHelper.badgeColumn(
+                "Estado",
+                ProximoPagoItem::etiquetaEstado,
+                item -> item.contains("EN MORA") ? "badge-danger" : (item.startsWith("PARCIAL") ? "badge-warning" : "badge-info"),
+                130
+        );
 
         table.getColumns().setAll(List.of(colCliente, colCuota, colMonto, colVencimiento, colEstado));
 
