@@ -7,7 +7,6 @@ import com.credinoda.domain.exception.CreditoNoEncontradoException;
 import com.credinoda.domain.exception.CuotaNoEncontradaException;
 import com.credinoda.domain.exception.MontoInvalidoException;
 import com.credinoda.domain.exception.PagoInvalidoException;
-import com.credinoda.domain.model.Credito;
 import com.credinoda.domain.model.Cuota;
 import com.credinoda.domain.model.EstadoCuota;
 import com.credinoda.domain.model.Pago;
@@ -61,10 +60,9 @@ public class PagoService {
             throw new MontoInvalidoException("El monto del pago debe ser mayor a 0.");
         }
 
-        Credito credito;
         Cuota cuota;
         try {
-            credito = creditoRepository.obtenerPorId(creditoId)
+            creditoRepository.obtenerPorId(creditoId)
                     .orElseThrow(() -> new CreditoNoEncontradoException("Crédito con ID " + creditoId + " no encontrado."));
             cuota = creditoRepository.obtenerCuotaPorId(cuotaId)
                     .orElseThrow(() -> new CuotaNoEncontradaException("Cuota con ID " + cuotaId + " no encontrada."));

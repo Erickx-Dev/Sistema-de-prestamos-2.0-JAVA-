@@ -60,7 +60,6 @@ public class ReportesView extends VBox implements ViewRouter.RoutableView {
 
     private final TextField fechaDesdeField;
     private final TextField fechaHastaField;
-    private final Button aplicarRangoButton;
 
     // 10 Tarjetas KPI (RN-014)
     private final MetricCard cardCreditosActivos;
@@ -97,7 +96,6 @@ public class ReportesView extends VBox implements ViewRouter.RoutableView {
         HBox filterBar = buildFilterBar();
         this.fechaDesdeField = (TextField) filterBar.lookup("#fechaDesdeField");
         this.fechaHastaField = (TextField) filterBar.lookup("#fechaHastaField");
-        this.aplicarRangoButton = (Button) filterBar.lookup("#aplicarRangoButton");
 
         // 10 Tarjetas KPI en 2 filas de 5 columnas
         this.cardCreditosActivos = new MetricCard("Créditos Activos", "0", "💳", MetricCard.AccentVariant.PRIMARY);

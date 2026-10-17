@@ -213,11 +213,4 @@ public class ClienteService {
             throw new DatosInvalidosException("Error al consultar créditos del cliente: " + e.getMessage(), e);
         }
     }
-
-    private String sanitizarObligatorio(String valor, String mensajeError) {
-        if (valor == null || valor.strip().isEmpty()) {
-            throw new DatosInvalidosException(mensajeError);
-        }
-        return valor.strip();
-    }
 }

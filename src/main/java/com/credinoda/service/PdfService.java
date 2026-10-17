@@ -25,7 +25,6 @@ import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.format.DateTimeFormatter;
@@ -121,7 +120,7 @@ public class PdfService {
 
             Document document = new Document(PageSize.LETTER, 36, 36, 36, 36);
             try (OutputStream os = Files.newOutputStream(destino)) {
-                PdfWriter writer = PdfWriter.getInstance(document, os);
+                PdfWriter.getInstance(document, os);
                 document.open();
 
                 // 1. Encabezado institucional
