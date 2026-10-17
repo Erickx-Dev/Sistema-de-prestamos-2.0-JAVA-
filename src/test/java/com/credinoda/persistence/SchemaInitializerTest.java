@@ -9,7 +9,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -94,5 +96,49 @@ class SchemaInitializerTest {
                         .hasMessageContaining("FOREIGN KEY");
             }
         }
+    }
+
+    @Test
+    @DisplayName("Debe verificar que los campos monetarios y numéricos de las tablas tengan afinidad NUMERIC o INTEGER")
+    void testTiposDatosColumnasNumericasEnTablas() throws SQLException {
+        try (Connection conn = DatabaseConnection.getConnection("jdbc:sqlite::memory:")) {
+            SchemaInitializer.inicializar(conn);
+
+            // 1. Tabla clientes
+            Map<String, String> tiposClientes = obtenerTiposColumnas(conn, "clientes");
+            assertThat(tiposClientes.get("telefono")).isEqualTo("NUMERIC");
+            assertThat(tiposClientes.get("documento")).isEqualTo("NUMERIC");
+
+            // 2. Tabla creditos
+            Map<String, String> tiposCreditos = obtenerTiposColumnas(conn, "creditos");
+            assertThat(tiposCreditos.get("capital")).isEqualTo("NUMERIC");
+            assertThat(tiposCreditos.get("tasa_mensual")).isEqualTo("NUMERIC");
+            assertThat(tiposCreditos.get("plazo_meses")).isEqualTo("INTEGER");
+            assertThat(tiposCreditos.get("total_intereses")).isEqualTo("NUMERIC");
+            assertThat(tiposCreditos.get("total_pagar")).isEqualTo("NUMERIC");
+
+            // 3. Tabla cuotas
+            Map<String, String> tiposCuotas = obtenerTiposColumnas(conn, "cuotas");
+            assertThat(tiposCuotas.get("monto")).isEqualTo("NUMERIC");
+            assertThat(tiposCuotas.get("numero_cuota")).isEqualTo("INTEGER");
+            assertThat(tiposCuotas.get("en_mora")).isEqualTo("INTEGER");
+
+            // 4. Tabla pagos
+            Map<String, String> tiposPagos = obtenerTiposColumnas(conn, "pagos");
+            assertThat(tiposPagos.get("monto")).isEqualTo("NUMERIC");
+            assertThat(tiposPagos.get("credito_id")).isEqualTo("INTEGER");
+            assertThat(tiposPagos.get("cuota_id")).isEqualTo("INTEGER");
+        }
+    }
+
+    private Map<String, String> obtenerTiposColumnas(Connection conn, String tabla) throws SQLException {
+        Map<String, String> tipos = new HashMap<>();
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("PRAGMA table_info(" + tabla + ");")) {
+            while (rs.next()) {
+                tipos.put(rs.getString("name"), rs.getString("type"));
+            }
+        }
+        return tipos;
     }
 }
