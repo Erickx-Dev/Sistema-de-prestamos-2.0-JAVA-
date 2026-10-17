@@ -38,6 +38,7 @@ public class ClienteDialog {
     private final Label errorLabel;
     private final Button cancelButton;
     private final Button saveButton;
+    private final BorderPane root;
 
     private Cliente savedCliente;
 
@@ -57,10 +58,12 @@ public class ClienteDialog {
         this.stage.initModality(Modality.APPLICATION_MODAL);
         this.stage.setTitle(editMode ? "Editar Cliente" : "Nuevo Cliente");
         this.stage.setResizable(false);
+        this.stage.setMinWidth(480);
+        this.stage.setMinHeight(360);
 
-        BorderPane root = new BorderPane();
+        this.root = new BorderPane();
         root.getStyleClass().add("dialog-root");
-        root.setPrefWidth(460);
+        root.setPrefWidth(480);
 
         // 1. Cabecera
         HBox header = new HBox(10);
@@ -219,15 +222,26 @@ public class ClienteDialog {
         errorLabel.setText(message);
         errorLabel.setManaged(true);
         errorLabel.setVisible(true);
+        if (stage.isShowing()) {
+            root.applyCss();
+            root.layout();
+            stage.sizeToScene();
+        }
     }
 
     private void hideError() {
+        boolean wasVisible = errorLabel.isVisible();
         errorLabel.setText("");
         errorLabel.setVisible(false);
         errorLabel.setManaged(false);
         nombreField.getStyleClass().remove("input-error");
         documentoField.getStyleClass().remove("input-error");
         telefonoField.getStyleClass().remove("input-error");
+        if (wasVisible && stage.isShowing()) {
+            root.applyCss();
+            root.layout();
+            stage.sizeToScene();
+        }
     }
 
     public Optional<Cliente> showAndWait() {
