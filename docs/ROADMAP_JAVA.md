@@ -358,15 +358,15 @@ flowchart TD
   - `DashboardViewTest`: Validación de tarjetas ignorando créditos liquidados.
   - `PagosViewFilterTest`: Validación de heurística de búsqueda manual (numérica `#4` vs `4`, texto o recibo `REC-xxxxx`, y limpieza).
 - **Tareas de la fase:**
-  - [ ] Implementar `DashboardView` con métricas de cartera activa y tabla de cuotas próximas.
-  - [ ] Implementar `ClientesView` y `ClienteDetailView` conectadas a `ClienteDialog`.
-  - [ ] Implementar `CreditoNewView` con simulador reactivo y confirmación de creación.
-  - [ ] Implementar `CreditoDetailView` con resumen, métricas, plan de cuotas y lanzador de `PagoDialog`.
-  - [ ] Implementar `PagosView` con filtro manual inteligente y modal `DetallePagoDialog`.
-  - [ ] Implementar `ReportesView` con controles segmentados, entradas de fecha, tarjetas y gráficos vectoriales nativos de JavaFX.
-  - [ ] Implementar `BackupDialog` con respaldo en un clic, guardado personalizado y restauración en caliente.
-  - [ ] Desarrollar y ejecutar tests de controladores y filtros.
-- **Criterio de finalización:** Todas las vistas y diálogos son 100% operativos de extremo a extremo desde JavaFX. Gráficos vectoriales y tablas responsivas funcionando sin fallos ni bloqueos en el hilo de UI.
+  - [x] Implementar `DashboardView` con métricas de cartera activa y tabla de cuotas próximas.
+  - [x] Implementar `ClientesView` y `ClienteDetailView` conectadas a `ClienteDialog`.
+  - [x] Implementar `CreditoNewView` con simulador reactivo y confirmación de creación.
+  - [x] Implementar `CreditoDetailView` con resumen, métricas, plan de cuotas y lanzador de `PagoDialog`.
+  - [x] Implementar `PagosView` con filtro manual inteligente y modal `DetallePagoDialog`.
+  - [x] Implementar `ReportesView` con controles segmentados, entradas de fecha, tarjetas y gráficos vectoriales nativos de JavaFX.
+  - [x] Implementar `BackupDialog` con respaldo en un clic, guardado personalizado y restauración en caliente.
+  - [x] Desarrollar y ejecutar tests de controladores y filtros.
+- **Criterio de finalización:** Todas las vistas y diálogos son 100% operativos de extremo a extremo desde JavaFX. Gráficos vectoriales y tablas responsivas funcionando sin fallos ni bloqueos en el hilo de UI. (Completada: 153/153 tests en verde).
 
 ---
 

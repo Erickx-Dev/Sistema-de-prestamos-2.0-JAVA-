@@ -284,6 +284,13 @@ public class ReporteService {
      */
     public List<ProyeccionSemanalItem> obtenerRecaudoVsProyeccionSemanal(
             LocalDate fechaDesde,
+            LocalDate fechaHasta
+    ) {
+        return obtenerRecaudoVsProyeccionSemanal(fechaDesde, fechaHasta, 5);
+    }
+
+    public List<ProyeccionSemanalItem> obtenerRecaudoVsProyeccionSemanal(
+            LocalDate fechaDesde,
             LocalDate fechaHasta,
             int numSemanas
     ) {

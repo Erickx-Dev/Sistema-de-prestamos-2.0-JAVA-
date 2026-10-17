@@ -298,4 +298,11 @@ public class BackupService {
         backups.sort(Comparator.comparing(BackupInfo::fechaModificacion).reversed());
         return backups;
     }
+
+    /**
+     * Retorna el directorio configurado para respaldos locales.
+     */
+    public Path getBackupsDir() {
+        return backupsDir;
+    }
 }

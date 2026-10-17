@@ -181,4 +181,32 @@ public class PagoService {
             throw new CrediNodaException("Error al calcular saldo de cuota: " + e.getMessage(), e);
         }
     }
+
+    /**
+     * Obtiene el monto total abonado hasta la fecha sobre una cuota específica (RN-010).
+     *
+     * @param cuotaId ID de la cuota.
+     * @return Suma acumulada de pagos realizados a la cuota.
+     */
+    public BigDecimal obtenerTotalPagadoCuota(int cuotaId) {
+        try {
+            return pagoRepository.obtenerTotalPagadoCuota(cuotaId);
+        } catch (SQLException e) {
+            throw new CrediNodaException("Error al obtener total pagado de la cuota: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Lista los abonos individuales realizados sobre una cuota (CU-007).
+     *
+     * @param cuotaId ID de la cuota.
+     * @return Lista de pagos de la cuota.
+     */
+    public List<Pago> obtenerPagosCuota(int cuotaId) {
+        try {
+            return pagoRepository.obtenerPorCuota(cuotaId);
+        } catch (SQLException e) {
+            throw new CrediNodaException("Error al obtener pagos de la cuota: " + e.getMessage(), e);
+        }
+    }
 }

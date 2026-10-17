@@ -12,23 +12,26 @@ import com.credinoda.service.CreditoService;
 import com.credinoda.service.PagoService;
 import com.credinoda.service.PdfService;
 import com.credinoda.service.ReporteService;
-import com.credinoda.ui.components.SectionHeader;
+import com.credinoda.ui.components.BackupDialog;
 import com.credinoda.ui.components.ToastNotification;
 import com.credinoda.ui.navigation.NavAction;
 import com.credinoda.ui.navigation.NavigationBar;
 import com.credinoda.ui.navigation.ViewRouter;
+import com.credinoda.ui.views.ClienteDetailView;
+import com.credinoda.ui.views.ClientesView;
+import com.credinoda.ui.views.CreditoDetailView;
+import com.credinoda.ui.views.CreditoNewView;
+import com.credinoda.ui.views.DashboardView;
+import com.credinoda.ui.views.PagosView;
+import com.credinoda.ui.views.ReportesView;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
@@ -167,41 +170,52 @@ public class CrediNodaApplication extends Application {
     }
 
     /**
-     * Registra las vistas de los módulos principales en el {@link ViewRouter}.
+     * Registra las 7 vistas funcionales de los módulos principales y subvistas en el {@link ViewRouter}.
      */
     protected void registerDefaultModuleViews() {
         viewRouter.registerView(NavAction.DASHBOARD,
-                () -> buildModuleContainerView("Inicio", "Resumen general de cartera activa y próximos cobros"));
+                () -> new DashboardView(creditoService, viewRouter, this::showNotification));
+
         viewRouter.registerView(NavAction.CLIENTES,
-                () -> buildModuleContainerView("Clientes", "Directorio de prestatarios y expedientes crediticios"));
-        viewRouter.registerView(NavAction.CREDITO_NEW,
-                () -> buildModuleContainerView("Nuevo Crédito", "Simulador financiero y otorgamiento de préstamos"));
+                () -> new ClientesView(clienteService, viewRouter, this::showNotification));
+
+        CreditoNewView creditoNewView = new CreditoNewView(
+                clienteService, creditoService, viewRouter, this::showNotification);
+        viewRouter.registerView(NavAction.CREDITO_NEW, () -> creditoNewView);
+        viewRouter.registerDynamicView(NavAction.CREDITO_NEW.getRouteKey(), param -> {
+            if (param instanceof Integer clienteId) {
+                creditoNewView.preselectCliente(clienteId);
+            }
+            return creditoNewView;
+        });
+
         viewRouter.registerView(NavAction.PAGOS,
-                () -> buildModuleContainerView("Pagos", "Historial de recaudos y emisión de comprobantes PDF"));
+                () -> new PagosView(pagoService, pdfService, viewRouter, this::showNotification));
+
         viewRouter.registerView(NavAction.REPORTES,
-                () -> buildModuleContainerView("Reportes", "Métricas financieras, rentabilidad y estado de cartera"));
-    }
+                () -> new ReportesView(reporteService, this::showNotification));
 
-    private Node buildModuleContainerView(String title, String subtitle) {
-        VBox view = new VBox(18);
-        view.getStyleClass().add("view-container");
+        viewRouter.registerDynamicView(NavAction.ROUTE_CLIENTE_DETAIL, param -> {
+            int clienteId = (param instanceof Number n) ? n.intValue() : Integer.parseInt(String.valueOf(param));
+            return new ClienteDetailView(clienteId, clienteService, creditoService, viewRouter, this::showNotification);
+        });
 
-        SectionHeader header = new SectionHeader(title, subtitle);
-
-        VBox card = new VBox(8);
-        card.getStyleClass().add("card");
-        VBox.setVgrow(card, Priority.ALWAYS);
-
-        Label infoLabel = new Label("Módulo " + title + " listo en el contenedor dinámico ContentArea.");
-        infoLabel.getStyleClass().add("section-subtitle");
-        card.getChildren().add(infoLabel);
-
-        view.getChildren().addAll(header, card);
-        return view;
+        viewRouter.registerDynamicView(NavAction.ROUTE_CREDITO_DETAIL, param -> {
+            int creditoId = (param instanceof Number n) ? n.intValue() : Integer.parseInt(String.valueOf(param));
+            return new CreditoDetailView(
+                    creditoId, creditoService, clienteService, pagoService, pdfService, viewRouter, this::showNotification);
+        });
     }
 
     protected void handleBackupAction() {
-        showNotification("Módulo de Copia de Seguridad listo para vinculación modal.", ToastNotification.Type.INFO);
+        BackupDialog dialog = new BackupDialog(
+                primaryStage,
+                backupService,
+                creditoService,
+                this::notifyDataChanged,
+                this::showNotification
+        );
+        dialog.showAndWait();
     }
 
     private void startDayRolloverMonitor() {
