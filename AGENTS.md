@@ -46,6 +46,10 @@ El desarrollo de las 7 fases de [`docs/ROADMAP_JAVA.md`](docs/ROADMAP_JAVA.md) s
 - `feature/fase-4-servicios-reportes-pdf-backup`
 - `feature/fase-5-shell-javafx-navegacion`
 - `feature/fase-6-vistas-dialogos-graficos`
+- `feature/fase-6.1-graficos-reportes`
+- `feature/fase-6.2-setup-wizard-rutas`
+- `feature/fase-6.3-autenticacion-roles`
+- `feature/fase-6.4-auditoria`
 - `feature/fase-7-e2e-packaging`
 - Para correcciones o ajustes: prefijos normativos `fix/`, `refactor/`, `docs/`, `test/`.
 
@@ -92,6 +96,7 @@ Cualquier cambio en dependencias debe declararse en `pom.xml` y limitarse estric
 | **UI Toolkit** | **JavaFX (`javafx-controls`, `javafx-graphics`)** | **21.0.x** | Ventana principal, navegación, tablas (`TableView`) y gráficos vectoriales nativos. |
 | **Estilos UI** | **JavaFX CSS (`-fx-*`)** | Estándar CSS | Hoja de estilos centralizada en `src/main/resources/css/credinoda.css`. |
 | **Motor BD** | **SQLite JDBC (`org.xerial:sqlite-jdbc`)** | **3.46.x+** | Persistencia relacional local 100% offline y soporte online backup. |
+| **Seguridad / Criptografía** | **BCrypt (`at.favre.lib:bcrypt`)** | **0.10.2** | Almacenamiento seguro y verificación de contraseñas de usuarios con sal aleatoria (costo 12). |
 | **PDF** | **OpenPDF (`com.github.librepdf:openpdf`)** | **2.0.x** | Generación de recibos de pago tamaño carta. |
 | **Códigos QR** | **ZXing (`com.google.zxing:core` + `javase`)** | **3.5.x** | Generación de matrices QR en memoria para incrustar en PDFs. |
 | **Testing** | **JUnit 5 (`junit-jupiter`) + AssertJ** | **5.10.x / 3.25.x** | Pruebas unitarias parametrizadas y en bases de datos `:memory:`. |
@@ -124,9 +129,9 @@ flowchart TD
 5. **Jerarquía de Excepciones No Chequeadas:** `CrediNodaException` extiende de `RuntimeException` para no ensuciar firmas de métodos con `throws` innecesarios y asegurar rollbacks transaccionales limpios.
 
 ### Regla Estructural de Oro de la Interfaz Gráfica (`MainShell`):
-Siguiendo la Sección I.2 del plan de migración, la ventana principal en JavaFX está constituida **exclusivamente por dos regiones**:
-- **Barra de Navegación Persistente (`NavigationBar`):** Lateral izquierda fija (220px) con las 6 opciones reales (`Inicio`, `Clientes`, `Nuevo Crédito`, `Pagos`, `Reportes`, `Copia de Seguridad`).
-- **Área de Contenido Dinámica (`ContentArea`):** Ocupa el 100% del espacio restante donde se monta la vista activa administrada por el enrutador con caché por `dataVersion`.
+Siguiendo la Sección I.2 del plan de migración y el diseño Stitch de CrediNoda 2.0, la ventana principal en JavaFX (`BorderPane`) está constituida **exclusivamente por dos regiones**:
+- **Barra de Navegación Persistente (`NavigationBar`):** Superior horizontal fija de 56px (`Top`), con marca interactiva a la izquierda (con opción de cierre de sesión al pulsar), accesos a los módulos según el rol del usuario autenticado, y acción de respaldo a la derecha.
+- **Área de Contenido Dinámica (`ContentArea`):** Ocupa el 100% del espacio restante (`Center`) donde se monta la vista activa administrada por el enrutador con caché por `dataVersion`.
 - **Prohibición de Elementos Parásitos:** No deben existir paneles secundarios laterales, ni barras de navegación auxiliares, ni franjas de pie de página permanentes, ni encabezados globales fijos fuera del área de contenido dinámica. Toda alerta debe desplegarse como un banner flotante temporal (`ToastNotification`).
 
 ---

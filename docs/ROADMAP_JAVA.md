@@ -28,11 +28,11 @@ CrediNoda 2.0 se estructura bajo una **Arquitectura en 5 Capas Estrictas** bajo 
 flowchart TD
     subgraph UI_Layer["5. Capa de Presentación JavaFX (com.credinoda.ui)"]
         FXAPP["CrediNodaApplication (Application)"]
-        MAIN_LAYOUT["MainShell (BorderPane)\nExclusivamente: Barra de Navegación (Left) + Área de Contenido (Center)"]
-        NAV_BAR["NavigationBar\n(Inicio, Clientes, Nuevo Crédito, Pagos, Reportes, Copia de Seguridad)"]
+        MAIN_LAYOUT["MainShell (BorderPane)\nExclusivamente: NavigationBar (Top, 56px) + ContentArea (Center)"]
+        NAV_BAR["NavigationBar (56px)\n(Marca/Logout, Módulos dinámicos según Rol, Respaldo)"]
         CONTENT["ContentArea (StackPane)\nContenedor exclusivo de la vista activa"]
-        FX_VIEWS["Vistas: DashboardView, ClientesView, ClienteDetailView,\nCreditoNewView, CreditoDetailView, PagosView, ReportesView"]
-        FX_DIALOGS["Diálogos Modales:\nConfirmDialog, ClienteDialog, PagoDialog, DetallePagoDialog, BackupDialog"]
+        FX_VIEWS["Vistas: DashboardView, ClientesView, ClienteDetailView,\nCreditoNewView, CreditoDetailView, PagosView, ReportesView, AuditoriaView, UsuariosView"]
+        FX_DIALOGS["Diálogos Modales / Flujos Independientes:\nSetupWizard, UbicacionNoDisponibleDialog, LoginDialog, CambiarContrasenaDialog,\nConfirmDialog, ClienteDialog, PagoDialog, DetallePagoDialog, BackupDialog, UsuarioDialog"]
         CSS["Estilos: /css/credinoda.css"]
     end
 
@@ -43,27 +43,35 @@ flowchart TD
         S_REP["ReporteService"]
         S_PDF["PdfService (OpenPDF + ZXing)"]
         S_BAK["BackupService (SQLite Online Backup)"]
+        S_SEC["ContextoSeguridad + AutorizacionService (hasPermission)"]
+        S_AUTH["AutenticacionService + UsuarioService (BCrypt)"]
+        S_AUD["AuditoriaService (Bitácora Inmutable)"]
+        S_CFG["ConfiguracionInicialService"]
     end
 
     subgraph Persistence_Layer["3. Capa de Persistencia (com.credinoda.persistence)"]
         DB_CONN["DatabaseConnection (PRAGMA foreign_keys = ON)"]
-        SCHEMA["SchemaInitializer (DDL Limpio)"]
+        SCHEMA["SchemaInitializer (DDL Limpio: 4 tablas de negocio + usuarios + auditoria)"]
         R_CLI["ClienteRepository"]
         R_CRE["CreditoRepository"]
         R_PAG["PagoRepository"]
-        SQLITE[("SQLite Database\ndata/creditos.db")]
+        R_USR["UsuarioRepository"]
+        R_AUD["AuditoriaRepository"]
+        SQLITE[("SQLite Database\ncreditos.db (Ruta configurable)")]
     end
 
     subgraph Common_Layer["2. Capa Transversal y Utilidades (com.credinoda.common)"]
-        CFG["AppConfig (Constantes y Rutas)"]
+        CFG["AppConfig (Constantes Financieras)"]
+        RUTAS["RutasSistema (Record de Rutas)"]
+        STORE["ConfiguracionLocalStore (Windows/Linux/macOS)"]
         FMT["Formatters (Moneda, Fecha, Porcentaje)"]
-        VAL["Validators (parsearMonto, Validadores)"]
+        VAL["Validators (parsearMonto, Validadores, Contraseñas)"]
     end
 
     subgraph Domain_Layer["1. Capa de Dominio (com.credinoda.domain)"]
-        ENT["Entidades: Cliente, Credito, Cuota, Pago"]
-        ENUM["Enums: FrecuenciaPago, EstadoCredito, EstadoCuota"]
-        DTO["Records DTO Inmutables:\nProximoPagoItem, PagoDetalleItem, DatosComprobante,\nMetricasReporte, DistribucionCartera, ProyeccionSemanalItem, BackupInfo"]
+        ENT["Entidades: Cliente, Credito, Cuota, Pago, Usuario, EventoAuditoria"]
+        ENUM["Enums: FrecuenciaPago, EstadoCredito, EstadoCuota, Rol, Permiso, AccionAuditoria, ResultadoAuditoria"]
+        DTO["Records DTO Inmutables:\nProximoPagoItem, PagoDetalleItem, DatosComprobante, MetricasReporte, DistribucionCartera,\nProyeccionSemanalItem, BackupInfo, SesionUsuario, FiltroAuditoria, RegistroAuditoriaItem, EstadoInstalacion"]
         EXC["Excepciones de Negocio:\nCrediNodaException (extends RuntimeException) y subclases"]
     end
 
@@ -73,39 +81,43 @@ flowchart TD
     FX_VIEWS --> FX_DIALOGS
     MAIN_LAYOUT -.-> CSS
 
-    FX_VIEWS & FX_DIALOGS --> S_CLI & S_CRE & S_PAG & S_REP & S_PDF & S_BAK
+    FX_VIEWS & FX_DIALOGS --> S_CLI & S_CRE & S_PAG & S_REP & S_PDF & S_BAK & S_SEC & S_AUTH & S_AUD & S_CFG
     FX_VIEWS & FX_DIALOGS --> FMT & VAL
 
-    S_CLI --> R_CLI & R_CRE
-    S_CRE --> R_CRE & R_PAG & R_CLI & CFG
-    S_PAG --> R_PAG & R_CRE
-    S_REP --> R_CRE & R_PAG
-    S_PDF --> FMT & CFG
-    S_BAK --> DB_CONN & SCHEMA & CFG & SQLITE
+    S_CLI --> R_CLI & R_CRE & S_AUD & S_SEC
+    S_CRE --> R_CRE & R_PAG & R_CLI & CFG & S_AUD & S_SEC
+    S_PAG --> R_PAG & R_CRE & S_CRE & S_AUD & S_SEC
+    S_REP --> R_CRE & R_PAG & S_SEC
+    S_PDF --> FMT & S_AUD
+    S_BAK --> DB_CONN & SCHEMA & S_AUD & S_SEC & SQLITE
+    S_AUTH --> R_USR & S_AUD
+    S_SEC --> R_USR
+    S_AUD --> R_AUD
+    S_CFG --> STORE & RUTAS & DB_CONN & SCHEMA & S_AUTH
 
-    R_CLI & R_CRE & R_PAG --> DB_CONN --> SQLITE
+    R_CLI & R_CRE & R_PAG & R_USR & R_AUD --> DB_CONN --> SQLITE
     UI_Layer & Service_Layer & Persistence_Layer --> Domain_Layer
 ```
 
 ### Especificación de Capas:
 
 1. **`domain` (`com.credinoda.domain`):**
-   - **`model`:** Entidades POJO/inmutables (`Cliente`, `Credito`, `Cuota`, `Pago`) y enumeraciones con nombres canónicos (`FrecuenciaPago`, `EstadoCredito`, `EstadoCuota`). `Cuota` implementa el cálculo dinámico de `etiquetaEstado()` ("PENDIENTE (EN MORA)", "PARCIAL (EN MORA)", "PAGADA", etc.).
-   - **`dto`:** Registros (`record`) inmutables tipados que reemplazan los diccionarios sin tipar de Python (`ProximoPagoItem`, `PagoDetalleItem`, `DatosComprobante`, `MetricasReporte`, `DistribucionCartera`, `ProyeccionSemanalItem`, `BackupInfo`).
-   - **`exception`:** Jerarquía de excepciones de dominio no chequeadas donde `CrediNodaException` hereda de `RuntimeException`, evitando sobrecargar las firmas de métodos con `throws` y facilitando rollback transaccional limpio.
+   - **`model`:** Entidades POJO/inmutables (`Cliente`, `Credito`, `Cuota`, `Pago`, `Usuario`, `EventoAuditoria`) y enumeraciones con nombres canónicos (`FrecuenciaPago`, `EstadoCredito`, `EstadoCuota`, `Rol`, `Permiso`, `AccionAuditoria`, `ResultadoAuditoria`). `Cuota` implementa el cálculo dinámico de `etiquetaEstado()`.
+   - **`dto`:** Registros (`record`) inmutables tipados (`ProximoPagoItem`, `PagoDetalleItem`, `DatosComprobante`, `MetricasReporte`, `DistribucionCartera`, `ProyeccionSemanalItem`, `BackupInfo`, `SesionUsuario`, `FiltroAuditoria`, `RegistroAuditoriaItem`, `EstadoInstalacion`, `ResultadoValidacionUbicacion`).
+   - **`exception`:** Jerarquía de excepciones de dominio no chequeadas donde `CrediNodaException` hereda de `RuntimeException` (`ClienteNoEncontradoException`, `CreditoNoEncontradoException`, `AutenticacionException`, `UsuarioBloqueadoException`, `AccesoDenegadoException`, `ConfiguracionException`, etc.).
 2. **`common` (`com.credinoda.common`):**
-   - Componentes transversales completamente desacoplados de la UI: `AppConfig` (constantes de negocio como tasa por defecto del 12%, frecuencias y resolución de rutas dinámicas), `Formatters` (formateo monetario exacto `$1.000.000` / `$113.333,33`, fechas `dd/mm/YYYY` y porcentajes sin acoplamiento a librerías gráficas), y `Validators` (analizador sintáctico robusto `parsearMonto()` tolerante a múltiples variantes de miles y decimales).
+   - Componentes transversales completamente desacoplados de la UI: `AppConfig` (parámetros financieros inmutables), `RutasSistema` (record de rutas dinámicas), `ConfiguracionLocalStore` (persistencia multiplataforma en Windows `%APPDATA%`, Linux `~/.config` y macOS con soporte de override `-Dcredinoda.config.dir` para tests), `Formatters` (formateo contable exacto) y `Validators` (parseo tolerante de montos, validación de contraseñas y validación de carpetas operativas).
 3. **`persistence` (`com.credinoda.persistence`):**
-   - `DatabaseConnection`: Administra la conexión JDBC hacia SQLite activando mandatoriamente `PRAGMA foreign_keys = ON`.
-   - `SchemaInitializer`: Crea desde cero las 4 tablas relacionales (`clientes`, `creditos`, `cuotas`, `pagos`) con tipos exactos `TEXT` para `BigDecimal` y `LocalDate`, con `cuotas.en_mora` nativo.
-   - `repository`: `ClienteRepository`, `CreditoRepository`, `PagoRepository`, encargados del mapeo relacional estricto con `PreparedStatement`.
+   - `DatabaseConnection`: Administra la conexión JDBC hacia SQLite con `PRAGMA foreign_keys = ON` inyectando la ruta dinámica de la base de datos.
+   - `SchemaInitializer`: Crea desde cero las tablas relacionales (`clientes`, `creditos`, `cuotas`, `pagos`, `usuarios`, `auditoria`) e índices optimizados, con triggers de inmutabilidad sobre la bitácora de auditoría.
+   - `repository`: `ClienteRepository`, `CreditoRepository`, `PagoRepository`, `UsuarioRepository` y `AuditoriaRepository` con `PreparedStatement`.
 4. **`service` (`com.credinoda.service`):**
-   - Orquesta los casos de uso del sistema: `ClienteService`, `CreditoService`, `PagoService`, `ReporteService`, `PdfService` (OpenPDF + ZXing) y `BackupService` (copias de seguridad en caliente y restauración segura con respaldo preventivo). Prohibido importar paquetes de JavaFX en esta capa.
+   - Orquesta los casos de uso del sistema: `ClienteService`, `CreditoService`, `PagoService`, `ReporteService`, `PdfService`, `BackupService`, `AutenticacionService` (BCrypt costo 12), `UsuarioService`, `AutorizacionService` (`hasPermission`/`requirePermission`), `AuditoriaService` (registro atómico en transacciones) y `ConfiguracionInicialService`. Prohibido importar paquetes de JavaFX en esta capa.
 5. **`ui` (`com.credinoda.ui`):**
-   - Diseñado estrictamente según el principio de minimalismo de la Sección I.2 del plan maestro: la ventana principal `MainShell` contiene **únicamente dos regiones**:
-     - **Barra de Navegación Persistente (`NavigationBar`):** Región lateral izquierda (220px) con acceso exclusivo a las 6 opciones reales del sistema (`Inicio`, `Clientes`, `Nuevo Crédito`, `Pagos`, `Reportes` y `Copia de Seguridad`).
-     - **Área de Contenido Dinámica (`ContentArea`):** Ocupa el 100% del espacio restante para desplegar la vista activa (`DashboardView`, `ClientesView`, `ClienteDetailView`, `CreditoNewView`, `CreditoDetailView`, `PagosView`, `ReportesView`).
-   - **Regla Estructural de Oro:** No existen paneles secundarios, ni barras de estado inferiores fijas, ni encabezados globales persistentes fuera del área de contenido. Las alertas se manejan mediante un banner flotante temporal (`ToastNotification`).
+   - Diseñado estrictamente según la Sección I.2 del plan de migración y el diseño Stitch: la ventana principal `MainShell` contiene **únicamente dos regiones**:
+     - **Barra de Navegación Persistente (`NavigationBar`):** Superior horizontal (56px) con bloque de marca interactivo (cierre de sesión al pulsar), menú horizontal de módulos según el rol del usuario autenticado, y botón de acción de respaldo a la derecha.
+     - **Área de Contenido Dinámica (`ContentArea`):** Ocupa el 100% del espacio restante para desplegar la vista activa (`DashboardView`, `ClientesView`, `ClienteDetailView`, `CreditoNewView`, `CreditoDetailView`, `PagosView`, `ReportesView`, `AuditoriaView`, `UsuariosView`).
+   - Flujos modales independientes: `SetupWizard` (primer arranque), `LoginDialog` (autenticación previa), `BackupDialog`, `ClienteDialog`, `PagoDialog`, etc. Las alertas se manejan mediante el banner flotante temporal (`ToastNotification`).
 
 ---
 
@@ -120,6 +132,9 @@ flowchart TD
 | `CU-012` (Dashboard Inicio) | `RN-013` (Métricas exclusivas de cartera ACTIVA y 10 próximas cuotas pendientes/parciales) | Validación con créditos pagados vs activos | **Fases 2, 3, 6** |
 | `CU-013` (Reportes financieros y KPIs) | `RN-014` (10 KPIs, ganancia líquida prorrateada, morosidad, distribución de cartera, series semanales) | `VP-010` (Ganancia líquida y margen)<br>`VP-011` (Morosidad con vencidos)<br>`VP-012` (Rangos temporales ISO) | **Fases 1, 2, 4, 6** |
 | `CU-014` (Crear backup rápido/personal)<br>`CU-015` (Validar y restaurar backup) | `RN-017` (Backup online SQLite y orden cronológico)<br>`RN-018` (Validación triple: mágica, integridad, 4 tablas; respaldo preventivo pre_restauracion) | Ciclo integral: backup $\to$ borrado $\to$ validación $\to$ restauración en caliente | **Fases 2, 4, 6, 7** |
+| `CU-016` (Configurar ubicación de datos y respaldos en primer inicio)<br>`CU-017` (Recuperar ubicación de datos no disponible) | `RN-019` (Configuración externa multiplataforma en AppData/XDG, escritura atómica)<br>`RN-020` (Validación de carpetas: permisos, advertencia estricta contra BD activa en la nube, soporte de Google Drive Desktop para respaldos)<br>`RN-021` (Nunca recrear en silencio una BD ausente en la ruta configurada) | `VP-015` (Primer arranque $\to$ Setup Wizard; segundo arranque $\to$ Login directo)<br>`VP-016` (Ruta inaccesible no genera BD vacía)<br>`VP-017` (Validación de carpetas y reutilización de BD existente) | **Fases 6.2, 7** |
+| `CU-018` (Iniciar y cerrar sesión)<br>`CU-019` (Gestionar usuarios y roles)<br>`CU-020` (Cambiar contraseña) | `RN-022` (Credenciales BCrypt costo 12, política de contraseñas)<br>`RN-023` (Bloqueo tras 5 intentos fallidos por 15 minutos, mensaje genérico)<br>`RN-024` (Matriz rol-permiso: Administrador completo vs. Operador restringido a cobranza y créditos preexistentes)<br>`RN-025` (Invariante: siempre $\ge 1$ Administrador activo; baja lógica)<br>`RN-026` (Doble capa: validación mandatoria en service y ocultamiento en UI; logout en marca de Navbar) | `VP-018` (Hash y verificación BCrypt)<br>`VP-019` (Bloqueo y desbloqueo temporal)<br>`VP-020` (Acceso denegado según matriz de roles)<br>`VP-021` (Protección del último administrador) | **Fases 6.3, 7** |
+| `CU-021` (Consultar bitácora de auditoría) | `RN-027` (Bitácora inmutable protegida por triggers SQLite)<br>`RN-028` (Evento atómico en la misma transacción JDBC de negocio)<br>`RN-029` (Restauración de respaldos preserva intactos usuarios y auditoría) | `VP-022` (Pago auditado atómicamente; rollback sin eventos)<br>`VP-023` (UPDATE/DELETE sobre auditoría rechazados por triggers)<br>`VP-024` (Restauración preserva usuarios y bitácora) | **Fases 6.4, 7** |
 
 ---
 
@@ -402,42 +417,228 @@ flowchart TD
 
 ---
 
+### Fase 6.2: Configuración Híbrida Multiplataforma, Rutas Dinámicas y Asistente de Configuración Inicial (Setup Wizard con Google Drive Desktop)
+- **Rama:** `feature/fase-6.2-setup-wizard-rutas`
+- **Objetivo:** Desacoplar la aplicación de rutas fijas relativas (`user.dir/data`, `user.dir/backups`) e implementar un resolvedor de configuración multiplataforma nativo (Windows `%APPDATA%\CrediNoda`, Linux `~/.config/credinoda`, macOS `~/Library/Application Support/CrediNoda`). Diseñar el Asistente de Configuración Inicial (Setup Wizard) para primer arranque, permitiendo seleccionar la carpeta de la base de datos local y la carpeta de respaldos (con soporte nativo para sincronización transparente con Google Drive para Escritorio), evitando la corrupción de datos y recreaciones silenciosas de bases de datos.
+- **Archivos exactos a crear:**
+  - `src/main/java/com/credinoda/common/RutasSistema.java` (record inmutable de rutas operativas)
+  - `src/main/java/com/credinoda/common/ConfiguracionLocalStore.java` (persistencia multiplataforma en Properties con soporte de override `-Dcredinoda.config.dir` para JUnit)
+  - `src/main/java/com/credinoda/domain/dto/EstadoInstalacion.java` (enum: `NO_CONFIGURADO`, `UBICACION_NO_DISPONIBLE`, `SIN_ADMINISTRADOR`, `LISTO`)
+  - `src/main/java/com/credinoda/domain/dto/ResultadoValidacionUbicacion.java`
+  - `src/main/java/com/credinoda/domain/exception/ConfiguracionException.java`
+  - `src/main/java/com/credinoda/service/ConfiguracionInicialService.java`
+  - `src/main/java/com/credinoda/ui/setup/SetupWizard.java` (interfaz visual del asistente independiente del MainShell)
+  - `src/main/java/com/credinoda/ui/setup/UbicacionNoDisponibleDialog.java`
+  - `src/test/java/com/credinoda/common/ConfiguracionLocalStoreTest.java`
+  - `src/test/java/com/credinoda/service/ConfiguracionInicialServiceTest.java`
+- **Archivos a modificar:**
+  - `src/main/java/com/credinoda/common/AppConfig.java` (retirar constantes de rutas estáticas y `ensureDirectoriesExist()`; conservar parámetros financieros)
+  - `src/main/java/com/credinoda/common/Validators.java` (añadir validación de permisos de escritura y detección de carpetas en la nube)
+  - `src/main/java/com/credinoda/persistence/DatabaseConnection.java` y `SchemaInitializer.java` (retirar sobrecargas sin argumentos ligadas a AppConfig)
+  - `src/main/java/com/credinoda/service/BackupService.java` y `PdfService.java` (recibir rutas desde `RutasSistema`)
+  - `src/main/java/com/credinoda/ui/CrediNodaApplication.java` (máquina de estados de arranque e `initializeBackend(RutasSistema)`)
+  - `src/main/java/com/credinoda/ui/components/BackupDialog.java` (mostrar la ruta de respaldos configurada en lugar de ruta hardcodeada)
+- **Casos de uso y Reglas de negocio cubiertas:**
+  - `CU-016` (Configurar ubicación de datos y respaldos en primer inicio) y `CU-017` (Recuperar ubicación de datos no disponible).
+  - `RN-019`: Configuración externa persistente por estación de trabajo (`credinoda.properties`), con escritura atómica y soporte multiplataforma.
+  - `RN-020`: Validación rigurosa de carpetas (prueba real de escritura/borrado); alerta preventiva y explícita si la base de datos *activa* se ubica en carpetas sincronizadas en tiempo real (OneDrive, Dropbox, Drive); integración de carpeta de respaldos diseñada para sincronización con Google Drive para Escritorio. Reutilización inteligente si ya existe una base `creditos.db` válida.
+  - `RN-021`: Si la base de datos configurada no está disponible al iniciar (disco desconectado o carpeta movida), **nunca** se recrea una base de datos vacía en silencio; se presenta `UbicacionNoDisponibleDialog`.
+- **Vectores de prueba y Tests JUnit 5:**
+  - `VP-015`: Primer arranque sin properties $\to$ estado `NO_CONFIGURADO` y lanzamiento de Setup Wizard; segundo arranque $\to$ lectura directa y estado `LISTO`.
+  - `VP-016`: Configuración persistente válida pero `creditos.db` eliminado $\to$ estado `UBICACION_NO_DISPONIBLE` sin generar archivo `.db` en blanco.
+  - `VP-017`: Validación de carpetas protegidas (rechazo de `Program Files`), prueba de escritura y validación de base existente reutilizable con `BackupService.validarArchivoBackup`.
+  - `ConfiguracionLocalStoreTest`: Lectura/escritura multiplataforma, soporte de espacios y caracteres especiales en rutas, manejo de properties corruptos y override por propiedad de sistema `-Dcredinoda.config.dir`.
+- **Tareas de la fase:**
+  - [ ] Implementar `RutasSistema` y `ConfiguracionLocalStore` con estrategia multiplataforma nativa (Windows `%APPDATA%`, Linux `~/.config`, macOS `Application Support`) y override de testing.
+  - [ ] Implementar validación de carpetas en `Validators.java` (escritura/borrado de archivo testigo, detección de carpetas sincronizadas).
+  - [ ] Refactorizar `AppConfig` eliminando rutas relativas fijas y actualizando firmas dependientes en persistencia y servicios.
+  - [ ] Implementar `ConfiguracionInicialService` gestionando el flujo del asistente, creación automática de carpetas (`Files.createDirectories`) y reutilización de bases preexistentes.
+  - [ ] Desarrollar `SetupWizard` en JavaFX con pasos guiados: Bienvenida $\to$ Selección de carpeta para BD local $\to$ Selección de carpeta de respaldos (Google Drive) $\to$ Resumen y confirmación.
+  - [ ] Desarrollar `UbicacionNoDisponibleDialog` con opciones de Reintentar, Reubicar o Salir.
+  - [ ] Refactorizar el arranque de `CrediNodaApplication` para verificar el estado de instalación antes de cargar el `MainShell`.
+  - [ ] Actualizar `BackupDialog` para reflejar visualmente la carpeta real de respaldos configurada.
+  - [ ] Desarrollar y ejecutar la suite completa de pruebas unitarias (`ConfiguracionLocalStoreTest`, `ConfiguracionInicialServiceTest`).
+- **Criterio de finalización:** 100% de tests en verde (`mvn test`), arranque con Setup Wizard en entornos limpios, arranques posteriores leyendo rutas externas dinámicas, cero recreación silenciosa de bases ausentes y compatibilidad verificada en rutas con espacios.
+
+---
+
+### Fase 6.3: Usuarios, Autenticación BCrypt, Roles y Autorización Centralizada (`hasPermission` / `requirePermission`)
+- **Rama:** `feature/fase-6.3-autenticacion-roles`
+- **Objetivo:** Incorporar la gestión de usuarios e inicio de sesión seguro mediante BCrypt (costo 12), gobernando el acceso al sistema bajo una matriz de roles estricta: `ADMINISTRADOR` (acceso integral, auditoría, respaldos) vs. `OPERADOR` (enfoque en cobranza y créditos a clientes preexistentes, sin crear ni editar clientes, sin auditoría ni respaldos). Incluir el cierre de sesión interactivo al pulsar el bloque de marca en la Navbar y adaptar `MetricCardTest.java` para validar el renderizado de botones según el rol activo.
+- **Archivos exactos a crear:**
+  - `src/main/java/com/credinoda/domain/model/Usuario.java`
+  - `src/main/java/com/credinoda/domain/model/Rol.java` (enum: `ADMINISTRADOR`, `OPERADOR`)
+  - `src/main/java/com/credinoda/domain/model/Permiso.java` (enum granular de operaciones)
+  - `src/main/java/com/credinoda/domain/dto/SesionUsuario.java` (record de sesión autenticada)
+  - `src/main/java/com/credinoda/domain/exception/AutenticacionException.java`
+  - `src/main/java/com/credinoda/domain/exception/UsuarioBloqueadoException.java`
+  - `src/main/java/com/credinoda/domain/exception/AccesoDenegadoException.java`
+  - `src/main/java/com/credinoda/persistence/repository/UsuarioRepository.java`
+  - `src/main/java/com/credinoda/service/PasswordHasher.java` y `BCryptPasswordHasher.java`
+  - `src/main/java/com/credinoda/service/ContextoSeguridad.java` (sesión activa estática/hilo con soporte `sistema()` para compatibilidad)
+  - `src/main/java/com/credinoda/service/Autorizador.java` y `AutorizacionService.java` (`hasPermission`, `requirePermission`)
+  - `src/main/java/com/credinoda/service/AutenticacionService.java`
+  - `src/main/java/com/credinoda/service/UsuarioService.java`
+  - `src/main/java/com/credinoda/ui/auth/LoginDialog.java`
+  - `src/main/java/com/credinoda/ui/auth/CambiarContrasenaDialog.java`
+  - `src/main/java/com/credinoda/ui/components/PermissionGuard.java`
+  - `src/main/java/com/credinoda/ui/components/UsuarioDialog.java`
+  - `src/main/java/com/credinoda/ui/views/UsuariosView.java`
+  - `src/test/java/com/credinoda/persistence/repository/UsuarioRepositoryTest.java`
+  - `src/test/java/com/credinoda/service/BCryptPasswordHasherTest.java`
+  - `src/test/java/com/credinoda/service/AutenticacionServiceTest.java`
+  - `src/test/java/com/credinoda/service/AutorizacionServiceTest.java`
+  - `src/test/java/com/credinoda/service/UsuarioServiceTest.java`
+- **Archivos a modificar:**
+  - `pom.xml` (declarar dependencia autorizada `at.favre.lib:bcrypt:0.10.2`)
+  - `src/main/java/com/credinoda/persistence/SchemaInitializer.java` (aprovisionar DDL limpio de tabla `usuarios`)
+  - `src/main/java/com/credinoda/common/Validators.java` (añadir validador de contraseñas seguras)
+  - `src/main/java/com/credinoda/service/ClienteService.java`, `CreditoService.java`, `PagoService.java`, `BackupService.java`, `ReporteService.java` (incorporar validaciones `requirePermission`)
+  - `src/main/java/com/credinoda/ui/setup/SetupWizard.java` (añadir paso de creación del Administrador inicial)
+  - `src/main/java/com/credinoda/ui/navigation/NavAction.java` (incorporar clave `ROUTE_USUARIOS` sin alterar enums canónicos)
+  - `src/main/java/com/credinoda/ui/navigation/NavigationBar.java` (gestión dinámica de visibilidad de botones según rol y acción de clic en bloque de marca para logout)
+  - `src/main/java/com/credinoda/ui/navigation/ViewRouter.java` (guardia de rutas y limpieza de caché `clearCache()` al cerrar sesión)
+  - `src/main/java/com/credinoda/ui/CrediNodaApplication.java` (orquestar flujo de Login previo a MainShell)
+  - `src/main/java/com/credinoda/ui/views/ClientesView.java` y `ClienteDetailView.java` (ocultar botones de crear y editar en rol Operador)
+  - `src/main/java/com/credinoda/ui/views/CreditoNewView.java` (ocultar botón `+` de cliente nuevo en rol Operador)
+  - `src/test/java/com/credinoda/ui/components/MetricCardTest.java` (actualizar prueba para contemplar el renderizado dinámico de la Navbar para Administrador con Auditoría vs. Operador)
+- **Casos de uso y Reglas de negocio cubiertas:**
+  - `CU-018` (Iniciar y cerrar sesión), `CU-019` (Gestionar usuarios y roles), `CU-020` (Cambiar contraseña).
+  - `RN-022`: Contraseñas almacenadas exclusivamente con BCrypt (costo 12, sal aleatoria nativa).
+  - `RN-023`: Bloqueo automático de cuenta tras 5 intentos fallidos consecutivos por 15 minutos (mensaje genérico no revelador).
+  - `RN-024`: Matriz de roles tipada en código: Administrador (acceso total a 7 botones y acciones de edición) vs. Operador (acceso a 5 botones, enfocado exclusivamente en cobrar y otorgar crédito a clientes preexistentes).
+  - `RN-025`: Invariante de seguridad: siempre debe existir al menos un Administrador activo en el sistema; baja lógica de usuarios (`activo = 0`).
+  - `RN-026`: Autorización en dos capas (servicio mandatorio con `requirePermission` + interfaz visual complementaria con `hasPermission` y cierre de sesión seguro desde la marca `CrediNoda 2.0`).
+- **Vectores de prueba y Tests JUnit 5:**
+  - `VP-018`: Verificación y resistencia de hash BCrypt ($2b$12$...); verificación exitosa de clave válida y rechazo de clave errónea.
+  - `VP-019`: Bloqueo temporal por intentos fallidos recurrentes y recuperación automática con reloj simulado.
+  - `VP-020`: Verificación de matriz de autorización: rechazo de mutaciones no autorizadas en servicios y deshabilitación en controladores.
+  - `VP-021`: Bloqueo estricto contra degradación o desactivación del último administrador activo del sistema.
+  - Actualización de `MetricCardTest`: verificación de renderizado de opciones según el rol autenticado.
+- **Tareas de la fase:**
+  - [ ] Declarar `at.favre.lib:bcrypt` en `pom.xml` y validar resolución en el build de Maven.
+  - [ ] Crear entidades y enums de seguridad (`Usuario`, `Rol`, `Permiso`, `SesionUsuario`, excepciones de seguridad).
+  - [ ] Aprovisionar la tabla `usuarios` en `SchemaInitializer` con restricciones y tipos exactos.
+  - [ ] Implementar `UsuarioRepository` con mapeo JDBC estricto.
+  - [ ] Implementar `BCryptPasswordHasher` e incorporar reglas de validación en `Validators.java`.
+  - [ ] Implementar `ContextoSeguridad` y `AutorizacionService` con API `hasPermission` / `requirePermission`.
+  - [ ] Implementar `AutenticacionService` (login, control de bloqueo, tracking de último acceso, logout) y `UsuarioService`.
+  - [ ] Instrumentar la capa de servicios con llamadas a `requirePermission(...)`.
+  - [ ] Actualizar `SetupWizard` con el paso mandatorio de alta del primer usuario Administrador.
+  - [ ] Implementar `LoginDialog` y `CambiarContrasenaDialog` como ventanas modales previas al montaje del `MainShell`.
+  - [ ] Habilitar el cierre de sesión interactivo al hacer clic en el bloque de marca `CrediNoda 2.0` de `NavigationBar` con diálogo modal de confirmación.
+  - [ ] Implementar `NavigationBar.aplicarPermisos(Rol)` y el guardia de rutas en `ViewRouter` con invalidación de caché `clearCache()`.
+  - [ ] Aplicar `PermissionGuard` en `ClientesView`, `ClienteDetailView` y `CreditoNewView` (ocultar edición y alta de clientes para Operador).
+  - [ ] Desarrollar `UsuariosView` y `UsuarioDialog` accesible exclusivamente para el Administrador.
+  - [ ] Adaptar `MetricCardTest.java` para verificar la Navbar en rol Administrador y Operador.
+  - [ ] Desarrollar y ejecutar las suites de pruebas de seguridad y repositorios.
+- **Criterio de finalización:** 100% de tests en verde (`mvn test`), acceso a la ventana principal condicionado a login previo con credenciales BCrypt válidas, restricciones de UI operativas para Operador, logout interactivo funcionando en la marca y protección estricta en capa service.
+
+---
+
+### Fase 6.4: Módulo de Auditoría Centralizado y Bitácora Inmutable
+- **Rama:** `feature/fase-6.4-auditoria`
+- **Objetivo:** Implementar la infraestructura de auditoría centralizada que registre de manera atómica, consistente e inmutable los eventos sensibles del sistema (quién, qué entidad, fecha, hora, detalle del cambio y resultado), blindada contra alteraciones mediante triggers SQLite, e integrada en una vista de consulta analítica (`AuditoriaView`) para el Administrador.
+- **Archivos exactos a crear:**
+  - `src/main/java/com/credinoda/domain/model/EventoAuditoria.java`
+  - `src/main/java/com/credinoda/domain/model/AccionAuditoria.java` (catálogo exhaustivo de eventos)
+  - `src/main/java/com/credinoda/domain/model/ResultadoAuditoria.java` (enum: `EXITO`, `FALLO`, `DENEGADO`)
+  - `src/main/java/com/credinoda/domain/dto/FiltroAuditoria.java`
+  - `src/main/java/com/credinoda/domain/dto/RegistroAuditoriaItem.java`
+  - `src/main/java/com/credinoda/persistence/repository/AuditoriaRepository.java`
+  - `src/main/java/com/credinoda/service/AuditoriaService.java` (con soporte transaccional y fallback `NO_OP`)
+  - `src/main/java/com/credinoda/ui/views/AuditoriaView.java` (vista con filtros por fecha, usuario, entidad y acción)
+  - `src/test/java/com/credinoda/persistence/repository/AuditoriaRepositoryTest.java`
+  - `src/test/java/com/credinoda/service/AuditoriaServiceTest.java`
+  - `src/test/java/com/credinoda/service/AuditoriaIntegracionTest.java`
+- **Archivos a modificar:**
+  - `src/main/java/com/credinoda/persistence/SchemaInitializer.java` (DDL de tabla `auditoria` e instalación de triggers `trg_auditoria_no_update` y `trg_auditoria_no_delete`)
+  - `src/main/java/com/credinoda/service/ClienteService.java` (auditar creación y actualización antes $\to$ después)
+  - `src/main/java/com/credinoda/service/CreditoService.java` (auditar otorgamiento de créditos y sincronización de mora)
+  - `src/main/java/com/credinoda/service/PagoService.java` (auditar cobranzas y amortizaciones atómicamente)
+  - `src/main/java/com/credinoda/service/PdfService.java` (auditar generación y reimpresión de comprobantes PDF)
+  - `src/main/java/com/credinoda/service/BackupService.java` (auditar creación y restauración; formalizar preservación de usuarios y auditoría en restauraciones)
+  - `src/main/java/com/credinoda/service/AutenticacionService.java` y `AutorizacionService.java` (auditar logins, bloqueos y accesos denegados)
+  - `src/main/java/com/credinoda/ui/navigation/NavAction.java` (incorporar clave `ROUTE_AUDITORIA`)
+  - `src/main/java/com/credinoda/ui/navigation/NavigationBar.java` (incorporar botón `Auditoría` visible para Administrador)
+  - `src/main/java/com/credinoda/ui/CrediNodaApplication.java` (registrar vista `AuditoriaView` en ViewRouter)
+  - `src/main/java/com/credinoda/ui/views/PagosView.java` (ajustar subtítulo "Auditoría de transacciones" a "Historial de transacciones" para evitar colisión de términos)
+- **Casos de uso y Reglas de negocio cubiertas:**
+  - `CU-021` (Consultar bitácora de auditoría).
+  - `RN-027`: Bitácora inmutable append-only protegida por triggers de base de datos; cada evento almacena timestamp ISO, usuario, acción, entidad, detalle de valores modificados, resultado y estación de trabajo.
+  - `RN-028`: Atomicidad transaccional: los eventos sobre créditos y pagos se insertan dentro de la misma transacción JDBC; ante fallos de negocio, la auditoría realiza rollback junto con la operación. Eventos de acceso o denegación se confirman de forma independiente.
+  - `RN-029`: La restauración de respaldos reemplaza exclusivamente las 4 tablas de negocio, preservando intactos los registros de usuarios y la bitácora de auditoría de la base activa, registrando el evento de restauración.
+- **Vectores de prueba y Tests JUnit 5:**
+  - `VP-022`: Persistencia atómica de pagos y créditos con auditoría (verificación de rollback conjunto ante excepciones de negocio).
+  - `VP-023`: Rechazo de sentencias `UPDATE` y `DELETE` sobre la tabla `auditoria` disparado por triggers SQLite con lanzamiento de `SQLException`.
+  - `VP-024`: Ciclo de restauración de base de datos verificando la preservación intacta de cuentas de usuario y el historial previo de auditoría.
+  - `AuditoriaIntegracionTest`: Trazabilidad completa de acciones desde la UI hacia la bitácora de persistencia.
+- **Tareas de la fase:**
+  - [ ] Diseñar el modelo de auditoría (`EventoAuditoria`, `AccionAuditoria`, `ResultadoAuditoria`, DTOs de filtro y reporte).
+  - [ ] Aprovisionar en `SchemaInitializer` la tabla `auditoria` y los triggers de inmutabilidad `trg_auditoria_no_update` y `trg_auditoria_no_delete`.
+  - [ ] Implementar `AuditoriaRepository` con soporte para inserciones dentro de transacciones activas y consultas multi-filtro.
+  - [ ] Implementar `AuditoriaService` con generador de detalles comparativos (antes $\to$ después), captura de contexto de usuario y reloj inyectable.
+  - [ ] Instrumentar llamadas de auditoría en `ClienteService`, `CreditoService`, `PagoService`, `PdfService`, `BackupService`, `AutenticacionService` y `AutorizacionService`.
+  - [ ] Garantizar formalmente en `BackupService.restaurarBackup` la preservación de las tablas `usuarios` y `auditoria` con suite de prueba dedicada.
+  - [ ] Implementar `AuditoriaView` con controles de filtrado por rango de fechas, usuario, acción y entidad, tabla reactiva y visualización de detalle expandible.
+  - [ ] Añadir acceso a `AuditoriaView` en la `NavigationBar` para el rol `ADMINISTRADOR`.
+  - [ ] Clarificar la nomenclatura en `PagosView.java` hacia "Historial de transacciones".
+  - [ ] Desarrollar y validar suites de pruebas unitarias y de integración de auditoría.
+- **Criterio de finalización:** 100% de tests en verde (`mvn test`), bitácora inmutable protegida por triggers, transacciones financieras auditadas de manera atómica, restauración segura preservando registros de auditoría y vista analítica operativa en JavaFX.
+
+---
+
 ### Fase 7: Pruebas de Integración End-to-End (E2E) con Base de Datos Limpia y Empaquetado Nativo
-- **Objetivo:** Ejecutar la suite integral de pruebas End-to-End validando el ciclo de vida completo de préstamos, cobranzas, emisión de recibos PDF y copias de seguridad sobre una base de datos limpia creada por Java. Configurar el empaquetado nativo para Windows (`jpackage` / `javafx-maven-plugin`).
+- **Rama:** `feature/fase-7-e2e-packaging`
+- **Objetivo:** Ejecutar la suite integral de pruebas End-to-End validando el ciclo de vida completo de préstamos, cobranzas, emisión de recibos PDF, copias de seguridad vinculadas a Google Drive, control de roles de usuario y trazabilidad de auditoría. Configurar el empaquetado nativo para Windows (`jpackage` / `javafx-maven-plugin`).
 - **Archivos exactos a crear:**
   - `src/test/java/com/credinoda/it/CrediNodaE2ETest.java`
   - Configuración final de plugins de distribución en `pom.xml` (`javafx-maven-plugin`, `jpackage`)
   - `README.md` del proyecto Java con instrucciones de compilación, ejecución y empaquetado.
 - **Casos de uso y Reglas de negocio cubiertas:**
-  - Cobertura completa e integrada de `CU-001` a `CU-015` y `RN-001` a `RN-018`.
+  - Cobertura completa e integrada de `CU-001` a `CU-021` y `RN-001` a `RN-029`.
 - **Vectores de prueba y Tests JUnit 5:**
   - `CrediNodaE2ETest`:
     - *Escenario E2E 1:* Alta de cliente $\to$ otorgamiento de crédito con ajuste de centavos $\to$ pagos parciales $\to$ comprobante PDF con QR $\to$ liquidación total $\to$ crédito pasa a `PAGADO`.
     - *Escenario E2E 2:* Creación de créditos con fecha anterior $\to$ detección de mora $\to$ verificación en Dashboard y Reportes (`tasa_morosidad`) $\to$ pago con recuperación.
-    - *Escenario E2E 3:* Población de datos $\to$ backup rápido $\to$ borrado intencional de registros $\to$ restauración en caliente $\to$ verificación de consistencia íntegra.
+    - *Escenario E2E 3:* Población de datos $\to$ backup rápido en carpeta sincronizable $\to$ borrado intencional de registros $\to$ restauración en caliente $\to$ verificación de consistencia íntegra preservando usuarios y auditoría.
+    - *Escenario E2E 4:* Flujo de Primer Inicio en entorno limpio $\to$ Setup Wizard completa rutas dinámicas y crea Administrador inicial $\to$ Login directo $\to$ reinicio que lee la configuración sin reabrir el asistente.
+    - *Escenario E2E 5:* Sesión de Operador registra pago (auditado) $\to$ intenta acceder a restauración o auditoría (denegado y auditado) $\to$ Administrador ingresa y consulta la bitácora verificando la autoría exacta.
 - **Tareas de la fase:**
-  - [ ] Implementar la suite `CrediNodaE2ETest` ejecutando los 3 escenarios maestros sobre SQLite en memoria y directorios temporales limpios.
+  - [ ] Implementar la suite `CrediNodaE2ETest` ejecutando los 5 escenarios maestros sobre SQLite en memoria y directorios temporales aislados (`-Dcredinoda.config.dir`).
   - [ ] Configurar el plugin de empaquetado en `pom.xml` para generar la imagen de ejecución portable y/o instalador de Windows (`jpackage`).
-  - [ ] Verificar que la aplicación arranque de forma autónoma con sus carpetas locales `data/`, `backups/` y `comprobantes/`.
-  - [ ] Redactar el `README.md` del proyecto Java con comandos de construcción y ejecución.
-- **Criterio de finalización (Ajustado según excepción):** 100% de pruebas E2E aprobadas en verde (`mvn verify`) operando exclusivamente sobre bases de datos creadas por Java. Construcción exitosa del ejecutable nativo empaquetado. Cero pruebas ni dependencias sobre la base de datos de Python.
+  - [ ] Verificar que la aplicación empaquetada arranque de forma autónoma usando las ubicaciones de datos y respaldos definidas en el Asistente de Configuración (sin escrituras en el directorio de instalación).
+  - [ ] Redactar el `README.md` del proyecto Java con comandos de construcción, configuración de Google Drive para escritorio y ejecución.
+- **Criterio de finalización:** 100% de pruebas E2E aprobadas en verde (`mvn verify`), ejecutable nativo generado limpiamente y validación comercial multiplataforma completada.
 
 ---
 
 ## 5. Resumen de Criterios de Aceptación Globales
 
 - [ ] **Arquitectura e Integridad Visual:**
-  - Ventana principal estructurada **únicamente** por la Barra de Navegación Persistente (220px) y el Área de Contenido Dinámica.
+  - Ventana principal estructurada **únicamente** por la Barra de Navegación Persistente superior horizontal de 56px (`Top`) y el Área de Contenido Dinámica (`Center`).
   - Sin encabezados globales permanentes, paneles laterales secundarios ni pies de página fijos.
+  - Cierre de sesión seguro e intuitivo disponible al pulsar en el bloque de marca `CrediNoda 2.0` de la Navbar.
   - Estilizado profesional con `credinoda.css` y responsividad desde `1000x600` en adelante.
 - [ ] **Lógica de Negocio y Finanzas:**
   - Precisión matemática absoluta con `BigDecimal` y `RoundingMode.HALF_UP` en todos los cálculos de interés y cuotas.
   - Ajuste residual exacto en la última cuota garantizando $\sum cuotas == total\_pagar$.
   - Detección y visualización estricta de mora (`(EN MORA)`) sin alterar el estado `ACTIVO` del crédito ni el balance nominal de la cuota.
   - Bloqueo de sobrepagos por cualquier importe superior al saldo de la cuota.
-- [ ] **Documentos y Resguardos:**
-  - Generación de comprobantes PDF tamaño carta con OpenPDF y código QR con metadatos escaneables vía ZXing.
-  - Creación de backups en caliente y restauración segura con validación triple y respaldo preventivo `pre_restauracion_*.db`.
-- [ ] **Independencia de Datos y Testeo:**
-  - Base de datos SQLite completamente limpia y nueva desde cero, sin migraciones de esquemas viejos ni lectura de `creditos.db` de Python.
-  - 100% de la suite de pruebas JUnit 5 en verde (`mvn test` y `mvn verify`).
+- [ ] **Seguridad, Roles y Control de Acceso:**
+  - Contraseñas almacenadas exclusivamente con BCrypt (costo 12).
+  - Control de acceso en dos capas (`Autorizador.requirePermission` en capa de negocio y `hasPermission` en interfaz gráfica).
+  - Matriz de permisos tipada: Administrador con control total vs. Operador restringido a cobranza y créditos a preexistentes.
+  - Bloqueo preventivo por intentos fallidos recurrentes.
+- [ ] **Trazabilidad y Auditoría:**
+  - Bitácora inmutable protegida por triggers de base de datos contra `UPDATE` y `DELETE`.
+  - Registro atómico de eventos financieros en la misma transacción de persistencia.
+  - Restauración segura de copias de seguridad preservando intactas las cuentas de usuario y el histórico de auditoría.
+- [ ] **Instalación, Portabilidad y Respaldos:**
+  - Configuración externa multiplataforma (`credinoda.properties` en AppData/XDG) desacoplada de rutas de instalación.
+  - Setup Wizard guiado para primer arranque con validación de carpetas y advertencia contra bases de datos activas en la nube.
+  - Soporte transparente para sincronización de respaldos con Google Drive para Escritorio.
+  - Protección estricta contra recreación silenciosa de bases de datos ausentes.
+- [ ] **Calidad Automatizada del Código:**
+  - 100% de la suite de pruebas JUnit 5 en verde (`mvn test` y `mvn verify`) sin relajación ni supresión de aserciones.
+
