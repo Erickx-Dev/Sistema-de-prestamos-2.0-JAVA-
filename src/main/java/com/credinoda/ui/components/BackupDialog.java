@@ -99,7 +99,9 @@ public class BackupDialog {
         Label createTitle = new Label("1. Resguardar Base de Datos Actual");
         createTitle.getStyleClass().add("form-label");
 
-        this.backupRapidoButton = new Button("⚡ Crear Respaldo Rápido (Carpeta backups/)");
+        Path dirBackups = backupService.getBackupsDir();
+        String nombreCarpeta = (dirBackups.getFileName() != null) ? dirBackups.getFileName().toString() : dirBackups.toString();
+        this.backupRapidoButton = new Button("⚡ Crear Respaldo Rápido (Carpeta " + nombreCarpeta + "/)");
         this.backupRapidoButton.getStyleClass().add("btn-primary");
         this.backupRapidoButton.setMaxWidth(Double.MAX_VALUE);
         this.backupRapidoButton.setOnAction(e -> ejecutarBackupRapido());

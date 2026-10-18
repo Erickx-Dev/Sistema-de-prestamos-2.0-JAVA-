@@ -1,6 +1,5 @@
 package com.credinoda.persistence;
 
-import com.credinoda.common.AppConfig;
 import org.sqlite.SQLiteConfig;
 
 import java.nio.file.Path;
@@ -20,18 +19,6 @@ public final class DatabaseConnection {
     }
 
     /**
-     * Obtiene una nueva conexión a la base de datos de producción configurada en AppConfig.DATABASE_PATH.
-     * Asegura la creación del directorio contenedor si no existe.
-     *
-     * @return Conexión JDBC configurada y con claves foráneas habilitadas.
-     * @throws SQLException Si ocurre un error al abrir la conexión.
-     */
-    public static Connection getConnection() throws SQLException {
-        AppConfig.ensureDirectoriesExist();
-        return getConnection(AppConfig.DATABASE_PATH);
-    }
-
-    /**
      * Obtiene una nueva conexión a partir de una ruta de archivo específica.
      *
      * @param dbPath Ruta al archivo SQLite.
@@ -39,6 +26,13 @@ public final class DatabaseConnection {
      * @throws SQLException Si ocurre un error de conexión.
      */
     public static Connection getConnection(Path dbPath) throws SQLException {
+        try {
+            if (dbPath != null && dbPath.getParent() != null) {
+                java.nio.file.Files.createDirectories(dbPath.getParent());
+            }
+        } catch (java.io.IOException e) {
+            throw new SQLException("No se pudo crear el directorio contenedor de la base de datos: " + dbPath.getParent(), e);
+        }
         String url = "jdbc:sqlite:" + dbPath.toAbsolutePath().toString().replace('\\', '/');
         return getConnection(url);
     }

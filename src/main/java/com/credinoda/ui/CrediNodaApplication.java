@@ -1,6 +1,7 @@
 package com.credinoda.ui;
 
-import com.credinoda.common.AppConfig;
+import com.credinoda.common.RutasSistema;
+import com.credinoda.domain.dto.EstadoInstalacion;
 import com.credinoda.persistence.DatabaseConnection;
 import com.credinoda.persistence.SchemaInitializer;
 import com.credinoda.persistence.repository.ClienteRepository;
@@ -8,6 +9,7 @@ import com.credinoda.persistence.repository.CreditoRepository;
 import com.credinoda.persistence.repository.PagoRepository;
 import com.credinoda.service.BackupService;
 import com.credinoda.service.ClienteService;
+import com.credinoda.service.ConfiguracionInicialService;
 import com.credinoda.service.CreditoService;
 import com.credinoda.service.PagoService;
 import com.credinoda.service.PdfService;
@@ -17,6 +19,8 @@ import com.credinoda.ui.components.ToastNotification;
 import com.credinoda.ui.navigation.NavAction;
 import com.credinoda.ui.navigation.NavigationBar;
 import com.credinoda.ui.navigation.ViewRouter;
+import com.credinoda.ui.setup.SetupWizard;
+import com.credinoda.ui.setup.UbicacionNoDisponibleDialog;
 import com.credinoda.ui.views.ClienteDetailView;
 import com.credinoda.ui.views.ClientesView;
 import com.credinoda.ui.views.CreditoDetailView;
@@ -35,8 +39,10 @@ import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -81,9 +87,43 @@ public class CrediNodaApplication extends Application {
     public void start(Stage stage) {
         this.primaryStage = stage;
 
-        // 1. Inicializar persistencia SQLite y servicios de negocio
-        initializeBackend();
+        ConfiguracionInicialService configService = new ConfiguracionInicialService();
+        EstadoInstalacion estado = configService.determinarEstadoInstalacion();
 
+        if (estado == EstadoInstalacion.NO_CONFIGURADO) {
+            SetupWizard wizard = new SetupWizard(stage, configService, rutas -> {
+                iniciarConRutas(stage, rutas);
+            });
+            wizard.mostrar();
+        } else if (estado == EstadoInstalacion.UBICACION_NO_DISPONIBLE) {
+            UbicacionNoDisponibleDialog dialog = new UbicacionNoDisponibleDialog(stage, configService, rutas -> {
+                iniciarConRutas(stage, rutas);
+            });
+            dialog.mostrar();
+        } else {
+            RutasSistema rutas = configService.obtenerRutasConfiguradas()
+                    .orElseThrow(() -> new IllegalStateException("Configuración no disponible"));
+            iniciarConRutas(stage, rutas);
+        }
+    }
+
+    /**
+     * Inicializa los servicios con las rutas configuradas y monta el MainShell de la aplicación.
+     *
+     * @param stage Escenario principal JavaFX.
+     * @param rutas Rutas operativas validadas.
+     */
+    public void iniciarConRutas(Stage stage, RutasSistema rutas) {
+        initializeBackend(rutas);
+        montarYMostrarMainShell(stage);
+    }
+
+    /**
+     * Monta y despliega la ventana principal MainShell.
+     *
+     * @param stage Escenario principal.
+     */
+    public void montarYMostrarMainShell(Stage stage) {
         // 2. Construir el MainShell (exclusivamente NavigationBar + ContentArea)
         this.mainShell = buildMainShell();
 
@@ -119,13 +159,15 @@ public class CrediNodaApplication extends Application {
     }
 
     /**
-     * Inicializa carpetas operativas, esquema DDL limpio, conexión JDBC compartida y los 6 servicios.
+     * Inicializa persistencia SQLite y los 6 servicios a partir de las rutas operativas inyectadas.
+     *
+     * @param rutas Instancia de RutasSistema con ubicaciones validadas.
      */
-    protected void initializeBackend() {
+    public void initializeBackend(RutasSistema rutas) {
         try {
-            AppConfig.ensureDirectoriesExist();
-            SchemaInitializer.inicializarBaseDatos();
-            this.connection = DatabaseConnection.getConnection();
+            rutas.asegurarDirectoriosExistentes();
+            this.connection = DatabaseConnection.getConnection(rutas.databasePath());
+            SchemaInitializer.inicializar(connection);
 
             this.clienteRepository = new ClienteRepository(connection);
             this.creditoRepository = new CreditoRepository(connection);
@@ -135,14 +177,26 @@ public class CrediNodaApplication extends Application {
             this.creditoService = new CreditoService(connection, creditoRepository, clienteRepository, pagoRepository);
             this.pagoService = new PagoService(connection, pagoRepository, creditoRepository, creditoService);
             this.reporteService = new ReporteService(creditoRepository, pagoRepository);
-            this.pdfService = new PdfService();
-            this.backupService = new BackupService(connection);
+            this.pdfService = new PdfService(rutas);
+            this.backupService = new BackupService(connection, rutas);
 
             // Sincronización idempotente de mora al iniciar la aplicación (CU-008, RN-008)
             this.creditoService.actualizarCuotasEnMora(LocalDate.now());
-        } catch (SQLException e) {
-            throw new IllegalStateException("Error crítico al inicializar la base de datos SQLite de CrediNoda 2.0", e);
+        } catch (IOException | SQLException e) {
+            throw new IllegalStateException("Error crítico al inicializar el backend de CrediNoda 2.0", e);
         }
+    }
+
+    /**
+     * Inicializa el backend utilizando las rutas configuradas en disco o un entorno temporal de contingencia.
+     */
+    public void initializeBackend() {
+        ConfiguracionInicialService configService = new ConfiguracionInicialService();
+        RutasSistema rutas = configService.obtenerRutasConfiguradas().orElseGet(() -> {
+            Path tempDir = Path.of(System.getProperty("java.io.tmpdir"), "credinoda_fallback");
+            return RutasSistema.de(tempDir, tempDir.resolve("backups"));
+        });
+        initializeBackend(rutas);
     }
 
     /**

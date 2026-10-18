@@ -2,7 +2,13 @@ package com.credinoda.common;
 
 import com.credinoda.domain.exception.MontoInvalidoException;
 
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Locale;
 
 /**
  * Utilidades de validación y parseo flexible de entradas monetarias y de texto.
@@ -361,4 +367,129 @@ public final class Validators {
             return ResultadoValidacion.error("El capital debe ser un monto numérico válido.");
         }
     }
+
+    /**
+     * Valida permisos reales de escritura en un directorio creando y eliminando un archivo temporal testigo.
+     * (CU-016, RN-020).
+     *
+     * @param dir Ruta del directorio a auditar.
+     * @return ResultadoValidacion indicando éxito o mensaje de error detallado.
+     */
+    public static ResultadoValidacion validarPermisosDirectorio(Path dir) {
+        if (dir == null) {
+            return ResultadoValidacion.error("La ruta de la carpeta no puede ser nula.");
+        }
+
+        if (esDirectorioProtegido(dir)) {
+            return ResultadoValidacion.error("La carpeta seleccionada es un directorio protegido del sistema operativo.");
+        }
+
+        try {
+            Files.createDirectories(dir);
+        } catch (Exception e) {
+            return ResultadoValidacion.error("No se pudo acceder o crear la carpeta: " + e.getMessage());
+        }
+
+        Path testigo = dir.resolve(".test_credinoda_access_" + System.currentTimeMillis() + ".tmp");
+        try {
+            Files.writeString(testigo, "credinoda_write_test", StandardCharsets.UTF_8);
+            Files.deleteIfExists(testigo);
+            return ResultadoValidacion.ok();
+        } catch (Exception e) {
+            try {
+                Files.deleteIfExists(testigo);
+            } catch (IOException ignored) {
+            }
+            return ResultadoValidacion.error("No se tienen permisos de escritura en la carpeta: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Detecta si una ruta se ubica dentro de carpetas sincronizadas en la nube (OneDrive, Google Drive, Dropbox, etc.).
+     * (RN-020).
+     *
+     * @param dir Ruta del directorio a auditar.
+     * @return true si la ruta coincide con un proveedor de almacenamiento en la nube, false de lo contrario.
+     */
+    public static boolean esCarpetaEnLaNube(Path dir) {
+        if (dir == null) {
+            return false;
+        }
+
+        String pathStr = dir.toAbsolutePath().normalize().toString().toLowerCase(Locale.ROOT);
+
+        List<String> cloudKeywords = List.of(
+                "onedrive", "dropbox", "google drive", "google_drive", "gdrive",
+                "icloud", "box sync", "box\\", "box/", "nextcloud", "owncloud"
+        );
+        for (String keyword : cloudKeywords) {
+            if (pathStr.contains(keyword)) {
+                return true;
+            }
+        }
+
+        for (String envKey : List.of("OneDrive", "OneDriveConsumer", "OneDriveCommercial")) {
+            String envVal = System.getenv(envKey);
+            if (envVal != null && !envVal.isBlank()) {
+                String envNorm = Path.of(envVal).toAbsolutePath().normalize().toString().toLowerCase(Locale.ROOT);
+                if (pathStr.equals(envNorm) || pathStr.startsWith(envNorm + "\\") || pathStr.startsWith(envNorm + "/")) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Determina si la ruta apunta a un directorio raíz o protegido del sistema operativo.
+     * (RN-020, VP-017).
+     *
+     * @param dir Ruta del directorio a auditar.
+     * @return true si es un directorio protegido o raíz, false si es una carpeta de usuario permitida.
+     */
+    public static boolean esDirectorioProtegido(Path dir) {
+        if (dir == null) {
+            return true;
+        }
+
+        Path abs = dir.toAbsolutePath().normalize();
+
+        // Raíz absoluta del disco (ej. C:\ o /)
+        if (abs.getParent() == null) {
+            return true;
+        }
+
+        String pathStr = abs.toString().toLowerCase(Locale.ROOT);
+
+        // Directorios estándar protegidos en Windows
+        for (String envKey : List.of("SystemRoot", "windir", "ProgramFiles", "ProgramFiles(x86)", "ProgramData")) {
+            String envVal = System.getenv(envKey);
+            if (envVal != null && !envVal.isBlank()) {
+                String envNorm = Path.of(envVal).toAbsolutePath().normalize().toString().toLowerCase(Locale.ROOT);
+                if (pathStr.equals(envNorm) || pathStr.startsWith(envNorm + "\\") || pathStr.startsWith(envNorm + "/")) {
+                    return true;
+                }
+            }
+        }
+
+        // Chequeos literales de protección
+        if (pathStr.startsWith("c:\\windows") ||
+                pathStr.startsWith("c:\\program files") ||
+                pathStr.startsWith("c:\\program files (x86)") ||
+                pathStr.startsWith("c:\\programdata")) {
+            return true;
+        }
+
+        // Directorios protegidos en Linux/macOS
+        List<String> unixProtected = List.of("/bin", "/sbin", "/usr", "/etc", "/var", "/sys", "/proc", "/dev", "/root");
+        for (String prot : unixProtected) {
+            if (pathStr.equals(prot) || pathStr.startsWith(prot + "/")) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
+
