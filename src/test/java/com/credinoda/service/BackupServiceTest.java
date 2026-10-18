@@ -78,6 +78,8 @@ class BackupServiceTest {
         assertThat(Files.exists(backupGenerado)).isTrue();
         assertThat(backupGenerado.getFileName().toString()).startsWith("creditos_backup_");
         assertThat(backupGenerado.getFileName().toString()).endsWith(".db");
+        assertThat(backupGenerado.getFileName().toString())
+                .matches("^creditos_backup_\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}-(am|pm)(_\\d+)?\\.db$");
         assertThat(backupGenerado.getParent()).isEqualTo(backupsDir.toAbsolutePath());
 
         // Debe superar la validación triple
@@ -93,6 +95,20 @@ class BackupServiceTest {
         assertThat(backupGenerado.getFileName().toString()).isEqualTo("copia_personalizada.db");
         assertThat(Files.exists(backupGenerado)).isTrue();
         assertThat(BackupService.validarArchivoBackup(backupGenerado)).isTrue();
+    }
+
+    @Test
+    @DisplayName("crearBackup() en el mismo segundo con mismo prefijo genera sufijo numérico para evitar colisiones")
+    void testCrearBackupMismoSegundoSinColision() {
+        Path b1 = backupService.crearBackup(null, "colision");
+        Path b2 = backupService.crearBackup(null, "colision");
+
+        assertThat(b1).isNotEqualTo(b2);
+        assertThat(Files.exists(b1)).isTrue();
+        assertThat(Files.exists(b2)).isTrue();
+        assertThat(b2.getFileName().toString()).contains("colision_");
+        assertThat(BackupService.validarArchivoBackup(b1)).isTrue();
+        assertThat(BackupService.validarArchivoBackup(b2)).isTrue();
     }
 
     @Test
