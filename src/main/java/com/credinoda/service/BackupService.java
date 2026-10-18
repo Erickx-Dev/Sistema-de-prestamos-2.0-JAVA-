@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
@@ -40,7 +41,7 @@ public class BackupService {
 
     private static final byte[] SQLITE_HEADER = "SQLite format 3\0".getBytes(StandardCharsets.US_ASCII);
     private static final Set<String> REQUIRED_TABLES = Set.of("clientes", "creditos", "cuotas", "pagos");
-    private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSSSSS");
+    private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd_hh-mm-ss-a", Locale.ENGLISH);
 
     private final Connection connection;
     private final Path backupsDir;
@@ -71,8 +72,17 @@ public class BackupService {
 
         Path rutaDestino;
         if (destino == null) {
-            String timestamp = LocalDateTime.now().format(TIMESTAMP_FORMATTER);
-            rutaDestino = backupsDir.resolve(String.format("%s_%s.db", prefijoSeguro, timestamp));
+            String timestamp = LocalDateTime.now().format(TIMESTAMP_FORMATTER).toLowerCase(Locale.ROOT);
+            Path candidato = backupsDir.resolve(String.format("%s_%s.db", prefijoSeguro, timestamp));
+            if (Files.exists(candidato)) {
+                int seq = 1;
+                while (Files.exists(backupsDir.resolve(String.format("%s_%s_%d.db", prefijoSeguro, timestamp, seq)))) {
+                    seq++;
+                }
+                rutaDestino = backupsDir.resolve(String.format("%s_%s_%d.db", prefijoSeguro, timestamp, seq));
+            } else {
+                rutaDestino = candidato;
+            }
         } else {
             String fileName = destino.getFileName().toString();
             if (!fileName.toLowerCase().endsWith(".db")) {

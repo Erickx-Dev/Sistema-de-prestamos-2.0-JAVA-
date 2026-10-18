@@ -25,6 +25,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 
@@ -36,7 +37,7 @@ import java.util.function.BiConsumer;
 public class BackupDialog {
 
     private static final DateTimeFormatter DISPLAY_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
-    private static final DateTimeFormatter FILE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
+    private static final DateTimeFormatter FILE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd_hh-mm-ss-a", Locale.ENGLISH);
 
     private final Stage stage;
     private final BackupService backupService;
@@ -197,7 +198,7 @@ public class BackupDialog {
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Guardar Copia de Seguridad");
         chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Base de datos SQLite (*.db)", "*.db"));
-        chooser.setInitialFileName("creditos_backup_" + LocalDateTime.now().format(FILE_FMT) + ".db");
+        chooser.setInitialFileName("creditos_backup_" + LocalDateTime.now().format(FILE_FMT).toLowerCase(Locale.ROOT) + ".db");
 
         File dest = chooser.showSaveDialog(stage);
         if (dest == null) {
