@@ -1,6 +1,7 @@
 package com.credinoda.service;
 
-import com.credinoda.common.AppConfig;
+import com.credinoda.common.ConfiguracionLocalStore;
+import com.credinoda.common.RutasSistema;
 import com.credinoda.domain.dto.BackupInfo;
 import com.credinoda.domain.exception.BackupException;
 import com.credinoda.persistence.SchemaInitializer;
@@ -47,7 +48,13 @@ public class BackupService {
     private final Path backupsDir;
 
     public BackupService(Connection connection) {
-        this(connection, AppConfig.BACKUPS_DIR);
+        this(connection, ConfiguracionLocalStore.cargarRutas()
+                .map(RutasSistema::backupsDir)
+                .orElseGet(() -> Path.of(System.getProperty("user.dir"), "backups")));
+    }
+
+    public BackupService(Connection connection, RutasSistema rutas) {
+        this(connection, Objects.requireNonNull(rutas, "RutasSistema no puede ser nulo.").backupsDir());
     }
 
     public BackupService(Connection connection, Path backupsDir) {

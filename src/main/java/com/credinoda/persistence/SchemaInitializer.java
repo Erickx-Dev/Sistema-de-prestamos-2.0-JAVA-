@@ -93,16 +93,6 @@ public final class SchemaInitializer {
         }
     }
 
-    /**
-     * Inicializa la base de datos predeterminada de la aplicación (AppConfig.DATABASE_PATH).
-     *
-     * @throws SQLException Si ocurre un error al conectar o crear el esquema.
-     */
-    public static void inicializarBaseDatos() throws SQLException {
-        try (Connection conn = DatabaseConnection.getConnection()) {
-            inicializar(conn);
-        }
-    }
 
     /**
      * Inicializa una base de datos específica por ruta (útil para pruebas o respaldos).

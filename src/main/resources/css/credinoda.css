@@ -818,3 +818,17 @@
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.25), 8, 0, 0, 2);
 }
 
+/* ==========================================================================
+ * 13. ASISTENTE DE CONFIGURACIÓN INICIAL (SetupWizard)
+ * ========================================================================== */
+
+.wizard-root {
+    -fx-background-color: #FFFFFF;
+}
+
+.wizard-brand {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #164E3B;
+}
+

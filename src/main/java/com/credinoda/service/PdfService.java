@@ -1,6 +1,7 @@
 package com.credinoda.service;
 
-import com.credinoda.common.AppConfig;
+import com.credinoda.common.ConfiguracionLocalStore;
+import com.credinoda.common.RutasSistema;
 import com.credinoda.common.Formatters;
 import com.credinoda.domain.dto.DatosComprobante;
 import com.credinoda.domain.exception.PdfServiceException;
@@ -64,7 +65,13 @@ public class PdfService {
     private final Path defaultOutputDir;
 
     public PdfService() {
-        this(AppConfig.COMPROBANTES_DIR);
+        this(ConfiguracionLocalStore.cargarRutas()
+                .map(RutasSistema::comprobantesDir)
+                .orElseGet(() -> Path.of(System.getProperty("user.dir"), "comprobantes")));
+    }
+
+    public PdfService(RutasSistema rutas) {
+        this(Objects.requireNonNull(rutas, "RutasSistema no puede ser nulo.").comprobantesDir());
     }
 
     public PdfService(Path defaultOutputDir) {

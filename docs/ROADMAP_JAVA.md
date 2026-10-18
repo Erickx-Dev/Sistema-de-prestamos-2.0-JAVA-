@@ -449,16 +449,16 @@ flowchart TD
   - `VP-017`: Validación de carpetas protegidas (rechazo de `Program Files`), prueba de escritura y validación de base existente reutilizable con `BackupService.validarArchivoBackup`.
   - `ConfiguracionLocalStoreTest`: Lectura/escritura multiplataforma, soporte de espacios y caracteres especiales en rutas, manejo de properties corruptos y override por propiedad de sistema `-Dcredinoda.config.dir`.
 - **Tareas de la fase:**
-  - [ ] Implementar `RutasSistema` y `ConfiguracionLocalStore` con estrategia multiplataforma nativa (Windows `%APPDATA%`, Linux `~/.config`, macOS `Application Support`) y override de testing.
-  - [ ] Implementar validación de carpetas en `Validators.java` (escritura/borrado de archivo testigo, detección de carpetas sincronizadas).
-  - [ ] Refactorizar `AppConfig` eliminando rutas relativas fijas y actualizando firmas dependientes en persistencia y servicios.
-  - [ ] Implementar `ConfiguracionInicialService` gestionando el flujo del asistente, creación automática de carpetas (`Files.createDirectories`) y reutilización de bases preexistentes.
-  - [ ] Desarrollar `SetupWizard` en JavaFX con pasos guiados: Bienvenida $\to$ Selección de carpeta para BD local $\to$ Selección de carpeta de respaldos (Google Drive) $\to$ Resumen y confirmación.
-  - [ ] Desarrollar `UbicacionNoDisponibleDialog` con opciones de Reintentar, Reubicar o Salir.
-  - [ ] Refactorizar el arranque de `CrediNodaApplication` para verificar el estado de instalación antes de cargar el `MainShell`.
-  - [ ] Actualizar `BackupDialog` para reflejar visualmente la carpeta real de respaldos configurada.
-  - [ ] Desarrollar y ejecutar la suite completa de pruebas unitarias (`ConfiguracionLocalStoreTest`, `ConfiguracionInicialServiceTest`).
-- **Criterio de finalización:** 100% de tests en verde (`mvn test`), arranque con Setup Wizard en entornos limpios, arranques posteriores leyendo rutas externas dinámicas, cero recreación silenciosa de bases ausentes y compatibilidad verificada en rutas con espacios.
+  - [x] Implementar `RutasSistema` y `ConfiguracionLocalStore` con estrategia multiplataforma nativa (Windows `%APPDATA%`, Linux `~/.config`, macOS `Application Support`) y override de testing.
+  - [x] Implementar validación de carpetas en `Validators.java` (escritura/borrado de archivo testigo, detección de carpetas sincronizadas).
+  - [x] Refactorizar `AppConfig` eliminando rutas relativas fijas y actualizando firmas dependientes en persistencia y servicios.
+  - [x] Implementar `ConfiguracionInicialService` gestionando el flujo del asistente, creación automática de carpetas (`Files.createDirectories`) y reutilización de bases preexistentes.
+  - [x] Desarrollar `SetupWizard` en JavaFX con pasos guiados: Bienvenida $\to$ Selección de carpeta para BD local $\to$ Selección de carpeta de respaldos (Google Drive) $\to$ Resumen y confirmación.
+  - [x] Desarrollar `UbicacionNoDisponibleDialog` con opciones de Reintentar, Reubicar o Salir.
+  - [x] Refactorizar el arranque de `CrediNodaApplication` para verificar el estado de instalación antes de cargar el `MainShell`.
+  - [x] Actualizar `BackupDialog` para reflejar visualmente la carpeta real de respaldos configurada.
+  - [x] Desarrollar y ejecutar la suite completa de pruebas unitarias (`ConfiguracionLocalStoreTest`, `ConfiguracionInicialServiceTest`).
+- **Criterio de finalización:** 100% de tests en verde (`mvn test`), arranque con Setup Wizard en entornos limpios, arranques posteriores leyendo rutas externas dinámicas, cero recreación silenciosa de bases ausentes y compatibilidad verificada en rutas con espacios. (Completada: 182/182 tests en verde).
 
 ---
 
