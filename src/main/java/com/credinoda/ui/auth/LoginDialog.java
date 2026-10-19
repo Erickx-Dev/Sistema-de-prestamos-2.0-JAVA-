@@ -7,11 +7,13 @@ import com.credinoda.service.AutenticacionService;
 import com.credinoda.ui.components.StageIconHelper;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -67,9 +69,16 @@ public class LoginDialog {
         VBox brandBox = new VBox(6);
         brandBox.setAlignment(Pos.CENTER);
 
-        Label logoBadge = new Label("C");
-        logoBadge.getStyleClass().add("nav-logo-badge");
-        logoBadge.setStyle("-fx-font-size: 24px; -fx-min-width: 48px; -fx-min-height: 48px;");
+        Node logoNode;
+        ImageView logoView = StageIconHelper.createIconView(56);
+        if (logoView != null) {
+            logoNode = logoView;
+        } else {
+            Label logoBadge = new Label("C");
+            logoBadge.getStyleClass().add("nav-logo-badge");
+            logoBadge.setStyle("-fx-font-size: 24px; -fx-min-width: 48px; -fx-min-height: 48px;");
+            logoNode = logoBadge;
+        }
 
         Label titleLabel = new Label("CrediNoda 2.0");
         titleLabel.getStyleClass().add("brand-text");
@@ -78,7 +87,7 @@ public class LoginDialog {
         Label subtitleLabel = new Label("Gestión de Créditos y Cobranzas");
         subtitleLabel.getStyleClass().add("section-subtitle");
 
-        brandBox.getChildren().addAll(logoBadge, titleLabel, subtitleLabel);
+        brandBox.getChildren().addAll(logoNode, titleLabel, subtitleLabel);
 
         // Formulario
         VBox formBox = new VBox(14);

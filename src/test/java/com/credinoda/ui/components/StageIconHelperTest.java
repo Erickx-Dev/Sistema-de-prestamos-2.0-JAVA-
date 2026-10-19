@@ -86,4 +86,31 @@ class StageIconHelperTest {
         assertThat(icono.getWidth()).isEqualTo(256.0);
         assertThat(icono.getHeight()).isEqualTo(256.0);
     }
+
+    @Test
+    @DisplayName("getAppIconImage debe retornar una instancia válida de Image de 256x256")
+    void debeObtenerAppIconImageValido() {
+        Image img = StageIconHelper.getAppIconImage();
+        assertThat(img).isNotNull();
+        assertThat(img.isError()).isFalse();
+        assertThat(img.getWidth()).isEqualTo(256.0);
+        assertThat(img.getHeight()).isEqualTo(256.0);
+    }
+
+    @Test
+    @DisplayName("createIconView debe configurar un ImageView con dimensiones y propiedades correctas")
+    void debeCrearIconViewConDimensionesYSuavizado() {
+        javafx.scene.image.ImageView icon34 = StageIconHelper.createIconView(34);
+        assertThat(icon34).isNotNull();
+        assertThat(icon34.getFitWidth()).isEqualTo(34.0);
+        assertThat(icon34.getFitHeight()).isEqualTo(34.0);
+        assertThat(icon34.isPreserveRatio()).isTrue();
+        assertThat(icon34.isSmooth()).isTrue();
+        assertThat(icon34.getImage()).isNotNull();
+
+        javafx.scene.image.ImageView icon56 = StageIconHelper.createIconView(56);
+        assertThat(icon56).isNotNull();
+        assertThat(icon56.getFitWidth()).isEqualTo(56.0);
+        assertThat(icon56.getFitHeight()).isEqualTo(56.0);
+    }
 }
