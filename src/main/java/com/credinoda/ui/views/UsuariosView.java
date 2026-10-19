@@ -7,6 +7,7 @@ import com.credinoda.domain.model.Rol;
 import com.credinoda.domain.model.Usuario;
 import com.credinoda.service.UsuarioService;
 import com.credinoda.ui.auth.CambiarContrasenaDialog;
+import com.credinoda.ui.components.ConfirmDialog;
 import com.credinoda.ui.components.PermissionGuard;
 import com.credinoda.ui.components.SectionHeader;
 import com.credinoda.ui.components.TableColumnHelper;
@@ -16,9 +17,7 @@ import com.credinoda.ui.navigation.ViewRouter;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableCell;
@@ -32,7 +31,6 @@ import javafx.scene.layout.VBox;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.function.BiConsumer;
 
 /**
@@ -334,18 +332,20 @@ public class UsuariosView extends VBox implements ViewRouter.RoutableView {
 
     private void toggleEstadoUsuario(Usuario usuario) {
         boolean nuevoEstado = !usuario.isActivo();
-        String accion = nuevoEstado ? "activar" : "desactivar";
+        String titulo = nuevoEstado ? "Confirmar Activación de Usuario" : "Confirmar Desactivación de Usuario";
+        String mensaje = nuevoEstado
+                ? "¿Está seguro de activar la cuenta de @" + usuario.getUsername() + "? El usuario podrá volver a iniciar sesión y operar el sistema."
+                : "¿Está seguro de desactivar la cuenta de @" + usuario.getUsername() + "? El usuario perderá el acceso al sistema de forma inmediata.";
 
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.initOwner(getScene().getWindow());
-        confirm.setTitle("CrediNoda 2.0 — Confirmar Estado");
-        confirm.setHeaderText("¿Está seguro de " + accion + " la cuenta de @" + usuario.getUsername() + "?");
-        confirm.setContentText(nuevoEstado
-                ? "El usuario podrá volver a iniciar sesión y operar el sistema."
-                : "El usuario perderá el acceso al sistema de forma inmediata.");
+        ConfirmDialog confirm = new ConfirmDialog(
+                getScene().getWindow(),
+                titulo,
+                mensaje,
+                nuevoEstado ? "Activar" : "Desactivar",
+                !nuevoEstado
+        );
 
-        Optional<ButtonType> result = confirm.showAndWait();
-        if (result.isPresent() && result.get() == ButtonType.OK) {
+        if (confirm.showAndWait()) {
             try {
                 usuarioService.cambiarEstadoActivo(usuario.getId(), nuevoEstado);
                 cargarDatos();

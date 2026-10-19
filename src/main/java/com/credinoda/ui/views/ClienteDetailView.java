@@ -134,12 +134,12 @@ public class ClienteDetailView extends VBox implements ViewRouter.RoutableView {
 
         TableColumn<Credito, String> colFecha = TableColumnHelper.fechaColumn("Fecha Inicio", Credito::getFechaInicio, 120);
 
-        TableColumn<Credito, String> colCapital = TableColumnHelper.monedaColumn("Capital", Credito::getCapital, 130);
+        TableColumn<Credito, String> colCapital = TableColumnHelper.monedaColumn("Capital", Credito::getCapital, Pos.CENTER, 130);
 
-        TableColumn<Credito, String> colTotal = TableColumnHelper.monedaColumn("Total a Pagar", Credito::getTotalPagar, 140);
+        TableColumn<Credito, String> colTotal = TableColumnHelper.monedaColumn("Total a Pagar", Credito::getTotalPagar, Pos.CENTER, 140);
 
         TableColumn<Credito, String> colSaldo = TableColumnHelper.monedaColumn("Saldo Pendiente",
-                c -> creditoService.calcularSaldoPendiente(c.getId()), 140);
+                c -> creditoService.calcularSaldoPendiente(c.getId()), Pos.CENTER, 140);
 
         TableColumn<Credito, String> colFrecuencia = TableColumnHelper.textoColumn("Frecuencia",
                 c -> c.getFrecuenciaPago().name() + " (" + c.getPlazoMeses() + " m)", Pos.CENTER, 150);

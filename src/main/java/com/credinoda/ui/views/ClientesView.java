@@ -99,7 +99,7 @@ public class ClientesView extends VBox implements ViewRouter.RoutableView {
         TableColumn<Cliente, String> colId = TableColumnHelper.textoColumn("ID", c -> "#" + c.getId(), Pos.CENTER, 80);
         colId.setMaxWidth(90);
 
-        TableColumn<Cliente, String> colNombre = TableColumnHelper.textoColumn("Nombre Completo", Cliente::getNombre, Pos.CENTER_LEFT, 240);
+        TableColumn<Cliente, String> colNombre = TableColumnHelper.textoColumn("Nombre Completo", Cliente::getNombre, Pos.CENTER, 240);
 
         TableColumn<Cliente, String> colDocumento = TableColumnHelper.textoColumn("Documento", Cliente::getDocumento, Pos.CENTER, 140);
         colDocumento.setMaxWidth(160);
@@ -111,12 +111,15 @@ public class ClientesView extends VBox implements ViewRouter.RoutableView {
         colAcciones.setPrefWidth(200);
         colAcciones.setMaxWidth(220);
         TableColumnHelper.setHeaderAlignment(colAcciones, Pos.CENTER);
+        colAcciones.getStyleClass().add("col-center");
         colAcciones.setCellFactory(col -> new TableCell<>() {
             private final Button btnVer = new Button("Ver Ficha");
             private final Button btnEditar = new Button("Editar");
             private final HBox box = new HBox(8, btnVer, btnEditar);
 
             {
+                setAlignment(Pos.CENTER);
+                getStyleClass().add("cell-center");
                 box.setAlignment(Pos.CENTER);
                 btnVer.getStyleClass().addAll("btn-secondary", "btn-sm");
                 btnEditar.getStyleClass().addAll("btn-secondary", "btn-sm");

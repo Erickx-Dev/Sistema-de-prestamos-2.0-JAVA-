@@ -23,6 +23,7 @@ import com.credinoda.service.ReporteService;
 import com.credinoda.service.UsuarioService;
 import com.credinoda.ui.auth.LoginDialog;
 import com.credinoda.ui.components.BackupDialog;
+import com.credinoda.ui.components.ConfirmDialog;
 import com.credinoda.ui.components.ToastNotification;
 import com.credinoda.ui.components.UsuarioDialog;
 import com.credinoda.ui.navigation.NavAction;
@@ -43,8 +44,6 @@ import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
 import javafx.scene.image.Image;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
@@ -205,13 +204,15 @@ public class CrediNodaApplication extends Application {
     }
 
     private void cerrarSesionYReautenticar(Stage stage) {
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.initOwner(stage);
-        confirm.setTitle("CrediNoda 2.0 — Cerrar Sesión");
-        confirm.setHeaderText("¿Desea cerrar la sesión actual de @" + ContextoSeguridad.getSesionActual().username() + "?");
-        confirm.setContentText("Será redirigido a la pantalla de inicio de sesión.");
-        Optional<ButtonType> resp = confirm.showAndWait();
-        if (resp.isPresent() && resp.get() == ButtonType.OK) {
+        String username = ContextoSeguridad.getSesionActual() != null ? ContextoSeguridad.getSesionActual().username() : "usuario";
+        ConfirmDialog confirm = new ConfirmDialog(
+                stage,
+                "Cerrar Sesión",
+                "¿Desea cerrar la sesión actual de @" + username + "? Será redirigido a la pantalla de inicio de sesión.",
+                "Cerrar Sesión",
+                false
+        );
+        if (confirm.showAndWait()) {
             ContextoSeguridad.limpiarSesion();
             if (viewRouter != null) {
                 viewRouter.clearCache();

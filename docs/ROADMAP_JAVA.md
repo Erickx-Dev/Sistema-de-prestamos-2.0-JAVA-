@@ -532,7 +532,7 @@ flowchart TD
   - [x] Desarrollar `UsuariosView` y `UsuarioDialog` accesible exclusivamente para el Administrador.
   - [x] Adaptar `MetricCardTest.java` para verificar la Navbar en rol Administrador y Operador.
   - [x] Desarrollar y ejecutar las suites de pruebas de seguridad y repositorios.
-- **Criterio de finalización:** 100% de tests en verde (`mvn test`), acceso a la ventana principal condicionado a login previo con credenciales BCrypt válidas, restricciones de UI operativas para Operador, logout interactivo funcionando en la marca y protección estricta en capa service. (Completada: 209/209 tests en verde).
+- **Criterio de finalización:** 100% de tests en verde (`mvn test`), acceso a la ventana principal condicionado a login previo con credenciales BCrypt válidas, restricciones de UI operativas para Operador, logout interactivo funcionando en la marca y protección estricta en capa service. (Completada: 210/210 tests en verde).
 
 ---
 

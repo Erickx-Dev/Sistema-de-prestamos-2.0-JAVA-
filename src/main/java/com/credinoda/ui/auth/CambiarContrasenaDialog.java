@@ -4,13 +4,13 @@ import com.credinoda.common.Validators;
 import com.credinoda.domain.exception.CrediNodaException;
 import com.credinoda.service.ContextoSeguridad;
 import com.credinoda.service.UsuarioService;
-import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.input.KeyCode;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
@@ -53,19 +53,28 @@ public class CambiarContrasenaDialog {
         stage.setTitle("CrediNoda 2.0 — Modificar Contraseña");
         stage.setResizable(false);
 
-        VBox root = new VBox(16);
+        BorderPane root = new BorderPane();
         root.getStyleClass().add("dialog-root");
-        root.setPadding(new Insets(24));
 
+        // 1. Cabecera institucional
+        HBox header = new HBox(10);
+        header.getStyleClass().add("dialog-header");
+        header.setAlignment(Pos.CENTER_LEFT);
+
+        VBox headerText = new VBox(2);
         Label titleLabel = new Label("Cambio de Contraseña");
-        titleLabel.getStyleClass().add("card-title");
+        titleLabel.getStyleClass().add("dialog-header-title");
 
         Label subtitleLabel = new Label(esPropio
                 ? "Actualice su contraseña de acceso personal"
                 : "Restablecer contraseña para el usuario #" + usuarioId);
-        subtitleLabel.getStyleClass().add("section-subtitle");
+        subtitleLabel.getStyleClass().add("dialog-header-subtitle");
+        headerText.getChildren().addAll(titleLabel, subtitleLabel);
+        header.getChildren().add(headerText);
 
-        VBox formBox = new VBox(12);
+        // 2. Cuerpo del formulario
+        VBox body = new VBox(12);
+        body.getStyleClass().add("dialog-body");
 
         if (esPropio) {
             VBox actualBox = new VBox(4);
@@ -74,7 +83,7 @@ public class CambiarContrasenaDialog {
             this.txtPasswordActual = new PasswordField();
             this.txtPasswordActual.setPromptText("Ingrese su contraseña actual");
             actualBox.getChildren().addAll(lblActual, txtPasswordActual);
-            formBox.getChildren().add(actualBox);
+            body.getChildren().add(actualBox);
         }
 
         VBox nuevoBox = new VBox(4);
@@ -97,11 +106,12 @@ public class CambiarContrasenaDialog {
         this.lblError.setVisible(false);
         this.lblError.setManaged(false);
 
-        formBox.getChildren().addAll(nuevoBox, confirmBox, lblError);
+        body.getChildren().addAll(nuevoBox, confirmBox, lblError);
 
-        HBox buttonBox = new HBox(12);
-        buttonBox.setAlignment(Pos.CENTER_RIGHT);
-        buttonBox.setPadding(new Insets(16, 0, 8, 0));
+        // 3. Pie de acciones institucional
+        HBox footer = new HBox(12);
+        footer.getStyleClass().add("dialog-footer");
+        footer.setAlignment(Pos.CENTER_RIGHT);
 
         Button btnCancelar = new Button("Cancelar");
         btnCancelar.getStyleClass().add("btn-secondary");
@@ -112,8 +122,11 @@ public class CambiarContrasenaDialog {
         btnGuardar.setDefaultButton(true);
         btnGuardar.setOnAction(e -> handleGuardar());
 
-        buttonBox.getChildren().addAll(btnCancelar, btnGuardar);
-        root.getChildren().addAll(titleLabel, subtitleLabel, formBox, buttonBox);
+        footer.getChildren().addAll(btnCancelar, btnGuardar);
+
+        root.setTop(header);
+        root.setCenter(body);
+        root.setBottom(footer);
 
         root.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.ESCAPE) {
@@ -121,14 +134,14 @@ public class CambiarContrasenaDialog {
             }
         });
 
-        Scene scene = new Scene(root, 440, esPropio ? 440 : 380);
+        Scene scene = new Scene(root, 440, esPropio ? 430 : 360);
         URL cssUrl = getClass().getResource("/css/credinoda.css");
         if (cssUrl != null) {
             scene.getStylesheets().add(cssUrl.toExternalForm());
         }
         stage.setScene(scene);
         stage.setMinWidth(440);
-        stage.setMinHeight(esPropio ? 440 : 380);
+        stage.setMinHeight(esPropio ? 430 : 360);
         stage.sizeToScene();
     }
 

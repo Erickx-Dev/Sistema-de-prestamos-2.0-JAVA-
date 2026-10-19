@@ -108,20 +108,21 @@ public class DashboardView extends VBox implements ViewRouter.RoutableView {
         TableColumn<ProximoPagoItem, String> colCliente = TableColumnHelper.textoColumn(
                 "Cliente",
                 ProximoPagoItem::clienteNombre,
-                Pos.CENTER_LEFT,
+                Pos.CENTER,
                 220
         );
 
         TableColumn<ProximoPagoItem, String> colCuota = TableColumnHelper.textoColumn(
                 "Cuota",
                 d -> "Crédito #" + d.creditoId() + " — Cuota #" + d.numeroCuota(),
-                Pos.CENTER_LEFT,
+                Pos.CENTER,
                 180
         );
 
         TableColumn<ProximoPagoItem, String> colMonto = TableColumnHelper.monedaColumn(
                 "Monto",
                 ProximoPagoItem::monto,
+                Pos.CENTER,
                 140
         );
 

@@ -303,6 +303,8 @@
     -fx-background-color: #F1FAF4;
     -fx-border-color: #21865A;
     -fx-text-fill: #164E3B;
+}
+
 .btn-sm {
     -fx-font-size: 11px;
     -fx-font-weight: bold;
@@ -462,36 +464,27 @@
 }
 
 .table-view .column-header.col-right,
-.table-view .col-right.column-header {
-    -fx-alignment: CENTER_RIGHT;
-}
-
+.table-view .col-right,
 .table-view .column-header.col-right .label,
-.table-view .col-right.column-header .label {
+.table-view .col-right .label {
     -fx-alignment: CENTER_RIGHT;
     -fx-text-alignment: right;
     -fx-padding: 0 14px 0 10px;
 }
 
 .table-view .column-header.col-center,
-.table-view .col-center.column-header {
-    -fx-alignment: CENTER;
-}
-
+.table-view .col-center,
 .table-view .column-header.col-center .label,
-.table-view .col-center.column-header .label {
+.table-view .col-center .label {
     -fx-alignment: CENTER;
     -fx-text-alignment: center;
     -fx-padding: 0 8px 0 8px;
 }
 
 .table-view .column-header.col-left,
-.table-view .col-left.column-header {
-    -fx-alignment: CENTER_LEFT;
-}
-
+.table-view .col-left,
 .table-view .column-header.col-left .label,
-.table-view .col-left.column-header .label {
+.table-view .col-left .label {
     -fx-alignment: CENTER_LEFT;
     -fx-text-alignment: left;
     -fx-padding: 0 10px 0 10px;
@@ -530,21 +523,24 @@
     -fx-font-weight: bold;
 }
 
-.table-view .table-cell.cell-center,
+.table-view .cell-center,
 .cell-center {
     -fx-alignment: CENTER;
+    -fx-text-alignment: center;
     -fx-padding: 0 8px 0 8px;
 }
 
-.table-view .table-cell.cell-right,
+.table-view .cell-right,
 .cell-right {
     -fx-alignment: CENTER_RIGHT;
+    -fx-text-alignment: right;
     -fx-padding: 0 14px 0 10px;
 }
 
-.table-view .table-cell.cell-left,
+.table-view .cell-left,
 .cell-left {
     -fx-alignment: CENTER_LEFT;
+    -fx-text-alignment: left;
     -fx-padding: 0 10px 0 10px;
 }
 
@@ -683,6 +679,41 @@
     -fx-padding: 12px 20px 12px 20px;
     -fx-spacing: 10px;
     -fx-alignment: CENTER_RIGHT;
+}
+
+/* JavaFX Alert / DialogPane Theme */
+.dialog-pane {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #DCE5DE;
+    -fx-border-width: 1px;
+}
+
+.dialog-pane > .header-panel {
+    -fx-background-color: #164E3B;
+    -fx-padding: 14px 20px 14px 20px;
+}
+
+.dialog-pane > .header-panel > .label {
+    -fx-text-fill: #FFFFFF;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+}
+
+.dialog-pane > .content {
+    -fx-background-color: #FFFFFF;
+    -fx-padding: 20px;
+}
+
+.dialog-pane > .content > .label {
+    -fx-text-fill: #26352D;
+    -fx-font-size: 13px;
+}
+
+.dialog-pane > .button-bar {
+    -fx-background-color: #F3F6F4;
+    -fx-border-color: #DCE5DE transparent transparent transparent;
+    -fx-border-width: 1px 0 0 0;
+    -fx-padding: 12px 20px 12px 20px;
 }
 
 /* ==========================================================================
