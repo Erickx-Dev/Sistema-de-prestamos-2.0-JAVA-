@@ -1,10 +1,13 @@
 package com.credinoda.ui.navigation;
 
 import com.credinoda.domain.model.Rol;
+import com.credinoda.ui.components.StageIconHelper;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -96,8 +99,15 @@ public class NavigationBar extends HBox {
         brandBox.getStyleClass().addAll("nav-brand", "nav-brand-clickable");
         brandBox.setAlignment(Pos.CENTER_LEFT);
 
-        Label logoBadge = new Label("C");
-        logoBadge.getStyleClass().add("nav-logo-badge");
+        Node logoNode;
+        ImageView logoView = StageIconHelper.createIconView(34);
+        if (logoView != null) {
+            logoNode = logoView;
+        } else {
+            Label logoBadge = new Label("C");
+            logoBadge.getStyleClass().add("nav-logo-badge");
+            logoNode = logoBadge;
+        }
 
         VBox titlesBox = new VBox(1);
         titlesBox.setAlignment(Pos.CENTER_LEFT);
@@ -109,7 +119,7 @@ public class NavigationBar extends HBox {
         subtitleLabel.getStyleClass().add("nav-brand-subtitle");
 
         titlesBox.getChildren().addAll(titleLabel, subtitleLabel);
-        brandBox.getChildren().addAll(logoBadge, titlesBox);
+        brandBox.getChildren().addAll(logoNode, titlesBox);
 
         Tooltip.install(brandBox, new Tooltip("Haga clic para cerrar la sesión activa"));
         brandBox.setOnMouseClicked(e -> {
