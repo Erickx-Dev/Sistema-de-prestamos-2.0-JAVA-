@@ -4,6 +4,7 @@ import com.credinoda.domain.dto.SesionUsuario;
 import com.credinoda.domain.exception.AutenticacionException;
 import com.credinoda.domain.exception.UsuarioBloqueadoException;
 import com.credinoda.service.AutenticacionService;
+import com.credinoda.ui.components.StageIconHelper;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -11,7 +12,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
-import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -20,7 +20,6 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 
-import java.io.InputStream;
 import java.net.URL;
 import java.util.Objects;
 import java.util.Optional;
@@ -175,12 +174,7 @@ public class LoginDialog {
     }
 
     private void loadApplicationIcon(Stage stage) {
-        try (InputStream iconStream = getClass().getResourceAsStream("/assets/icon.png")) {
-            if (iconStream != null) {
-                stage.getIcons().add(new Image(iconStream));
-            }
-        } catch (Exception ignored) {
-        }
+        StageIconHelper.applyAppIcon(stage);
     }
 
     /**

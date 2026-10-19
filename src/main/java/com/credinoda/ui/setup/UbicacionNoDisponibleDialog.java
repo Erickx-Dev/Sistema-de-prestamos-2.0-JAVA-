@@ -4,13 +4,13 @@ import com.credinoda.common.RutasSistema;
 import com.credinoda.domain.dto.EstadoInstalacion;
 import com.credinoda.domain.exception.ConfiguracionException;
 import com.credinoda.service.ConfiguracionInicialService;
+import com.credinoda.ui.components.StageIconHelper;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.image.Image;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -18,7 +18,6 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 import java.io.File;
-import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Path;
 import java.util.Objects;
@@ -173,12 +172,6 @@ public class UbicacionNoDisponibleDialog {
     }
 
     private void loadApplicationIcon(Stage stage) {
-        try {
-            InputStream iconStream = getClass().getResourceAsStream("/assets/icon.png");
-            if (iconStream != null) {
-                stage.getIcons().add(new Image(iconStream));
-            }
-        } catch (Exception ignored) {
-        }
+        StageIconHelper.applyAppIcon(stage);
     }
 }

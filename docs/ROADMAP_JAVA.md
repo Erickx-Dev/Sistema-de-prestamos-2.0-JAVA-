@@ -321,8 +321,10 @@ flowchart TD
   - `src/main/java/com/credinoda/ui/components/MetricCard.java`
   - `src/main/java/com/credinoda/ui/components/ToastNotification.java` (notificación flotante no bloqueante)
   - `src/main/java/com/credinoda/ui/components/ConfirmDialog.java`
+  - `src/main/java/com/credinoda/ui/components/StageIconHelper.java` (utilidad de ícono del sistema)
   - `src/main/resources/css/credinoda.css` (estilos nativos JavaFX `-fx-*`)
-  - `src/main/resources/assets/icon.png`
+  - `src/main/resources/assets/Credinoda.png` (ícono oficial 256x256 transparente con bordes redondeados)
+  - `src/main/resources/assets/Credinoda.ico` (ícono Windows multi-resolución 16..256px transparente)
   - `src/test/java/com/credinoda/ui/ViewRouterTest.java`
   - `src/test/java/com/credinoda/ui/components/MetricCardTest.java`
 - **Casos de uso y Reglas de negocio cubiertas:**

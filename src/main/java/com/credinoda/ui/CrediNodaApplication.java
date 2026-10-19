@@ -24,6 +24,7 @@ import com.credinoda.service.UsuarioService;
 import com.credinoda.ui.auth.LoginDialog;
 import com.credinoda.ui.components.BackupDialog;
 import com.credinoda.ui.components.ConfirmDialog;
+import com.credinoda.ui.components.StageIconHelper;
 import com.credinoda.ui.components.ToastNotification;
 import com.credinoda.ui.components.UsuarioDialog;
 import com.credinoda.ui.navigation.NavAction;
@@ -44,14 +45,12 @@ import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.image.Image;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -365,13 +364,7 @@ public class CrediNodaApplication extends Application {
     }
 
     private void loadApplicationIcon(Stage stage) {
-        try (InputStream iconStream = getClass().getResourceAsStream("/assets/icon.png")) {
-            if (iconStream != null) {
-                stage.getIcons().add(new Image(iconStream));
-            }
-        } catch (Exception ignored) {
-            // Si el icono no pudiera cargarse en un entorno headless, continuar sin bloquear el arranque
-        }
+        StageIconHelper.applyAppIcon(stage);
     }
 
     /**
