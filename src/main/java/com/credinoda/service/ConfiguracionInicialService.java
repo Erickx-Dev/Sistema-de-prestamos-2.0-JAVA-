@@ -7,11 +7,14 @@ import com.credinoda.domain.dto.EstadoInstalacion;
 import com.credinoda.domain.dto.ResultadoValidacionUbicacion;
 import com.credinoda.domain.exception.BackupException;
 import com.credinoda.domain.exception.ConfiguracionException;
+import com.credinoda.persistence.DatabaseConnection;
 import com.credinoda.persistence.SchemaInitializer;
+import com.credinoda.persistence.repository.UsuarioRepository;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Optional;
 
@@ -212,6 +215,25 @@ public class ConfiguracionInicialService {
             return nuevasRutas;
         } catch (IOException e) {
             throw new ConfiguracionException("Error al actualizar la configuración de reubicación: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Evalúa si la base de datos configurada cuenta con al menos un usuario Administrador activo (CU-018, RN-025).
+     *
+     * @param rutas Instancia de RutasSistema con base de datos existente.
+     * @return true si existe al menos un Administrador activo registrado.
+     */
+    public boolean tieneAdministradorConfigurado(RutasSistema rutas) {
+        if (rutas == null || !rutas.existeBaseDatos()) {
+            return false;
+        }
+        try (Connection conn = DatabaseConnection.getConnection(rutas.databasePath())) {
+            SchemaInitializer.inicializar(conn);
+            UsuarioRepository repo = new UsuarioRepository(conn);
+            return repo.contarAdministradoresActivos() > 0;
+        } catch (SQLException e) {
+            return false;
         }
     }
 }

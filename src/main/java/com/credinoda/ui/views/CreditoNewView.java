@@ -8,11 +8,13 @@ import com.credinoda.domain.model.Cliente;
 import com.credinoda.domain.model.Credito;
 import com.credinoda.domain.model.Cuota;
 import com.credinoda.domain.model.FrecuenciaPago;
+import com.credinoda.domain.model.Permiso;
 import com.credinoda.service.ClienteService;
 import com.credinoda.service.CreditoService;
 import com.credinoda.ui.components.ClienteDialog;
 import com.credinoda.ui.components.ConfirmDialog;
 import com.credinoda.ui.components.MetricCard;
+import com.credinoda.ui.components.PermissionGuard;
 import com.credinoda.ui.components.SectionHeader;
 import com.credinoda.ui.components.TableColumnHelper;
 import com.credinoda.ui.components.ToastNotification;
@@ -54,6 +56,7 @@ public class CreditoNewView extends VBox implements ViewRouter.RoutableView {
     private final BiConsumer<String, ToastNotification.Type> notifier;
 
     private final ComboBox<Cliente> clienteCombo;
+    private final Button quickAddClienteBtn;
     private final TextField capitalField;
     private final TextField plazoField;
     private final ComboBox<FrecuenciaPago> frecuenciaCombo;
@@ -110,9 +113,10 @@ public class CreditoNewView extends VBox implements ViewRouter.RoutableView {
         this.clienteCombo.setCellFactory(lv -> createClienteCell());
         this.clienteCombo.setButtonCell(createClienteCell());
 
-        Button quickAddClienteBtn = new Button("+");
+        this.quickAddClienteBtn = new Button("+");
         quickAddClienteBtn.getStyleClass().add("btn-secondary");
         quickAddClienteBtn.setOnAction(e -> handleQuickCreateCliente());
+        PermissionGuard.apply(quickAddClienteBtn, Permiso.CLIENTES_CREAR);
 
         clienteRow.getChildren().addAll(clienteCombo, quickAddClienteBtn);
         clienteBox.getChildren().addAll(clienteLbl, clienteRow);
@@ -254,6 +258,7 @@ public class CreditoNewView extends VBox implements ViewRouter.RoutableView {
 
     @Override
     public void onShow(int currentDataVersion) {
+        PermissionGuard.apply(quickAddClienteBtn, Permiso.CLIENTES_CREAR);
         reloadClientes(null);
         updateSimulacion();
     }

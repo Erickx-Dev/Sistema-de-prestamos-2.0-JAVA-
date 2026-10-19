@@ -63,12 +63,28 @@ public final class SchemaInitializer {
             );
             """;
 
+    private static final String DDL_USUARIOS = """
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                nombre_completo TEXT NOT NULL,
+                rol TEXT NOT NULL,
+                activo INTEGER NOT NULL DEFAULT 1,
+                intentos_fallidos INTEGER NOT NULL DEFAULT 0,
+                bloqueado_hasta TEXT,
+                ultimo_acceso TEXT,
+                fecha_creacion TEXT NOT NULL
+            );
+            """;
+
     private static final String[] DDL_INDICES = {
             "CREATE INDEX IF NOT EXISTS idx_creditos_cliente ON creditos(cliente_id);",
             "CREATE INDEX IF NOT EXISTS idx_cuotas_credito ON cuotas(credito_id);",
             "CREATE INDEX IF NOT EXISTS idx_cuotas_vencimiento ON cuotas(estado, fecha_vencimiento);",
             "CREATE INDEX IF NOT EXISTS idx_pagos_cuota ON pagos(cuota_id);",
-            "CREATE INDEX IF NOT EXISTS idx_pagos_credito ON pagos(credito_id);"
+            "CREATE INDEX IF NOT EXISTS idx_pagos_credito ON pagos(credito_id);",
+            "CREATE INDEX IF NOT EXISTS idx_usuarios_username ON usuarios(username);"
     };
 
     private SchemaInitializer() {
@@ -76,7 +92,7 @@ public final class SchemaInitializer {
     }
 
     /**
-     * Aprovisiona las 4 tablas e índices en una conexión SQLite existente.
+     * Aprovisiona las tablas de negocio, usuarios e índices en una conexión SQLite existente.
      *
      * @param conn Conexión activa a la base de datos.
      * @throws SQLException Si ocurre un error al ejecutar las sentencias DDL.
@@ -87,6 +103,7 @@ public final class SchemaInitializer {
             stmt.execute(DDL_CREDITOS);
             stmt.execute(DDL_CUOTAS);
             stmt.execute(DDL_PAGOS);
+            stmt.execute(DDL_USUARIOS);
             for (String indexSql : DDL_INDICES) {
                 stmt.execute(indexSql);
             }

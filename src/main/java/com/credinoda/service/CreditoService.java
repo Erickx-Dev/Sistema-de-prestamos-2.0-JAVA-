@@ -12,6 +12,7 @@ import com.credinoda.domain.model.Cuota;
 import com.credinoda.domain.model.EstadoCredito;
 import com.credinoda.domain.model.EstadoCuota;
 import com.credinoda.domain.model.FrecuenciaPago;
+import com.credinoda.domain.model.Permiso;
 import com.credinoda.persistence.repository.ClienteRepository;
 import com.credinoda.persistence.repository.CreditoRepository;
 import com.credinoda.persistence.repository.PagoRepository;
@@ -36,13 +37,21 @@ public class CreditoService {
     private final CreditoRepository creditoRepository;
     private final ClienteRepository clienteRepository;
     private final PagoRepository pagoRepository;
+    private final Autorizador autorizador;
 
     public CreditoService(Connection connection, CreditoRepository creditoRepository,
-                          ClienteRepository clienteRepository, PagoRepository pagoRepository) {
+                          ClienteRepository clienteRepository, PagoRepository pagoRepository,
+                          Autorizador autorizador) {
         this.connection = Objects.requireNonNull(connection, "La conexión JDBC no puede ser nula");
         this.creditoRepository = Objects.requireNonNull(creditoRepository, "CreditoRepository no puede ser nulo");
         this.clienteRepository = Objects.requireNonNull(clienteRepository, "ClienteRepository no puede ser nulo");
         this.pagoRepository = Objects.requireNonNull(pagoRepository, "PagoRepository no puede ser nulo");
+        this.autorizador = Objects.requireNonNull(autorizador, "Autorizador no puede ser nulo");
+    }
+
+    public CreditoService(Connection connection, CreditoRepository creditoRepository,
+                          ClienteRepository clienteRepository, PagoRepository pagoRepository) {
+        this(connection, creditoRepository, clienteRepository, pagoRepository, new AutorizacionService());
     }
 
     /**
@@ -159,6 +168,7 @@ public class CreditoService {
      */
     public Credito crearCredito(int clienteId, BigDecimal capital, BigDecimal tasaMensual,
                                 int plazoMeses, FrecuenciaPago frecuencia, LocalDate fechaInicio) {
+        autorizador.requirePermission(Permiso.CREDITOS_CREAR);
         // Valida existencia del cliente
         try {
             clienteRepository.obtenerPorId(clienteId)

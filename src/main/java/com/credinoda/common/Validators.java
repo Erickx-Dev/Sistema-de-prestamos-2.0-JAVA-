@@ -491,5 +491,46 @@ public final class Validators {
 
         return false;
     }
+
+    /**
+     * Valida una contraseña de usuario según la política de seguridad (RN-022).
+     * Requiere no ser nula ni vacía, longitud mínima de 6 caracteres y sin espacios al inicio o final.
+     *
+     * @param password Contraseña en texto plano a evaluar.
+     * @return ResultadoValidacion indicando si cumple la política.
+     */
+    public static ResultadoValidacion validarPassword(String password) {
+        if (password == null || password.isEmpty()) {
+            return ResultadoValidacion.error("La contraseña no puede estar vacía.");
+        }
+        if (password.startsWith(" ") || password.endsWith(" ")) {
+            return ResultadoValidacion.error("La contraseña no puede iniciar ni terminar con espacios.");
+        }
+        if (password.length() < 6) {
+            return ResultadoValidacion.error("La contraseña debe tener al menos 6 caracteres.");
+        }
+        return ResultadoValidacion.ok();
+    }
+
+    /**
+     * Valida un nombre de usuario (username) del sistema.
+     * Requiere longitud entre 3 y 30 caracteres alfanuméricos, puntos, guiones o guiones bajos.
+     *
+     * @param username Nombre de usuario a evaluar.
+     * @return ResultadoValidacion indicando validez.
+     */
+    public static ResultadoValidacion validarUsername(String username) {
+        if (username == null || username.isBlank()) {
+            return ResultadoValidacion.error("El nombre de usuario no puede estar vacío.");
+        }
+        String limpio = username.trim();
+        if (limpio.length() < 3 || limpio.length() > 30) {
+            return ResultadoValidacion.error("El nombre de usuario debe tener al menos 3 caracteres y un máximo de 30.");
+        }
+        if (!limpio.matches("^[a-zA-Z0-9._-]+$")) {
+            return ResultadoValidacion.error("El nombre de usuario solo puede contener letras, números, puntos, guiones y guiones bajos.");
+        }
+        return ResultadoValidacion.ok();
+    }
 }
 

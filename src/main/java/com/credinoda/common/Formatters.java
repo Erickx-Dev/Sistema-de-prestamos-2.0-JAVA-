@@ -60,6 +60,25 @@ public final class Formatters {
         return fecha.format(DATE_FORMATTER);
     }
 
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+
+    /**
+     * Formatea una fecha y hora en formato estándar: dd/MM/yyyy HH:mm.
+     */
+    public static String formatoFechaHora(java.time.LocalDateTime fechaHora) {
+        if (fechaHora == null) {
+            return "";
+        }
+        return fechaHora.format(DATE_TIME_FORMATTER);
+    }
+
+    /**
+     * Alias de formatoFechaHora para compatibilidad semántica.
+     */
+    public static String formatearFechaHora(java.time.LocalDateTime fechaHora) {
+        return formatoFechaHora(fechaHora);
+    }
+
     /**
      * Formatea una tasa mensual o porcentaje:
      * Ejemplo: 0.12 -> "12%".

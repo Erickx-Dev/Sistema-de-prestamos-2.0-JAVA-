@@ -4,6 +4,7 @@ import com.credinoda.common.ConfiguracionLocalStore;
 import com.credinoda.common.RutasSistema;
 import com.credinoda.domain.dto.BackupInfo;
 import com.credinoda.domain.exception.BackupException;
+import com.credinoda.domain.model.Permiso;
 import com.credinoda.persistence.SchemaInitializer;
 
 import java.io.IOException;
@@ -46,25 +47,31 @@ public class BackupService {
 
     private final Connection connection;
     private final Path backupsDir;
+    private final Autorizador autorizador;
 
-    public BackupService(Connection connection) {
-        this(connection, ConfiguracionLocalStore.cargarRutas()
-                .map(RutasSistema::backupsDir)
-                .orElseGet(() -> Path.of(System.getProperty("user.dir"), "backups")));
-    }
-
-    public BackupService(Connection connection, RutasSistema rutas) {
-        this(connection, Objects.requireNonNull(rutas, "RutasSistema no puede ser nulo.").backupsDir());
-    }
-
-    public BackupService(Connection connection, Path backupsDir) {
+    public BackupService(Connection connection, Path backupsDir, Autorizador autorizador) {
         this.connection = Objects.requireNonNull(connection, "La conexión a la base de datos no puede ser nula.");
         this.backupsDir = Objects.requireNonNull(backupsDir, "El directorio de respaldos no puede ser nulo.");
+        this.autorizador = Objects.requireNonNull(autorizador, "El autorizador no puede ser nulo.");
         try {
             Files.createDirectories(this.backupsDir);
         } catch (IOException e) {
             System.err.println("Advertencia al crear directorio de backups: " + e.getMessage());
         }
+    }
+
+    public BackupService(Connection connection, Path backupsDir) {
+        this(connection, backupsDir, new AutorizacionService());
+    }
+
+    public BackupService(Connection connection, RutasSistema rutas) {
+        this(connection, Objects.requireNonNull(rutas, "RutasSistema no puede ser nulo.").backupsDir(), new AutorizacionService());
+    }
+
+    public BackupService(Connection connection) {
+        this(connection, ConfiguracionLocalStore.cargarRutas()
+                .map(RutasSistema::backupsDir)
+                .orElseGet(() -> Path.of(System.getProperty("user.dir"), "backups")), new AutorizacionService());
     }
 
     /**
@@ -75,6 +82,7 @@ public class BackupService {
      * @return Path absoluto al archivo de copia de seguridad .db generado.
      */
     public Path crearBackup(Path destino, String prefijo) {
+        autorizador.requirePermission(Permiso.BACKUP_GESTIONAR);
         String prefijoSeguro = (prefijo != null && !prefijo.isBlank()) ? prefijo.trim() : "creditos_backup";
 
         Path rutaDestino;
@@ -195,6 +203,7 @@ public class BackupService {
      * @return Path del respaldo preventivo automático 'pre_restauracion_*.db' generado.
      */
     public Path restaurarBackup(Path rutaOrigen) {
+        autorizador.requirePermission(Permiso.BACKUP_GESTIONAR);
         validarArchivoBackup(rutaOrigen);
 
         // 1. Crear respaldo preventivo automático antes de sobrescribir
@@ -285,6 +294,7 @@ public class BackupService {
      * @return Lista de DTO BackupInfo con metadatos del archivo y tamaño en KB.
      */
     public List<BackupInfo> listarBackups() {
+        autorizador.requirePermission(Permiso.BACKUP_GESTIONAR);
         if (!Files.exists(backupsDir)) {
             return List.of();
         }

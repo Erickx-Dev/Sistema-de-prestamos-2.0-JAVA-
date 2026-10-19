@@ -1,8 +1,10 @@
 package com.credinoda.ui.views;
 
 import com.credinoda.domain.model.Cliente;
+import com.credinoda.domain.model.Permiso;
 import com.credinoda.service.ClienteService;
 import com.credinoda.ui.components.ClienteDialog;
+import com.credinoda.ui.components.PermissionGuard;
 import com.credinoda.ui.components.SectionHeader;
 import com.credinoda.ui.components.TableColumnHelper;
 import com.credinoda.ui.components.ToastNotification;
@@ -39,6 +41,7 @@ public class ClientesView extends VBox implements ViewRouter.RoutableView {
     private final ViewRouter viewRouter;
     private final BiConsumer<String, ToastNotification.Type> notifier;
 
+    private final SectionHeader header;
     private final TextField searchField;
     private final TableView<Cliente> tablaClientes;
     private final ObservableList<Cliente> itemsClientes = FXCollections.observableArrayList();
@@ -53,12 +56,13 @@ public class ClientesView extends VBox implements ViewRouter.RoutableView {
         getStyleClass().add("view-container");
         setSpacing(18);
 
-        SectionHeader header = new SectionHeader(
+        this.header = new SectionHeader(
                 "Gestión de Clientes",
                 "Directorio de prestatarios y expedientes crediticios",
                 "+ Nuevo Cliente",
                 this::openNuevoClienteDialog
         );
+        PermissionGuard.apply(header.getPrimaryActionButton(), Permiso.CLIENTES_CREAR);
 
         // Barra de búsqueda en tiempo real (CU-002, RN-003)
         HBox searchBar = new HBox(10);
@@ -142,6 +146,7 @@ public class ClientesView extends VBox implements ViewRouter.RoutableView {
                     if (!getStyleClass().contains("cell-center")) {
                         getStyleClass().add("cell-center");
                     }
+                    PermissionGuard.apply(btnEditar, Permiso.CLIENTES_EDITAR);
                     setGraphic(box);
                 }
             }
@@ -164,6 +169,7 @@ public class ClientesView extends VBox implements ViewRouter.RoutableView {
 
     @Override
     public void onShow(int currentDataVersion) {
+        PermissionGuard.apply(header.getPrimaryActionButton(), Permiso.CLIENTES_CREAR);
         loadData();
     }
 
