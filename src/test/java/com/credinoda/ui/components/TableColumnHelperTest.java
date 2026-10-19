@@ -48,6 +48,30 @@ class TableColumnHelperTest {
     }
 
     @Test
+    @DisplayName("monedaColumn con Pos.CENTER debe configurar clase col-center y celda cell-center")
+    void testMonedaColumnCentrado() {
+        TableColumn<DummyRow, String> col = TableColumnHelper.monedaColumn(
+                "Valor Cuota",
+                DummyRow::monto,
+                Pos.CENTER,
+                140
+        );
+
+        assertThat(col.getText()).isEqualTo("Valor Cuota");
+        assertThat(col.getPrefWidth()).isEqualTo(140);
+        assertThat(col.getStyleClass()).contains("col-center");
+
+        DummyRow row = new DummyRow("Prueba", new BigDecimal("500000"), LocalDate.of(2026, 10, 20), "ACTIVO");
+        TableColumn.CellDataFeatures<DummyRow, String> features = new TableColumn.CellDataFeatures<>(null, col, row);
+        assertThat(col.getCellValueFactory().call(features).getValue()).isEqualTo("$500.000");
+
+        TableCell<DummyRow, String> cell = col.getCellFactory().call(col);
+        assertThat(cell).isNotNull();
+        assertThat(cell.getStyleClass()).contains("cell-center");
+        assertThat(cell.getAlignment()).isEqualTo(Pos.CENTER);
+    }
+
+    @Test
     @DisplayName("fechaColumn debe configurar clase col-center y formatear fechas centradas")
     void testFechaColumn() {
         TableColumn<DummyRow, String> col = TableColumnHelper.fechaColumn(

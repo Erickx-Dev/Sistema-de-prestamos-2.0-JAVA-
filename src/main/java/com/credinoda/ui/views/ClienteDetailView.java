@@ -4,10 +4,12 @@ import com.credinoda.common.Formatters;
 import com.credinoda.domain.model.Cliente;
 import com.credinoda.domain.model.Credito;
 import com.credinoda.domain.model.EstadoCredito;
+import com.credinoda.domain.model.Permiso;
 import com.credinoda.service.ClienteService;
 import com.credinoda.service.CreditoService;
 import com.credinoda.ui.components.ClienteDialog;
 import com.credinoda.ui.components.MetricCard;
+import com.credinoda.ui.components.PermissionGuard;
 import com.credinoda.ui.components.SectionHeader;
 import com.credinoda.ui.components.TableColumnHelper;
 import com.credinoda.ui.components.ToastNotification;
@@ -45,6 +47,7 @@ public class ClienteDetailView extends VBox implements ViewRouter.RoutableView {
 
     private Cliente clienteActual;
     private final SectionHeader header;
+    private final Button editBtn;
     private final MetricCard cardDocumento;
     private final MetricCard cardTelefono;
     private final MetricCard cardTotalCreditos;
@@ -76,9 +79,10 @@ public class ClienteDetailView extends VBox implements ViewRouter.RoutableView {
             }
         });
 
-        Button editBtn = new Button("✏ Editar Cliente");
+        this.editBtn = new Button("✏ Editar Cliente");
         editBtn.getStyleClass().add("btn-secondary");
         editBtn.setOnAction(e -> handleEditarCliente());
+        PermissionGuard.apply(editBtn, Permiso.CLIENTES_EDITAR);
 
         Button newCreditoBtn = new Button("+ Nuevo Crédito");
         newCreditoBtn.getStyleClass().add("btn-primary");
@@ -130,12 +134,12 @@ public class ClienteDetailView extends VBox implements ViewRouter.RoutableView {
 
         TableColumn<Credito, String> colFecha = TableColumnHelper.fechaColumn("Fecha Inicio", Credito::getFechaInicio, 120);
 
-        TableColumn<Credito, String> colCapital = TableColumnHelper.monedaColumn("Capital", Credito::getCapital, 130);
+        TableColumn<Credito, String> colCapital = TableColumnHelper.monedaColumn("Capital", Credito::getCapital, Pos.CENTER, 130);
 
-        TableColumn<Credito, String> colTotal = TableColumnHelper.monedaColumn("Total a Pagar", Credito::getTotalPagar, 140);
+        TableColumn<Credito, String> colTotal = TableColumnHelper.monedaColumn("Total a Pagar", Credito::getTotalPagar, Pos.CENTER, 140);
 
         TableColumn<Credito, String> colSaldo = TableColumnHelper.monedaColumn("Saldo Pendiente",
-                c -> creditoService.calcularSaldoPendiente(c.getId()), 140);
+                c -> creditoService.calcularSaldoPendiente(c.getId()), Pos.CENTER, 140);
 
         TableColumn<Credito, String> colFrecuencia = TableColumnHelper.textoColumn("Frecuencia",
                 c -> c.getFrecuenciaPago().name() + " (" + c.getPlazoMeses() + " m)", Pos.CENTER, 150);
@@ -162,6 +166,7 @@ public class ClienteDetailView extends VBox implements ViewRouter.RoutableView {
 
     @Override
     public void onShow(int currentDataVersion) {
+        PermissionGuard.apply(editBtn, Permiso.CLIENTES_EDITAR);
         loadData();
     }
 

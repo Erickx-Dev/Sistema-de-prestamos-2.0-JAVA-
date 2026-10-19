@@ -1,14 +1,22 @@
 package com.credinoda.ui.setup;
 
 import com.credinoda.common.RutasSistema;
+import com.credinoda.common.Validators;
 import com.credinoda.domain.dto.ResultadoValidacionUbicacion;
 import com.credinoda.domain.exception.ConfiguracionException;
+import com.credinoda.domain.model.Rol;
+import com.credinoda.domain.model.Usuario;
+import com.credinoda.persistence.DatabaseConnection;
+import com.credinoda.persistence.SchemaInitializer;
+import com.credinoda.persistence.repository.UsuarioRepository;
+import com.credinoda.service.BCryptPasswordHasher;
 import com.credinoda.service.ConfiguracionInicialService;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.layout.BorderPane;
@@ -23,18 +31,20 @@ import java.io.File;
 import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Path;
+import java.sql.Connection;
 import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * Asistente de Configuración Inicial (Setup Wizard) para primer arranque (CU-016, RN-019, RN-020).
- * Guía al usuario en la configuración de la carpeta local de base de datos y la carpeta de respaldos
- * (con recomendación explícita para Google Drive para Escritorio), previniendo la corrupción en la nube.
+ * Asistente de Configuración Inicial (Setup Wizard) para primer arranque (CU-016, RN-019, RN-020, RN-022).
+ * Guía al usuario en la configuración de la carpeta local de base de datos, la carpeta de respaldos
+ * (con recomendación explícita para Google Drive para Escritorio) y la creación de la cuenta del
+ * Administrador Principal del sistema.
  */
 public class SetupWizard {
 
     public static final double WIZARD_WIDTH = 680.0;
-    public static final double WIZARD_HEIGHT = 520.0;
+    public static final double WIZARD_HEIGHT = 560.0;
 
     private final Stage stage;
     private final ConfiguracionInicialService configService;
@@ -56,9 +66,17 @@ public class SetupWizard {
     private TextField txtBackupsDir;
     private Label lblBackupsFeedback;
 
-    // Elementos Paso 4 (Resumen)
+    // Elementos Paso 4 (Administrador Inicial)
+    private TextField txtAdminUsername;
+    private TextField txtAdminNombre;
+    private PasswordField txtAdminPassword;
+    private PasswordField txtAdminPasswordConfirm;
+    private Label lblAdminFeedback;
+
+    // Elementos Paso 5 (Resumen)
     private Label lblResumenData;
     private Label lblResumenBackups;
+    private Label lblResumenAdmin;
     private Label lblErrorGuardado;
 
     public SetupWizard(Stage stage, ConfiguracionInicialService configService, Consumer<RutasSistema> onComplete) {
@@ -85,7 +103,7 @@ public class SetupWizard {
         Label brandLabel = new Label("CrediNoda 2.0");
         brandLabel.getStyleClass().addAll("brand-text", "wizard-brand");
 
-        Label subtitleLabel = new Label("Configuración de Almacenamiento y Respaldos");
+        Label subtitleLabel = new Label("Configuración de Almacenamiento, Respaldos y Seguridad");
         subtitleLabel.getStyleClass().add("section-subtitle");
 
         headerBox.getChildren().addAll(brandLabel, subtitleLabel);
@@ -149,9 +167,15 @@ public class SetupWizard {
             }
             case 4 -> {
                 btnAnterior.setVisible(true);
+                btnSiguiente.setText("Siguiente →");
+                stepContainer.getChildren().add(buildPaso4Admin());
+                validarPaso4();
+            }
+            case 5 -> {
+                btnAnterior.setVisible(true);
                 btnSiguiente.setText("🚀 Guardar e Iniciar CrediNoda");
                 btnSiguiente.setDisable(false);
-                stepContainer.getChildren().add(buildPaso4Resumen());
+                stepContainer.getChildren().add(buildPaso5Resumen());
             }
         }
     }
@@ -164,13 +188,14 @@ public class SetupWizard {
         title.getStyleClass().add("dialog-header-title");
 
         Label desc = new Label(
-                "CrediNoda 2.0 requiere definir dos ubicaciones operativas clave para garantizar la integridad "
-                        + "y seguridad de sus datos financieros:\n\n"
+                "CrediNoda 2.0 requiere definir dos ubicaciones operativas y configurar la cuenta del "
+                        + "Administrador Principal para garantizar la integridad, seguridad y control de acceso:\n\n"
                         + "1. Carpeta de Datos Locales: Ubicación donde residirá la base de datos activa ('creditos.db'). "
                         + "Por seguridad y para evitar bloqueos en SQLite, debe ser una carpeta en el disco local de este equipo.\n\n"
                         + "2. Carpeta de Copias de Seguridad: Ubicación donde se generarán los respaldos (.db). "
-                        + "Recomendamos elegir una carpeta sincronizada con Google Drive para Escritorio (u otro proveedor seguro en la nube) "
-                        + "para salvaguardar su información de forma automática ante contingencias.");
+                        + "Recomendamos elegir una carpeta sincronizada con Google Drive para Escritorio "
+                        + "para salvaguardar su información de forma automática ante contingencias.\n\n"
+                        + "3. Administrador del Sistema: Creará la cuenta con privilegios totales de administración.");
         desc.setWrapText(true);
         desc.getStyleClass().add("section-subtitle");
 
@@ -254,7 +279,7 @@ public class SetupWizard {
             btnSiguiente.setDisable(true);
         } else if (res.esNube()) {
             lblDataFeedback.setStyle("-fx-text-fill: #b45309; -fx-font-weight: bold;");
-            btnSiguiente.setDisable(false); // Advertencia pero permite continuar
+            btnSiguiente.setDisable(false);
         } else if (res.baseExistenteValida()) {
             lblDataFeedback.setStyle("-fx-text-fill: #2563eb; -fx-font-weight: bold;");
             btnSiguiente.setDisable(false);
@@ -349,16 +374,161 @@ public class SetupWizard {
         }
     }
 
-    private VBox buildPaso4Resumen() {
+    private boolean tieneAdminExistente() {
+        if (selectedDataDir == null) {
+            return false;
+        }
+        Path backups = selectedBackupsDir != null ? selectedBackupsDir : selectedDataDir;
+        return configService.tieneAdministradorConfigurado(RutasSistema.de(selectedDataDir, backups));
+    }
+
+    private VBox buildPaso4Admin() {
         VBox box = new VBox(14);
         box.setAlignment(Pos.TOP_LEFT);
 
-        Label title = new Label("Paso 3: Confirmación y Resumen");
+        Label title = new Label("Paso 3: Cuenta de Administrador Principal");
+        title.getStyleClass().add("dialog-header-title");
+
+        if (tieneAdminExistente()) {
+            Label desc = new Label(
+                    "✓ Se detectó una base de datos existente con al menos una cuenta de Administrador activa.\n\n"
+                            + "No es necesario crear una nueva cuenta en este asistente. Podrá iniciar sesión "
+                            + "con las credenciales previamente configuradas en dicha base de datos.");
+            desc.setWrapText(true);
+            desc.setStyle("-fx-text-fill: #166534; -fx-font-weight: bold;");
+            box.getChildren().addAll(title, desc);
+            return box;
+        }
+
+        Label desc = new Label(
+                "Configure la cuenta con privilegios de Administrador para gestionar el sistema, usuarios, "
+                        + "respaldos y reportes.");
+        desc.setWrapText(true);
+        desc.getStyleClass().add("section-subtitle");
+
+        VBox formBox = new VBox(10);
+
+        // Username
+        VBox userBox = new VBox(3);
+        Label lblUser = new Label("Nombre de Usuario (Login) *");
+        lblUser.getStyleClass().add("form-label");
+        this.txtAdminUsername = new TextField(txtAdminUsername != null ? txtAdminUsername.getText() : "admin");
+        this.txtAdminUsername.setPromptText("Ej: admin");
+        this.txtAdminUsername.textProperty().addListener((o, ov, nv) -> validarPaso4());
+        userBox.getChildren().addAll(lblUser, txtAdminUsername);
+
+        // Nombre Completo
+        VBox nombreBox = new VBox(3);
+        Label lblNombre = new Label("Nombre Completo *");
+        lblNombre.getStyleClass().add("form-label");
+        this.txtAdminNombre = new TextField(txtAdminNombre != null ? txtAdminNombre.getText() : "Administrador Principal");
+        this.txtAdminNombre.setPromptText("Ej: Erickson Sojo");
+        this.txtAdminNombre.textProperty().addListener((o, ov, nv) -> validarPaso4());
+        nombreBox.getChildren().addAll(lblNombre, txtAdminNombre);
+
+        // Contraseña
+        VBox passBox = new VBox(3);
+        Label lblPass = new Label("Contraseña (mínimo 6 caracteres) *");
+        lblPass.getStyleClass().add("form-label");
+        this.txtAdminPassword = new PasswordField();
+        this.txtAdminPassword.setPromptText("Contraseña segura");
+        this.txtAdminPassword.textProperty().addListener((o, ov, nv) -> validarPaso4());
+        passBox.getChildren().addAll(lblPass, txtAdminPassword);
+
+        // Confirmar Contraseña
+        VBox confirmBox = new VBox(3);
+        Label lblConfirm = new Label("Confirmar Contraseña *");
+        lblConfirm.getStyleClass().add("form-label");
+        this.txtAdminPasswordConfirm = new PasswordField();
+        this.txtAdminPasswordConfirm.setPromptText("Repita la contraseña");
+        this.txtAdminPasswordConfirm.textProperty().addListener((o, ov, nv) -> validarPaso4());
+        confirmBox.getChildren().addAll(lblConfirm, txtAdminPasswordConfirm);
+
+        this.lblAdminFeedback = new Label();
+        this.lblAdminFeedback.setWrapText(true);
+
+        formBox.getChildren().addAll(userBox, nombreBox, passBox, confirmBox, lblAdminFeedback);
+        box.getChildren().addAll(title, desc, formBox);
+        return box;
+    }
+
+    private void validarPaso4() {
+        if (tieneAdminExistente()) {
+            btnSiguiente.setDisable(false);
+            return;
+        }
+
+        if (txtAdminUsername == null || txtAdminNombre == null || txtAdminPassword == null || txtAdminPasswordConfirm == null) {
+            btnSiguiente.setDisable(true);
+            return;
+        }
+
+        String username = txtAdminUsername.getText();
+        String nombre = txtAdminNombre.getText();
+        String password = txtAdminPassword.getText();
+        String confirm = txtAdminPasswordConfirm.getText();
+
+        if (username == null || username.isBlank()) {
+            lblAdminFeedback.setText("Ingrese el nombre de usuario.");
+            lblAdminFeedback.setStyle("-fx-text-fill: #b91c1c;");
+            btnSiguiente.setDisable(true);
+            return;
+        }
+
+        try {
+            Validators.validarUsername(username);
+        } catch (Exception ex) {
+            lblAdminFeedback.setText(ex.getMessage());
+            lblAdminFeedback.setStyle("-fx-text-fill: #b91c1c;");
+            btnSiguiente.setDisable(true);
+            return;
+        }
+
+        if (nombre == null || nombre.isBlank()) {
+            lblAdminFeedback.setText("Ingrese el nombre completo del administrador.");
+            lblAdminFeedback.setStyle("-fx-text-fill: #b91c1c;");
+            btnSiguiente.setDisable(true);
+            return;
+        }
+
+        if (password == null || password.isEmpty()) {
+            lblAdminFeedback.setText("Ingrese una contraseña de al menos 6 caracteres.");
+            lblAdminFeedback.setStyle("-fx-text-fill: #b91c1c;");
+            btnSiguiente.setDisable(true);
+            return;
+        }
+
+        try {
+            Validators.validarPassword(password);
+        } catch (Exception ex) {
+            lblAdminFeedback.setText(ex.getMessage());
+            lblAdminFeedback.setStyle("-fx-text-fill: #b91c1c;");
+            btnSiguiente.setDisable(true);
+            return;
+        }
+
+        if (!password.equals(confirm)) {
+            lblAdminFeedback.setText("Las contraseñas no coinciden.");
+            lblAdminFeedback.setStyle("-fx-text-fill: #b91c1c;");
+            btnSiguiente.setDisable(true);
+            return;
+        }
+
+        lblAdminFeedback.setText("✓ Credenciales válidas para el Administrador Principal.");
+        lblAdminFeedback.setStyle("-fx-text-fill: #166534; -fx-font-weight: bold;");
+        btnSiguiente.setDisable(false);
+    }
+
+    private VBox buildPaso5Resumen() {
+        VBox box = new VBox(14);
+        box.setAlignment(Pos.TOP_LEFT);
+
+        Label title = new Label("Paso 4: Confirmación y Resumen");
         title.getStyleClass().add("dialog-header-title");
 
         Label desc = new Label(
-                "Por favor confirme las rutas seleccionadas antes de inicializar la aplicación. "
-                        + "CrediNoda 2.0 guardará esta configuración en su perfil de usuario y creará las estructuras necesarias.");
+                "Por favor confirme los parámetros antes de inicializar la aplicación. "
+                        + "CrediNoda 2.0 guardará esta configuración e inicializará las estructuras seguras necesarias.");
         desc.setWrapText(true);
         desc.getStyleClass().add("section-subtitle");
 
@@ -376,7 +546,15 @@ public class SetupWizard {
         this.lblResumenBackups = new Label(selectedBackupsDir != null ? selectedBackupsDir.toString() : "-");
         lblResumenBackups.setWrapText(true);
 
-        summaryCard.getChildren().addAll(lblTitleData, lblResumenData, lblTitleBackups, lblResumenBackups);
+        Label lblTitleAdmin = new Label("Administrador Principal:");
+        lblTitleAdmin.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
+        String adminText = tieneAdminExistente()
+                ? "Cuenta de Administrador existente en base de datos"
+                : (txtAdminUsername != null ? "@" + txtAdminUsername.getText().trim() + " (" + txtAdminNombre.getText().trim() + ")" : "admin");
+        this.lblResumenAdmin = new Label(adminText);
+        lblResumenAdmin.setWrapText(true);
+
+        summaryCard.getChildren().addAll(lblTitleData, lblResumenData, lblTitleBackups, lblResumenBackups, lblTitleAdmin, lblResumenAdmin);
 
         this.lblErrorGuardado = new Label();
         this.lblErrorGuardado.setWrapText(true);
@@ -393,7 +571,7 @@ public class SetupWizard {
     }
 
     private void irPasoSiguiente() {
-        if (currentStep < 4) {
+        if (currentStep < 5) {
             mostrarPaso(currentStep + 1);
         } else {
             ejecutarGuardadoYFinalizar();
@@ -407,6 +585,30 @@ public class SetupWizard {
 
         try {
             RutasSistema rutas = configService.guardarConfiguracion(selectedDataDir, selectedBackupsDir);
+
+            // Crear administrador inicial si la base de datos es nueva
+            if (!tieneAdminExistente() && txtAdminUsername != null && txtAdminPassword != null) {
+                try (Connection conn = DatabaseConnection.getConnection(rutas.databasePath())) {
+                    SchemaInitializer.inicializar(conn);
+                    UsuarioRepository repo = new UsuarioRepository(conn);
+                    if (repo.contarAdministradoresActivos() == 0) {
+                        BCryptPasswordHasher hasher = new BCryptPasswordHasher();
+                        Usuario admin = new Usuario(
+                                txtAdminUsername.getText().trim(),
+                                hasher.hash(txtAdminPassword.getText()),
+                                txtAdminNombre.getText().trim(),
+                                Rol.ADMINISTRADOR
+                        );
+                        repo.crear(admin);
+                    }
+                } catch (Exception ex) {
+                    lblErrorGuardado.setText("Error al inicializar administrador: " + ex.getMessage());
+                    btnSiguiente.setDisable(false);
+                    btnAnterior.setDisable(false);
+                    return;
+                }
+            }
+
             onComplete.accept(rutas);
         } catch (ConfiguracionException e) {
             lblErrorGuardado.setText("Error al guardar la configuración: " + e.getMessage());

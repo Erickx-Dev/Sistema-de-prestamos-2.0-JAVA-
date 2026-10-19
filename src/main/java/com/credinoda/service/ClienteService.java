@@ -5,6 +5,7 @@ import com.credinoda.domain.exception.ClienteNoEncontradoException;
 import com.credinoda.domain.exception.DatosInvalidosException;
 import com.credinoda.domain.model.Cliente;
 import com.credinoda.domain.model.Credito;
+import com.credinoda.domain.model.Permiso;
 import com.credinoda.persistence.repository.ClienteRepository;
 import com.credinoda.persistence.repository.CreditoRepository;
 
@@ -21,14 +22,20 @@ public class ClienteService {
 
     private final ClienteRepository clienteRepository;
     private final CreditoRepository creditoRepository;
+    private final Autorizador autorizador;
 
-    public ClienteService(ClienteRepository clienteRepository, CreditoRepository creditoRepository) {
+    public ClienteService(ClienteRepository clienteRepository, CreditoRepository creditoRepository, Autorizador autorizador) {
         this.clienteRepository = Objects.requireNonNull(clienteRepository, "ClienteRepository no puede ser nulo");
         this.creditoRepository = creditoRepository;
+        this.autorizador = Objects.requireNonNull(autorizador, "Autorizador no puede ser nulo");
+    }
+
+    public ClienteService(ClienteRepository clienteRepository, CreditoRepository creditoRepository) {
+        this(clienteRepository, creditoRepository, new AutorizacionService());
     }
 
     public ClienteService(ClienteRepository clienteRepository) {
-        this(clienteRepository, null);
+        this(clienteRepository, null, new AutorizacionService());
     }
 
     /**
@@ -42,6 +49,7 @@ public class ClienteService {
      * @throws RuntimeException Si ocurre un error de persistencia.
      */
     public Cliente crearCliente(String nombre, String telefono, String documento) {
+        autorizador.requirePermission(Permiso.CLIENTES_CREAR);
         Validators.ResultadoValidacion valNom = Validators.validarNombreCliente(nombre);
         if (!valNom.valido()) {
             throw new DatosInvalidosException(valNom.mensaje());
@@ -86,6 +94,7 @@ public class ClienteService {
      * @throws DatosInvalidosException Si algún valor enviado queda vacío tras el trim o duplica otro cliente.
      */
     public Cliente actualizarCliente(int id, String nombre, String telefono, String documento) {
+        autorizador.requirePermission(Permiso.CLIENTES_EDITAR);
         Cliente cliente = obtenerClientePorId(id);
 
         if (nombre != null) {

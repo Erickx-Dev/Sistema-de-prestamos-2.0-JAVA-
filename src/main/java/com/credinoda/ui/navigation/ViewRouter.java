@@ -1,5 +1,8 @@
 package com.credinoda.ui.navigation;
 
+import com.credinoda.domain.model.Permiso;
+import com.credinoda.service.AutorizacionService;
+import com.credinoda.service.Autorizador;
 import javafx.scene.Node;
 import javafx.scene.layout.StackPane;
 
@@ -35,6 +38,7 @@ public class ViewRouter {
 
     private final StackPane contentArea;
     private final NavigationBar navigationBar;
+    private final Autorizador autorizador;
 
     private final Map<String, Supplier<? extends Node>> cachedViewFactories = new HashMap<>();
     private final Map<String, Node> cachedViews = new HashMap<>();
@@ -50,14 +54,20 @@ public class ViewRouter {
     private String currentRouteKey;
     private Object currentRouteParam;
 
-    public ViewRouter(StackPane contentArea, NavigationBar navigationBar) {
+    public ViewRouter(StackPane contentArea, NavigationBar navigationBar, Autorizador autorizador) {
         this.contentArea = Objects.requireNonNull(contentArea, "El contenedor ContentArea no puede ser nulo");
         this.navigationBar = navigationBar;
+        this.autorizador = Objects.requireNonNull(autorizador, "El autorizador no puede ser nulo");
         this.lastCheckedDate = dateSupplier.get();
 
         if (this.navigationBar != null) {
             this.navigationBar.setOnActionSelected(this::navigate);
+            this.navigationBar.setOnRouteSelected(this::navigate);
         }
+    }
+
+    public ViewRouter(StackPane contentArea, NavigationBar navigationBar) {
+        this(contentArea, navigationBar, new AutorizacionService());
     }
 
     /**
@@ -160,6 +170,11 @@ public class ViewRouter {
             return;
         }
 
+        // 0. Control de acceso por ruta (RN-024, RN-026)
+        if (NavAction.ROUTE_USUARIOS.equals(key)) {
+            autorizador.requirePermission(Permiso.USUARIOS_GESTIONAR);
+        }
+
         // 1. Verificar cambio de día antes de renderizar la vista (RN-008)
         checkDayRollover();
 
@@ -188,7 +203,7 @@ public class ViewRouter {
 
         // 4. Sincronizar barra de navegación
         if (navigationBar != null) {
-            NavAction.resolveHighlightedNav(key).ifPresent(navigationBar::setActiveAction);
+            navigationBar.setActiveRoute(key);
         }
 
         // 5. Disparar ciclo de vida onShow solo si es dinámica o si dataVersion avanzó respecto a la caché
@@ -213,6 +228,18 @@ public class ViewRouter {
         dataVersion++;
         refreshActiveViewIfNeeded();
         return dataVersion;
+    }
+
+    /**
+     * Limpia completamente las vistas en caché y reinicia el estado del contenedor de contenido.
+     * Invocado al cerrar sesión para garantizar que el siguiente usuario no vea datos residuales en memoria (RN-026).
+     */
+    public void clearCache() {
+        cachedViews.clear();
+        lastSyncedVersion.clear();
+        contentArea.getChildren().clear();
+        currentRouteKey = null;
+        currentRouteParam = null;
     }
 
     /**

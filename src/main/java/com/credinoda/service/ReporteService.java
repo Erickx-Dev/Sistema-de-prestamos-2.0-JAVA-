@@ -11,6 +11,7 @@ import com.credinoda.domain.model.Cuota;
 import com.credinoda.domain.model.EstadoCredito;
 import com.credinoda.domain.model.EstadoCuota;
 import com.credinoda.domain.model.Pago;
+import com.credinoda.domain.model.Permiso;
 import com.credinoda.persistence.repository.CreditoRepository;
 import com.credinoda.persistence.repository.PagoRepository;
 
@@ -38,10 +39,16 @@ public class ReporteService {
 
     private final CreditoRepository creditoRepo;
     private final PagoRepository pagoRepo;
+    private final Autorizador autorizador;
 
-    public ReporteService(CreditoRepository creditoRepo, PagoRepository pagoRepo) {
+    public ReporteService(CreditoRepository creditoRepo, PagoRepository pagoRepo, Autorizador autorizador) {
         this.creditoRepo = Objects.requireNonNull(creditoRepo, "CreditoRepository no puede ser nulo.");
         this.pagoRepo = Objects.requireNonNull(pagoRepo, "PagoRepository no puede ser nulo.");
+        this.autorizador = Objects.requireNonNull(autorizador, "Autorizador no puede ser nulo.");
+    }
+
+    public ReporteService(CreditoRepository creditoRepo, PagoRepository pagoRepo) {
+        this(creditoRepo, pagoRepo, new AutorizacionService());
     }
 
     /**
@@ -96,6 +103,7 @@ public class ReporteService {
      * @return DTO MetricasReporte con los 10 indicadores financieros calculados.
      */
     public MetricasReporte obtenerMetricas(LocalDate fechaDesde, LocalDate fechaHasta) {
+        autorizador.requirePermission(Permiso.REPORTES_VER);
         validarRangoFechas(fechaDesde, fechaHasta);
 
         try {
@@ -227,6 +235,7 @@ public class ReporteService {
      * @return DTO DistribucionCartera con las cantidades de créditos por categoría.
      */
     public DistribucionCartera obtenerDistribucionCartera(LocalDate fechaDesde, LocalDate fechaHasta) {
+        autorizador.requirePermission(Permiso.REPORTES_VER);
         validarRangoFechas(fechaDesde, fechaHasta);
 
         try {
@@ -294,6 +303,7 @@ public class ReporteService {
             LocalDate fechaHasta,
             int numSemanas
     ) {
+        autorizador.requirePermission(Permiso.REPORTES_VER);
         validarRangoFechas(fechaDesde, fechaHasta);
         int semanasAConsiderar = numSemanas > 0 ? numSemanas : 5;
 

@@ -1,8 +1,10 @@
 package com.credinoda.ui.views;
 
 import com.credinoda.domain.model.Cliente;
+import com.credinoda.domain.model.Permiso;
 import com.credinoda.service.ClienteService;
 import com.credinoda.ui.components.ClienteDialog;
+import com.credinoda.ui.components.PermissionGuard;
 import com.credinoda.ui.components.SectionHeader;
 import com.credinoda.ui.components.TableColumnHelper;
 import com.credinoda.ui.components.ToastNotification;
@@ -39,6 +41,7 @@ public class ClientesView extends VBox implements ViewRouter.RoutableView {
     private final ViewRouter viewRouter;
     private final BiConsumer<String, ToastNotification.Type> notifier;
 
+    private final SectionHeader header;
     private final TextField searchField;
     private final TableView<Cliente> tablaClientes;
     private final ObservableList<Cliente> itemsClientes = FXCollections.observableArrayList();
@@ -53,12 +56,13 @@ public class ClientesView extends VBox implements ViewRouter.RoutableView {
         getStyleClass().add("view-container");
         setSpacing(18);
 
-        SectionHeader header = new SectionHeader(
+        this.header = new SectionHeader(
                 "Gestión de Clientes",
                 "Directorio de prestatarios y expedientes crediticios",
                 "+ Nuevo Cliente",
                 this::openNuevoClienteDialog
         );
+        PermissionGuard.apply(header.getPrimaryActionButton(), Permiso.CLIENTES_CREAR);
 
         // Barra de búsqueda en tiempo real (CU-002, RN-003)
         HBox searchBar = new HBox(10);
@@ -95,7 +99,7 @@ public class ClientesView extends VBox implements ViewRouter.RoutableView {
         TableColumn<Cliente, String> colId = TableColumnHelper.textoColumn("ID", c -> "#" + c.getId(), Pos.CENTER, 80);
         colId.setMaxWidth(90);
 
-        TableColumn<Cliente, String> colNombre = TableColumnHelper.textoColumn("Nombre Completo", Cliente::getNombre, Pos.CENTER_LEFT, 240);
+        TableColumn<Cliente, String> colNombre = TableColumnHelper.textoColumn("Nombre Completo", Cliente::getNombre, Pos.CENTER, 240);
 
         TableColumn<Cliente, String> colDocumento = TableColumnHelper.textoColumn("Documento", Cliente::getDocumento, Pos.CENTER, 140);
         colDocumento.setMaxWidth(160);
@@ -107,12 +111,15 @@ public class ClientesView extends VBox implements ViewRouter.RoutableView {
         colAcciones.setPrefWidth(200);
         colAcciones.setMaxWidth(220);
         TableColumnHelper.setHeaderAlignment(colAcciones, Pos.CENTER);
+        colAcciones.getStyleClass().add("col-center");
         colAcciones.setCellFactory(col -> new TableCell<>() {
             private final Button btnVer = new Button("Ver Ficha");
             private final Button btnEditar = new Button("Editar");
             private final HBox box = new HBox(8, btnVer, btnEditar);
 
             {
+                setAlignment(Pos.CENTER);
+                getStyleClass().add("cell-center");
                 box.setAlignment(Pos.CENTER);
                 btnVer.getStyleClass().addAll("btn-secondary", "btn-sm");
                 btnEditar.getStyleClass().addAll("btn-secondary", "btn-sm");
@@ -142,6 +149,7 @@ public class ClientesView extends VBox implements ViewRouter.RoutableView {
                     if (!getStyleClass().contains("cell-center")) {
                         getStyleClass().add("cell-center");
                     }
+                    PermissionGuard.apply(btnEditar, Permiso.CLIENTES_EDITAR);
                     setGraphic(box);
                 }
             }
@@ -164,6 +172,7 @@ public class ClientesView extends VBox implements ViewRouter.RoutableView {
 
     @Override
     public void onShow(int currentDataVersion) {
+        PermissionGuard.apply(header.getPrimaryActionButton(), Permiso.CLIENTES_CREAR);
         loadData();
     }
 

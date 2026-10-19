@@ -22,6 +22,9 @@ public enum NavAction {
     /** Clave de ruta para la subvista de ficha detallada de crédito. */
     public static final String ROUTE_CREDITO_DETAIL = "credito_detail";
 
+    /** Clave de ruta para la vista de gestión y administración de usuarios. */
+    public static final String ROUTE_USUARIOS = "usuarios";
+
     private final String routeKey;
     private final String label;
     private final String icon;

@@ -10,6 +10,7 @@ import com.credinoda.domain.exception.PagoInvalidoException;
 import com.credinoda.domain.model.Cuota;
 import com.credinoda.domain.model.EstadoCuota;
 import com.credinoda.domain.model.Pago;
+import com.credinoda.domain.model.Permiso;
 import com.credinoda.persistence.repository.CreditoRepository;
 import com.credinoda.persistence.repository.PagoRepository;
 
@@ -31,13 +32,21 @@ public class PagoService {
     private final PagoRepository pagoRepository;
     private final CreditoRepository creditoRepository;
     private final CreditoService creditoService;
+    private final Autorizador autorizador;
 
     public PagoService(Connection connection, PagoRepository pagoRepository,
-                       CreditoRepository creditoRepository, CreditoService creditoService) {
+                       CreditoRepository creditoRepository, CreditoService creditoService,
+                       Autorizador autorizador) {
         this.connection = Objects.requireNonNull(connection, "La conexión JDBC no puede ser nula");
         this.pagoRepository = Objects.requireNonNull(pagoRepository, "PagoRepository no puede ser nulo");
         this.creditoRepository = Objects.requireNonNull(creditoRepository, "CreditoRepository no puede ser nulo");
         this.creditoService = creditoService;
+        this.autorizador = Objects.requireNonNull(autorizador, "Autorizador no puede ser nulo");
+    }
+
+    public PagoService(Connection connection, PagoRepository pagoRepository,
+                       CreditoRepository creditoRepository, CreditoService creditoService) {
+        this(connection, pagoRepository, creditoRepository, creditoService, new AutorizacionService());
     }
 
     /**
@@ -56,6 +65,7 @@ public class PagoService {
      * @throws CrediNodaException Si ocurre un fallo en la transacción JDBC.
      */
     public Pago registrarPago(int creditoId, int cuotaId, BigDecimal monto, LocalDate fechaPago) {
+        autorizador.requirePermission(Permiso.PAGOS_REGISTRAR);
         if (monto == null || monto.compareTo(BigDecimal.ZERO) <= 0) {
             throw new MontoInvalidoException("El monto del pago debe ser mayor a 0.");
         }

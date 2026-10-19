@@ -2,20 +2,30 @@ package com.credinoda.ui;
 
 import com.credinoda.common.RutasSistema;
 import com.credinoda.domain.dto.EstadoInstalacion;
+import com.credinoda.domain.dto.SesionUsuario;
+import com.credinoda.domain.model.Usuario;
 import com.credinoda.persistence.DatabaseConnection;
 import com.credinoda.persistence.SchemaInitializer;
 import com.credinoda.persistence.repository.ClienteRepository;
 import com.credinoda.persistence.repository.CreditoRepository;
 import com.credinoda.persistence.repository.PagoRepository;
+import com.credinoda.persistence.repository.UsuarioRepository;
+import com.credinoda.service.AutenticacionService;
+import com.credinoda.service.BCryptPasswordHasher;
 import com.credinoda.service.BackupService;
 import com.credinoda.service.ClienteService;
 import com.credinoda.service.ConfiguracionInicialService;
+import com.credinoda.service.ContextoSeguridad;
 import com.credinoda.service.CreditoService;
 import com.credinoda.service.PagoService;
 import com.credinoda.service.PdfService;
 import com.credinoda.service.ReporteService;
+import com.credinoda.service.UsuarioService;
+import com.credinoda.ui.auth.LoginDialog;
 import com.credinoda.ui.components.BackupDialog;
+import com.credinoda.ui.components.ConfirmDialog;
 import com.credinoda.ui.components.ToastNotification;
+import com.credinoda.ui.components.UsuarioDialog;
 import com.credinoda.ui.navigation.NavAction;
 import com.credinoda.ui.navigation.NavigationBar;
 import com.credinoda.ui.navigation.ViewRouter;
@@ -28,6 +38,7 @@ import com.credinoda.ui.views.CreditoNewView;
 import com.credinoda.ui.views.DashboardView;
 import com.credinoda.ui.views.PagosView;
 import com.credinoda.ui.views.ReportesView;
+import com.credinoda.ui.views.UsuariosView;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Application;
@@ -46,14 +57,16 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.Optional;
 
 /**
  * Aplicación principal JavaFX de CrediNoda 2.0.
- * Orquesta la inicialización de la base de datos SQLite, los 6 servicios de negocio,
- * el monitor de cambio de día para detección de mora (RN-008) y el contenedor principal {@code MainShell}.
+ * Orquesta la inicialización de la base de datos SQLite, los servicios de negocio,
+ * la autenticación y control de accesos por roles (Fase 6.3), el monitor de cambio de día
+ * para detección de mora (RN-008) y el contenedor principal {@code MainShell}.
  *
  * <p>Regla Estructural de Oro (Sección I.2): {@code MainShell} ({@link BorderPane}) está compuesto
- * exclusivamente por dos regiones permanentes: {@link NavigationBar} (Left, 220px) y
+ * exclusivamente por dos regiones permanentes: {@link NavigationBar} (Top, 56px) y
  * {@code ContentArea} (Center, 100% del espacio restante).</p>
  */
 public class CrediNodaApplication extends Application {
@@ -67,6 +80,7 @@ public class CrediNodaApplication extends Application {
     private ClienteRepository clienteRepository;
     private CreditoRepository creditoRepository;
     private PagoRepository pagoRepository;
+    private UsuarioRepository usuarioRepository;
 
     private ClienteService clienteService;
     private CreditoService creditoService;
@@ -74,6 +88,9 @@ public class CrediNodaApplication extends Application {
     private ReporteService reporteService;
     private PdfService pdfService;
     private BackupService backupService;
+    private BCryptPasswordHasher passwordHasher;
+    private AutenticacionService autenticacionService;
+    private UsuarioService usuarioService;
 
     private Stage primaryStage;
     private BorderPane mainShell;
@@ -108,13 +125,37 @@ public class CrediNodaApplication extends Application {
     }
 
     /**
-     * Inicializa los servicios con las rutas configuradas y monta el MainShell de la aplicación.
+     * Inicializa los servicios con las rutas configuradas, valida autenticación y monta el MainShell de la aplicación.
      *
      * @param stage Escenario principal JavaFX.
      * @param rutas Rutas operativas validadas.
      */
     public void iniciarConRutas(Stage stage, RutasSistema rutas) {
         initializeBackend(rutas);
+
+        // 1. Si no existe ningún administrador activo, solicitar creación inicial
+        try {
+            if (usuarioRepository.contarAdministradoresActivos() == 0) {
+                UsuarioDialog adminDialog = new UsuarioDialog(stage, usuarioService);
+                Optional<Usuario> adminOpt = adminDialog.mostrarYEsperar();
+                if (adminOpt.isEmpty()) {
+                    stage.close();
+                    return;
+                }
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("Error al verificar cuentas de administrador: " + e.getMessage(), e);
+        }
+
+        // 2. Diálogo modal de inicio de sesión
+        LoginDialog loginDialog = new LoginDialog(stage, autenticacionService);
+        Optional<SesionUsuario> sesionOpt = loginDialog.mostrarYEsperar();
+        if (sesionOpt.isEmpty()) {
+            stage.close();
+            return;
+        }
+
+        ContextoSeguridad.setSesionActual(sesionOpt.get());
         montarYMostrarMainShell(stage);
     }
 
@@ -138,7 +179,11 @@ public class CrediNodaApplication extends Application {
         // 5. Iniciar temporizador de verificación de cambio de día cada 60 segundos
         startDayRolloverMonitor();
 
-        // 6. Configurar escena, hoja de estilos e icono de ventana
+        // 6. Aplicar permisos según rol de la sesión actual y registrar logout
+        navigationBar.aplicarPermisos(ContextoSeguridad.getSesionActual().rol());
+        navigationBar.setOnLogoutRequested(() -> cerrarSesionYReautenticar(stage));
+
+        // 7. Configurar escena, hoja de estilos e icono de ventana
         Scene scene = new Scene(mainShell, INITIAL_WIDTH, INITIAL_HEIGHT);
         URL cssUrl = getClass().getResource("/css/credinoda.css");
         if (cssUrl != null) {
@@ -152,14 +197,43 @@ public class CrediNodaApplication extends Application {
         stage.setMinHeight(MIN_HEIGHT);
         stage.setScene(scene);
 
-        // 7. Navegar a la vista inicial (Dashboard / Inicio)
+        // 8. Navegar a la vista inicial (Dashboard / Inicio)
         viewRouter.navigate(NavAction.DASHBOARD);
 
         stage.show();
     }
 
+    private void cerrarSesionYReautenticar(Stage stage) {
+        String username = ContextoSeguridad.getSesionActual() != null ? ContextoSeguridad.getSesionActual().username() : "usuario";
+        ConfirmDialog confirm = new ConfirmDialog(
+                stage,
+                "Cerrar Sesión",
+                "¿Desea cerrar la sesión actual de @" + username + "? Será redirigido a la pantalla de inicio de sesión.",
+                "Cerrar Sesión",
+                false
+        );
+        if (confirm.showAndWait()) {
+            ContextoSeguridad.limpiarSesion();
+            if (viewRouter != null) {
+                viewRouter.clearCache();
+            }
+            stage.hide();
+            LoginDialog loginDialog = new LoginDialog(stage, autenticacionService);
+            Optional<SesionUsuario> nuevaSesionOpt = loginDialog.mostrarYEsperar();
+            if (nuevaSesionOpt.isPresent()) {
+                SesionUsuario nuevaSesion = nuevaSesionOpt.get();
+                ContextoSeguridad.setSesionActual(nuevaSesion);
+                navigationBar.aplicarPermisos(nuevaSesion.rol());
+                viewRouter.navigate(NavAction.DASHBOARD);
+                stage.show();
+            } else {
+                stage.close();
+            }
+        }
+    }
+
     /**
-     * Inicializa persistencia SQLite y los 6 servicios a partir de las rutas operativas inyectadas.
+     * Inicializa persistencia SQLite y los servicios a partir de las rutas operativas inyectadas.
      *
      * @param rutas Instancia de RutasSistema con ubicaciones validadas.
      */
@@ -172,6 +246,11 @@ public class CrediNodaApplication extends Application {
             this.clienteRepository = new ClienteRepository(connection);
             this.creditoRepository = new CreditoRepository(connection);
             this.pagoRepository = new PagoRepository(connection);
+            this.usuarioRepository = new UsuarioRepository(connection);
+
+            this.passwordHasher = new BCryptPasswordHasher();
+            this.autenticacionService = new AutenticacionService(usuarioRepository, passwordHasher);
+            this.usuarioService = new UsuarioService(usuarioRepository, passwordHasher);
 
             this.clienteService = new ClienteService(clienteRepository, creditoRepository);
             this.creditoService = new CreditoService(connection, creditoRepository, clienteRepository, pagoRepository);
@@ -224,7 +303,7 @@ public class CrediNodaApplication extends Application {
     }
 
     /**
-     * Registra las 7 vistas funcionales de los módulos principales y subvistas en el {@link ViewRouter}.
+     * Registra las vistas funcionales de los módulos principales y subvistas en el {@link ViewRouter}.
      */
     protected void registerDefaultModuleViews() {
         viewRouter.registerView(NavAction.DASHBOARD,
@@ -248,6 +327,9 @@ public class CrediNodaApplication extends Application {
 
         viewRouter.registerView(NavAction.REPORTES,
                 () -> new ReportesView(reporteService, this::showNotification));
+
+        viewRouter.registerView(NavAction.ROUTE_USUARIOS,
+                () -> new UsuariosView(usuarioService, viewRouter, this::showNotification));
 
         viewRouter.registerDynamicView(NavAction.ROUTE_CLIENTE_DETAIL, param -> {
             int clienteId = (param instanceof Number n) ? n.intValue() : Integer.parseInt(String.valueOf(param));
@@ -370,5 +452,21 @@ public class CrediNodaApplication extends Application {
 
     public BackupService getBackupService() {
         return backupService;
+    }
+
+    public UsuarioRepository getUsuarioRepository() {
+        return usuarioRepository;
+    }
+
+    public BCryptPasswordHasher getPasswordHasher() {
+        return passwordHasher;
+    }
+
+    public AutenticacionService getAutenticacionService() {
+        return autenticacionService;
+    }
+
+    public UsuarioService getUsuarioService() {
+        return usuarioService;
     }
 }

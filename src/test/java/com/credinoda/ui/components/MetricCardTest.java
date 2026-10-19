@@ -122,4 +122,31 @@ class MetricCardTest {
                 NavAction.BACKUP
         );
     }
+
+    @Test
+    @DisplayName("NavigationBar adapta visibilidad de botones según rol: Administrador (7 opciones) vs Operador (5 opciones)")
+    void navigationBarDebeAdaptarVisibilidadSegunRol() {
+        NavigationBar navBar = new NavigationBar();
+
+        // Rol Administrador: Usuarios y Backup visibles
+        navBar.aplicarPermisos(com.credinoda.domain.model.Rol.ADMINISTRADOR);
+        assertThat(navBar.getUsuariosButton().isVisible()).isTrue();
+        assertThat(navBar.getUsuariosButton().isManaged()).isTrue();
+        assertThat(navBar.getButtons().get(NavAction.BACKUP).isVisible()).isTrue();
+        assertThat(navBar.getButtons().get(NavAction.BACKUP).isManaged()).isTrue();
+
+        // Rol Operador: Usuarios y Backup ocultos
+        navBar.aplicarPermisos(com.credinoda.domain.model.Rol.OPERADOR);
+        assertThat(navBar.getUsuariosButton().isVisible()).isFalse();
+        assertThat(navBar.getUsuariosButton().isManaged()).isFalse();
+        assertThat(navBar.getButtons().get(NavAction.BACKUP).isVisible()).isFalse();
+        assertThat(navBar.getButtons().get(NavAction.BACKUP).isManaged()).isFalse();
+
+        // Operaciones core visibles para Operador
+        assertThat(navBar.getButtons().get(NavAction.DASHBOARD).isVisible()).isTrue();
+        assertThat(navBar.getButtons().get(NavAction.CLIENTES).isVisible()).isTrue();
+        assertThat(navBar.getButtons().get(NavAction.CREDITO_NEW).isVisible()).isTrue();
+        assertThat(navBar.getButtons().get(NavAction.PAGOS).isVisible()).isTrue();
+        assertThat(navBar.getButtons().get(NavAction.REPORTES).isVisible()).isTrue();
+    }
 }

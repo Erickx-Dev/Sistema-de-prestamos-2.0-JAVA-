@@ -516,23 +516,23 @@ flowchart TD
   - `VP-021`: Bloqueo estricto contra degradación o desactivación del último administrador activo del sistema.
   - Actualización de `MetricCardTest`: verificación de renderizado de opciones según el rol autenticado.
 - **Tareas de la fase:**
-  - [ ] Declarar `at.favre.lib:bcrypt` en `pom.xml` y validar resolución en el build de Maven.
-  - [ ] Crear entidades y enums de seguridad (`Usuario`, `Rol`, `Permiso`, `SesionUsuario`, excepciones de seguridad).
-  - [ ] Aprovisionar la tabla `usuarios` en `SchemaInitializer` con restricciones y tipos exactos.
-  - [ ] Implementar `UsuarioRepository` con mapeo JDBC estricto.
-  - [ ] Implementar `BCryptPasswordHasher` e incorporar reglas de validación en `Validators.java`.
-  - [ ] Implementar `ContextoSeguridad` y `AutorizacionService` con API `hasPermission` / `requirePermission`.
-  - [ ] Implementar `AutenticacionService` (login, control de bloqueo, tracking de último acceso, logout) y `UsuarioService`.
-  - [ ] Instrumentar la capa de servicios con llamadas a `requirePermission(...)`.
-  - [ ] Actualizar `SetupWizard` con el paso mandatorio de alta del primer usuario Administrador.
-  - [ ] Implementar `LoginDialog` y `CambiarContrasenaDialog` como ventanas modales previas al montaje del `MainShell`.
-  - [ ] Habilitar el cierre de sesión interactivo al hacer clic en el bloque de marca `CrediNoda 2.0` de `NavigationBar` con diálogo modal de confirmación.
-  - [ ] Implementar `NavigationBar.aplicarPermisos(Rol)` y el guardia de rutas en `ViewRouter` con invalidación de caché `clearCache()`.
-  - [ ] Aplicar `PermissionGuard` en `ClientesView`, `ClienteDetailView` y `CreditoNewView` (ocultar edición y alta de clientes para Operador).
-  - [ ] Desarrollar `UsuariosView` y `UsuarioDialog` accesible exclusivamente para el Administrador.
-  - [ ] Adaptar `MetricCardTest.java` para verificar la Navbar en rol Administrador y Operador.
-  - [ ] Desarrollar y ejecutar las suites de pruebas de seguridad y repositorios.
-- **Criterio de finalización:** 100% de tests en verde (`mvn test`), acceso a la ventana principal condicionado a login previo con credenciales BCrypt válidas, restricciones de UI operativas para Operador, logout interactivo funcionando en la marca y protección estricta en capa service.
+  - [x] Declarar `at.favre.lib:bcrypt` en `pom.xml` y validar resolución en el build de Maven.
+  - [x] Crear entidades y enums de seguridad (`Usuario`, `Rol`, `Permiso`, `SesionUsuario`, excepciones de seguridad).
+  - [x] Aprovisionar la tabla `usuarios` en `SchemaInitializer` con restricciones y tipos exactos.
+  - [x] Implementar `UsuarioRepository` con mapeo JDBC estricto.
+  - [x] Implementar `BCryptPasswordHasher` e incorporar reglas de validación en `Validators.java`.
+  - [x] Implementar `ContextoSeguridad` y `AutorizacionService` con API `hasPermission` / `requirePermission`.
+  - [x] Implementar `AutenticacionService` (login, control de bloqueo, tracking de último acceso, logout) y `UsuarioService`.
+  - [x] Instrumentar la capa de servicios con llamadas a `requirePermission(...)`.
+  - [x] Actualizar `SetupWizard` con el paso mandatorio de alta del primer usuario Administrador.
+  - [x] Implementar `LoginDialog` y `CambiarContrasenaDialog` como ventanas modales previas al montaje del `MainShell`.
+  - [x] Habilitar el cierre de sesión interactivo al hacer clic en el bloque de marca `CrediNoda 2.0` de `NavigationBar` con diálogo modal de confirmación.
+  - [x] Implementar `NavigationBar.aplicarPermisos(Rol)` y el guardia de rutas en `ViewRouter` con invalidación de caché `clearCache()`.
+  - [x] Aplicar `PermissionGuard` en `ClientesView`, `ClienteDetailView` y `CreditoNewView` (ocultar edición y alta de clientes para Operador).
+  - [x] Desarrollar `UsuariosView` y `UsuarioDialog` accesible exclusivamente para el Administrador.
+  - [x] Adaptar `MetricCardTest.java` para verificar la Navbar en rol Administrador y Operador.
+  - [x] Desarrollar y ejecutar las suites de pruebas de seguridad y repositorios.
+- **Criterio de finalización:** 100% de tests en verde (`mvn test`), acceso a la ventana principal condicionado a login previo con credenciales BCrypt válidas, restricciones de UI operativas para Operador, logout interactivo funcionando en la marca y protección estricta en capa service. (Completada: 210/210 tests en verde).
 
 ---
 

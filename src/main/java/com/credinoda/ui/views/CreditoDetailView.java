@@ -173,18 +173,21 @@ public class CreditoDetailView extends VBox implements ViewRouter.RoutableView {
         TableColumn<CuotaRowItem, String> colMonto = TableColumnHelper.monedaColumn(
                 "Valor Cuota",
                 d -> d.cuota().getMonto(),
+                Pos.CENTER,
                 140
         );
 
         TableColumn<CuotaRowItem, String> colPagado = TableColumnHelper.monedaColumn(
                 "Abonado",
                 CuotaRowItem::montoPagado,
+                Pos.CENTER,
                 140
         );
 
         TableColumn<CuotaRowItem, String> colPendiente = TableColumnHelper.monedaColumn(
                 "Pendiente",
                 CuotaRowItem::saldoPendiente,
+                Pos.CENTER,
                 140
         );
 

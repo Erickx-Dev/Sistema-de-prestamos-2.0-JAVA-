@@ -23,17 +23,32 @@ public final class TableColumnHelper {
     }
 
     /**
-     * Construye una columna formateada para montos financieros con alineación a la derecha.
+     * Construye una columna formateada para montos financieros con alineación a la derecha por defecto.
      */
     public static <S> TableColumn<S, String> monedaColumn(String title, Function<S, BigDecimal> extractor, double prefWidth) {
+        return monedaColumn(title, extractor, Pos.CENTER_RIGHT, prefWidth);
+    }
+
+    /**
+     * Construye una columna formateada para montos financieros con alineación configurable.
+     */
+    public static <S> TableColumn<S, String> monedaColumn(String title, Function<S, BigDecimal> extractor, Pos alignment, double prefWidth) {
         TableColumn<S, String> col = new TableColumn<>(title);
         col.setPrefWidth(prefWidth);
-        col.getStyleClass().add("col-right");
+        String headerClass = resolveHeaderClass(alignment);
+        col.getStyleClass().add(headerClass);
         col.setCellValueFactory(d -> {
             BigDecimal val = extractor.apply(d.getValue());
             return new SimpleStringProperty(val != null ? Formatters.formatoMoneda(val) : "-");
         });
         col.setCellFactory(c -> new TableCell<>() {
+            {
+                setAlignment(alignment);
+                String cellClass = resolveCellClass(alignment);
+                if (!getStyleClass().contains(cellClass)) {
+                    getStyleClass().add(cellClass);
+                }
+            }
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
@@ -42,9 +57,10 @@ public final class TableColumnHelper {
                     setGraphic(null);
                 } else {
                     setText(item);
-                    setAlignment(Pos.CENTER_RIGHT);
-                    if (!getStyleClass().contains("cell-right")) {
-                        getStyleClass().add("cell-right");
+                    setAlignment(alignment);
+                    String cellClass = resolveCellClass(alignment);
+                    if (!getStyleClass().contains(cellClass)) {
+                        getStyleClass().add(cellClass);
                     }
                 }
             }
@@ -64,6 +80,12 @@ public final class TableColumnHelper {
             return new SimpleStringProperty(date != null ? Formatters.formatoFecha(date) : "-");
         });
         col.setCellFactory(c -> new TableCell<>() {
+            {
+                setAlignment(Pos.CENTER);
+                if (!getStyleClass().contains("cell-center")) {
+                    getStyleClass().add("cell-center");
+                }
+            }
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
@@ -95,6 +117,13 @@ public final class TableColumnHelper {
             return new SimpleStringProperty(val != null ? val : "");
         });
         col.setCellFactory(c -> new TableCell<>() {
+            {
+                setAlignment(alignment);
+                String cellClass = resolveCellClass(alignment);
+                if (!getStyleClass().contains(cellClass)) {
+                    getStyleClass().add(cellClass);
+                }
+            }
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
@@ -129,6 +158,12 @@ public final class TableColumnHelper {
             return new SimpleStringProperty(val != null ? val : "");
         });
         col.setCellFactory(c -> new TableCell<>() {
+            {
+                setAlignment(Pos.CENTER);
+                if (!getStyleClass().contains("cell-center")) {
+                    getStyleClass().add("cell-center");
+                }
+            }
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
