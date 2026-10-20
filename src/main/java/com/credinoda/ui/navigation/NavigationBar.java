@@ -22,7 +22,7 @@ import java.util.function.Consumer;
  * Barra de Navegación Superior Horizontal (Navbar, 56px de alto) de CrediNoda 2.0.
  * Diseñada según la pantalla 'DashboardView - Inicio (Navbar Superior)' de Google Stitch:
  * Contiene en disposición horizontal la identidad de marca interactiva a la izquierda (con logout),
- * los módulos principales según el rol activo (Inicio, Clientes, Nuevo Crédito, Pagos, Reportes, Usuarios)
+ * los módulos principales según el rol activo (Inicio, Clientes, Nuevo Crédito, Pagos, Reportes, Usuarios, Auditoría)
  * y la acción de Copia de Seguridad anclada en el extremo derecho.
  */
 public class NavigationBar extends HBox {
@@ -32,6 +32,7 @@ public class NavigationBar extends HBox {
 
     private final Map<NavAction, Button> buttons = new EnumMap<>(NavAction.class);
     private Button usuariosButton;
+    private Button auditoriaButton;
     private Region rightDivider;
     private Consumer<NavAction> onActionSelected;
     private Consumer<String> onRouteSelected;
@@ -80,6 +81,13 @@ public class NavigationBar extends HBox {
         this.usuariosButton.setAlignment(Pos.CENTER);
         this.usuariosButton.setOnAction(e -> handleRouteClick(NavAction.ROUTE_USUARIOS));
         navItemsBox.getChildren().add(usuariosButton);
+
+        // Botón especial para el módulo de Auditoría (visible para Administrador)
+        this.auditoriaButton = new Button("📜  Auditoría");
+        this.auditoriaButton.getStyleClass().add("nav-button");
+        this.auditoriaButton.setAlignment(Pos.CENTER);
+        this.auditoriaButton.setOnAction(e -> handleRouteClick(NavAction.ROUTE_AUDITORIA));
+        navItemsBox.getChildren().add(auditoriaButton);
 
         // 4. Espaciador horizontal elástico para anclar Copia de Seguridad a la derecha
         Region spacer = new Region();
@@ -175,6 +183,11 @@ public class NavigationBar extends HBox {
             usuariosButton.setManaged(esAdmin);
         }
 
+        if (auditoriaButton != null) {
+            auditoriaButton.setVisible(esAdmin);
+            auditoriaButton.setManaged(esAdmin);
+        }
+
         Button backupBtn = buttons.get(NavAction.BACKUP);
         if (backupBtn != null) {
             backupBtn.setVisible(esAdmin);
@@ -209,6 +222,9 @@ public class NavigationBar extends HBox {
         if (usuariosButton != null) {
             usuariosButton.getStyleClass().remove(ACTIVE_STYLE_CLASS);
         }
+        if (auditoriaButton != null) {
+            auditoriaButton.getStyleClass().remove(ACTIVE_STYLE_CLASS);
+        }
 
         for (Map.Entry<NavAction, Button> entry : buttons.entrySet()) {
             Button btn = entry.getValue();
@@ -230,9 +246,20 @@ public class NavigationBar extends HBox {
 
         if (NavAction.ROUTE_USUARIOS.equals(routeKey) && usuariosButton != null) {
             usuariosButton.getStyleClass().add(ACTIVE_STYLE_CLASS);
+            if (auditoriaButton != null) {
+                auditoriaButton.getStyleClass().remove(ACTIVE_STYLE_CLASS);
+            }
+        } else if (NavAction.ROUTE_AUDITORIA.equals(routeKey) && auditoriaButton != null) {
+            auditoriaButton.getStyleClass().add(ACTIVE_STYLE_CLASS);
+            if (usuariosButton != null) {
+                usuariosButton.getStyleClass().remove(ACTIVE_STYLE_CLASS);
+            }
         } else {
             if (usuariosButton != null) {
                 usuariosButton.getStyleClass().remove(ACTIVE_STYLE_CLASS);
+            }
+            if (auditoriaButton != null) {
+                auditoriaButton.getStyleClass().remove(ACTIVE_STYLE_CLASS);
             }
             NavAction.resolveHighlightedNav(routeKey).ifPresent(this::setActiveAction);
         }
@@ -253,6 +280,10 @@ public class NavigationBar extends HBox {
 
     public Button getUsuariosButton() {
         return usuariosButton;
+    }
+
+    public Button getAuditoriaButton() {
+        return auditoriaButton;
     }
 
     public Map<NavAction, Button> getButtons() {

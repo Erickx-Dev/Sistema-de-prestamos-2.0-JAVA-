@@ -7,10 +7,12 @@ import com.credinoda.domain.exception.CreditoNoEncontradoException;
 import com.credinoda.domain.exception.CuotaNoEncontradaException;
 import com.credinoda.domain.exception.MontoInvalidoException;
 import com.credinoda.domain.exception.PagoInvalidoException;
+import com.credinoda.domain.model.AccionAuditoria;
 import com.credinoda.domain.model.Cuota;
 import com.credinoda.domain.model.EstadoCuota;
 import com.credinoda.domain.model.Pago;
 import com.credinoda.domain.model.Permiso;
+import com.credinoda.domain.model.ResultadoAuditoria;
 import com.credinoda.persistence.repository.CreditoRepository;
 import com.credinoda.persistence.repository.PagoRepository;
 
@@ -23,8 +25,8 @@ import java.util.Objects;
 
 /**
  * Servicio de lógica de negocio para la gestión de pagos y amortización de cobranzas.
- * Implementa la validación estricta contra sobrepagos, libertad de orden en el pago de cuotas
- * y transiciones atómicas de estado (RN-009 a RN-012).
+ * Implementa la validación estricta contra sobrepagos, libertad de orden en el pago de cuotas,
+ * transiciones atómicas de estado y persistencia atómica de auditoría (RN-009 a RN-012, RN-027, RN-028, VP-022).
  */
 public class PagoService {
 
@@ -33,25 +35,33 @@ public class PagoService {
     private final CreditoRepository creditoRepository;
     private final CreditoService creditoService;
     private final Autorizador autorizador;
+    private final AuditoriaService auditoriaService;
 
     public PagoService(Connection connection, PagoRepository pagoRepository,
                        CreditoRepository creditoRepository, CreditoService creditoService,
-                       Autorizador autorizador) {
+                       Autorizador autorizador, AuditoriaService auditoriaService) {
         this.connection = Objects.requireNonNull(connection, "La conexión JDBC no puede ser nula");
         this.pagoRepository = Objects.requireNonNull(pagoRepository, "PagoRepository no puede ser nulo");
         this.creditoRepository = Objects.requireNonNull(creditoRepository, "CreditoRepository no puede ser nulo");
         this.creditoService = creditoService;
         this.autorizador = Objects.requireNonNull(autorizador, "Autorizador no puede ser nulo");
+        this.auditoriaService = auditoriaService;
+    }
+
+    public PagoService(Connection connection, PagoRepository pagoRepository,
+                       CreditoRepository creditoRepository, CreditoService creditoService,
+                       Autorizador autorizador) {
+        this(connection, pagoRepository, creditoRepository, creditoService, autorizador, null);
     }
 
     public PagoService(Connection connection, PagoRepository pagoRepository,
                        CreditoRepository creditoRepository, CreditoService creditoService) {
-        this(connection, pagoRepository, creditoRepository, creditoService, new AutorizacionService());
+        this(connection, pagoRepository, creditoRepository, creditoService, new AutorizacionService(), null);
     }
 
     /**
      * Registra un nuevo pago sobre una cuota específica aplicando validaciones estrictas y
-     * transición atómica de estados (CU-009, RN-009, RN-011).
+     * transición atómica de estados con registro conjunto de auditoría (CU-009, RN-009, RN-011, RN-028, VP-022).
      *
      * @param creditoId ID del crédito.
      * @param cuotaId ID de la cuota a abonar.
@@ -121,6 +131,17 @@ public class PagoService {
                 creditoService.determinarEstadoCredito(creditoId);
             }
 
+            if (auditoriaService != null) {
+                auditoriaService.registrarEnTransaccion(
+                        connection,
+                        AccionAuditoria.REGISTRAR_PAGO,
+                        "PAGOS",
+                        String.valueOf(pago.getId()),
+                        "CreditoId: " + creditoId + ", CuotaId: " + cuotaId + ", Monto: " + monto.toPlainString() + ", EstadoCuota: " + nuevoEstadoCuota,
+                        ResultadoAuditoria.EXITO
+                );
+            }
+
             connection.commit();
             return pago;
         } catch (Exception e) {
@@ -149,6 +170,7 @@ public class PagoService {
      * @return Lista de pagos detallados.
      */
     public List<PagoDetalleItem> listarPagosConDetalle(String filtroTexto, LocalDate fechaInicio, LocalDate fechaFin) {
+        autorizador.requirePermission(Permiso.PAGOS_VER);
         try {
             return pagoRepository.listarTodosConDetalle(filtroTexto, fechaInicio, fechaFin);
         } catch (SQLException e) {
@@ -164,6 +186,7 @@ public class PagoService {
      * @throws PagoInvalidoException Si el pago no existe.
      */
     public DatosComprobante obtenerDatosComprobante(int pagoId) {
+        autorizador.requirePermission(Permiso.PAGOS_VER);
         try {
             return pagoRepository.obtenerDetallePago(pagoId)
                     .orElseThrow(() -> new PagoInvalidoException("Pago con ID " + pagoId + " no encontrado."));

@@ -63,7 +63,7 @@ public class PagosView extends VBox implements ViewRouter.RoutableView {
 
         SectionHeader header = new SectionHeader(
                 "Historial de Pagos y Recaudos",
-                "Auditoría de transacciones, búsqueda de recibos y reimpresión de comprobantes PDF"
+                "Historial de transacciones, búsqueda de recibos y reimpresión de comprobantes PDF"
         );
 
         // Barra de búsqueda manual (CU-010, RN-016)

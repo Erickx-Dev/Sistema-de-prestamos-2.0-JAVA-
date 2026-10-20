@@ -7,8 +7,8 @@ import java.sql.Statement;
 
 /**
  * Inicializador del esquema DDL limpio de la base de datos relacional SQLite de CrediNoda 2.0.
- * Aprovisiona de forma idempotente las 4 tablas definitivas e índices optimizados, con
- * la columna cuotas.en_mora nativa desde su creación.
+ * Aprovisiona de forma idempotente las 4 tablas de negocio, usuarios, bitácora de auditoría e índices,
+ * e instala los triggers de inmutabilidad sobre la auditoría (RN-027, RN-028).
  */
 public final class SchemaInitializer {
 
@@ -78,21 +78,56 @@ public final class SchemaInitializer {
             );
             """;
 
+    private static final String DDL_AUDITORIA = """
+            CREATE TABLE IF NOT EXISTS auditoria (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                fecha_hora TEXT NOT NULL,
+                usuario_id INTEGER,
+                username TEXT NOT NULL,
+                rol TEXT NOT NULL,
+                accion TEXT NOT NULL,
+                entidad TEXT NOT NULL,
+                entidad_id TEXT,
+                detalle TEXT,
+                resultado TEXT NOT NULL,
+                estacion_trabajo TEXT NOT NULL
+            );
+            """;
+
     private static final String[] DDL_INDICES = {
             "CREATE INDEX IF NOT EXISTS idx_creditos_cliente ON creditos(cliente_id);",
             "CREATE INDEX IF NOT EXISTS idx_cuotas_credito ON cuotas(credito_id);",
             "CREATE INDEX IF NOT EXISTS idx_cuotas_vencimiento ON cuotas(estado, fecha_vencimiento);",
             "CREATE INDEX IF NOT EXISTS idx_pagos_cuota ON pagos(cuota_id);",
             "CREATE INDEX IF NOT EXISTS idx_pagos_credito ON pagos(credito_id);",
-            "CREATE INDEX IF NOT EXISTS idx_usuarios_username ON usuarios(username);"
+            "CREATE INDEX IF NOT EXISTS idx_usuarios_username ON usuarios(username);",
+            "CREATE INDEX IF NOT EXISTS idx_auditoria_fecha ON auditoria(fecha_hora DESC);",
+            "CREATE INDEX IF NOT EXISTS idx_auditoria_usuario ON auditoria(username);",
+            "CREATE INDEX IF NOT EXISTS idx_auditoria_entidad ON auditoria(entidad);"
     };
+
+    private static final String DDL_TRIGGER_AUDITORIA_NO_UPDATE = """
+            CREATE TRIGGER IF NOT EXISTS trg_auditoria_no_update
+            BEFORE UPDATE ON auditoria
+            BEGIN
+                SELECT RAISE(ABORT, 'La bitacora de auditoria es estrictamente inmutable');
+            END;
+            """;
+
+    private static final String DDL_TRIGGER_AUDITORIA_NO_DELETE = """
+            CREATE TRIGGER IF NOT EXISTS trg_auditoria_no_delete
+            BEFORE DELETE ON auditoria
+            BEGIN
+                SELECT RAISE(ABORT, 'La bitacora de auditoria es estrictamente inmutable');
+            END;
+            """;
 
     private SchemaInitializer() {
         // Clase de utilidades DDL, no instanciable
     }
 
     /**
-     * Aprovisiona las tablas de negocio, usuarios e índices en una conexión SQLite existente.
+     * Aprovisiona las tablas de negocio, usuarios, auditoría, índices y triggers en una conexión SQLite existente.
      *
      * @param conn Conexión activa a la base de datos.
      * @throws SQLException Si ocurre un error al ejecutar las sentencias DDL.
@@ -104,12 +139,14 @@ public final class SchemaInitializer {
             stmt.execute(DDL_CUOTAS);
             stmt.execute(DDL_PAGOS);
             stmt.execute(DDL_USUARIOS);
+            stmt.execute(DDL_AUDITORIA);
             for (String indexSql : DDL_INDICES) {
                 stmt.execute(indexSql);
             }
+            stmt.execute(DDL_TRIGGER_AUDITORIA_NO_UPDATE);
+            stmt.execute(DDL_TRIGGER_AUDITORIA_NO_DELETE);
         }
     }
-
 
     /**
      * Inicializa una base de datos específica por ruta (útil para pruebas o respaldos).

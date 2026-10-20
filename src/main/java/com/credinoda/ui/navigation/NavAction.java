@@ -24,6 +24,7 @@ public enum NavAction {
 
     /** Clave de ruta para la vista de gestión y administración de usuarios. */
     public static final String ROUTE_USUARIOS = "usuarios";
+    public static final String ROUTE_AUDITORIA = "auditoria";
 
     private final String routeKey;
     private final String label;

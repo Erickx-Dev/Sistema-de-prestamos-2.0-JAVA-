@@ -3,39 +3,52 @@ package com.credinoda.service;
 import com.credinoda.common.Validators;
 import com.credinoda.domain.exception.ClienteNoEncontradoException;
 import com.credinoda.domain.exception.DatosInvalidosException;
+import com.credinoda.domain.model.AccionAuditoria;
 import com.credinoda.domain.model.Cliente;
 import com.credinoda.domain.model.Credito;
 import com.credinoda.domain.model.Permiso;
+import com.credinoda.domain.model.ResultadoAuditoria;
 import com.credinoda.persistence.repository.ClienteRepository;
 import com.credinoda.persistence.repository.CreditoRepository;
 
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
 /**
  * Servicio de lógica de negocio para la gestión de clientes prestatarios.
- * Aplica reglas de obligatoriedad, sanitización y unicidad de documento (RN-001, RN-002, RN-003).
+ * Aplica reglas de obligatoriedad, sanitización, unicidad de documento y trazabilidad de auditoría
+ * (RN-001, RN-002, RN-003, RN-027).
  */
 public class ClienteService {
 
     private final ClienteRepository clienteRepository;
     private final CreditoRepository creditoRepository;
     private final Autorizador autorizador;
+    private final AuditoriaService auditoriaService;
 
-    public ClienteService(ClienteRepository clienteRepository, CreditoRepository creditoRepository, Autorizador autorizador) {
+    public ClienteService(ClienteRepository clienteRepository,
+                          CreditoRepository creditoRepository,
+                          Autorizador autorizador,
+                          AuditoriaService auditoriaService) {
         this.clienteRepository = Objects.requireNonNull(clienteRepository, "ClienteRepository no puede ser nulo");
         this.creditoRepository = creditoRepository;
         this.autorizador = Objects.requireNonNull(autorizador, "Autorizador no puede ser nulo");
+        this.auditoriaService = auditoriaService;
+    }
+
+    public ClienteService(ClienteRepository clienteRepository, CreditoRepository creditoRepository, Autorizador autorizador) {
+        this(clienteRepository, creditoRepository, autorizador, null);
     }
 
     public ClienteService(ClienteRepository clienteRepository, CreditoRepository creditoRepository) {
-        this(clienteRepository, creditoRepository, new AutorizacionService());
+        this(clienteRepository, creditoRepository, new AutorizacionService(), null);
     }
 
     public ClienteService(ClienteRepository clienteRepository) {
-        this(clienteRepository, null, new AutorizacionService());
+        this(clienteRepository, null, new AutorizacionService(), null);
     }
 
     /**
@@ -75,7 +88,19 @@ public class ClienteService {
             }
 
             Cliente nuevoCliente = new Cliente(nombreSanitizado, telefonoSanitizado, documentoSanitizado);
-            return clienteRepository.crear(nuevoCliente);
+            Cliente persistido = clienteRepository.crear(nuevoCliente);
+
+            if (auditoriaService != null) {
+                auditoriaService.registrar(
+                        AccionAuditoria.CREAR_CLIENTE,
+                        "CLIENTES",
+                        String.valueOf(persistido.getId()),
+                        "Nombre: " + persistido.getNombre() + ", Doc: " + persistido.getDocumento() + ", Tel: " + persistido.getTelefono(),
+                        ResultadoAuditoria.EXITO
+                );
+            }
+
+            return persistido;
         } catch (SQLException e) {
             throw new DatosInvalidosException("Error al registrar cliente: " + e.getMessage(), e);
         }
@@ -96,6 +121,12 @@ public class ClienteService {
     public Cliente actualizarCliente(int id, String nombre, String telefono, String documento) {
         autorizador.requirePermission(Permiso.CLIENTES_EDITAR);
         Cliente cliente = obtenerClientePorId(id);
+
+        Map<String, Object> antes = Map.of(
+                "nombre", cliente.getNombre(),
+                "telefono", cliente.getTelefono(),
+                "documento", cliente.getDocumento()
+        );
 
         if (nombre != null) {
             Validators.ResultadoValidacion valNom = Validators.validarNombreCliente(nombre);
@@ -132,6 +163,23 @@ public class ClienteService {
 
         try {
             clienteRepository.actualizar(cliente);
+
+            if (auditoriaService != null) {
+                Map<String, Object> despues = Map.of(
+                        "nombre", cliente.getNombre(),
+                        "telefono", cliente.getTelefono(),
+                        "documento", cliente.getDocumento()
+                );
+                String detalle = AuditoriaService.generarDetalleCambios(antes, despues);
+                auditoriaService.registrar(
+                        AccionAuditoria.ACTUALIZAR_CLIENTE,
+                        "CLIENTES",
+                        String.valueOf(cliente.getId()),
+                        detalle.isBlank() ? "Sin modificaciones" : detalle,
+                        ResultadoAuditoria.EXITO
+                );
+            }
+
             return cliente;
         } catch (SQLException e) {
             throw new DatosInvalidosException("Error al actualizar cliente: " + e.getMessage(), e);

@@ -4,7 +4,9 @@ import com.credinoda.common.ConfiguracionLocalStore;
 import com.credinoda.common.RutasSistema;
 import com.credinoda.domain.dto.BackupInfo;
 import com.credinoda.domain.exception.BackupException;
+import com.credinoda.domain.model.AccionAuditoria;
 import com.credinoda.domain.model.Permiso;
+import com.credinoda.domain.model.ResultadoAuditoria;
 import com.credinoda.persistence.SchemaInitializer;
 
 import java.io.IOException;
@@ -35,9 +37,10 @@ import java.util.TreeSet;
 
 /**
  * Servicio para la gestión de copias de seguridad en caliente (backup) y restauración segura
- * de la base de datos SQLite del sistema CrediNoda (CU-014, CU-015, RN-017, RN-018).
+ * de la base de datos SQLite del sistema CrediNoda (CU-014, CU-015, RN-017, RN-018, RN-027, RN-029).
  * Implementa respaldo consistente vía VACUUM INTO, validación triple de integridad estructural
- * y restauración atómica con respaldo preventivo pre_restauracion automático.
+ * y restauración atómica con respaldo preventivo pre_restauracion automático, preservando intactas
+ * las tablas de usuarios y auditoría de la base activa (RN-029, VP-024).
  */
 public class BackupService {
 
@@ -48,11 +51,13 @@ public class BackupService {
     private final Connection connection;
     private final Path backupsDir;
     private final Autorizador autorizador;
+    private final AuditoriaService auditoriaService;
 
-    public BackupService(Connection connection, Path backupsDir, Autorizador autorizador) {
+    public BackupService(Connection connection, Path backupsDir, Autorizador autorizador, AuditoriaService auditoriaService) {
         this.connection = Objects.requireNonNull(connection, "La conexión a la base de datos no puede ser nula.");
         this.backupsDir = Objects.requireNonNull(backupsDir, "El directorio de respaldos no puede ser nulo.");
         this.autorizador = Objects.requireNonNull(autorizador, "El autorizador no puede ser nulo.");
+        this.auditoriaService = auditoriaService;
         try {
             Files.createDirectories(this.backupsDir);
         } catch (IOException e) {
@@ -60,18 +65,26 @@ public class BackupService {
         }
     }
 
+    public BackupService(Connection connection, Path backupsDir, Autorizador autorizador) {
+        this(connection, backupsDir, autorizador, null);
+    }
+
     public BackupService(Connection connection, Path backupsDir) {
-        this(connection, backupsDir, new AutorizacionService());
+        this(connection, backupsDir, new AutorizacionService(), null);
     }
 
     public BackupService(Connection connection, RutasSistema rutas) {
-        this(connection, Objects.requireNonNull(rutas, "RutasSistema no puede ser nulo.").backupsDir(), new AutorizacionService());
+        this(connection, Objects.requireNonNull(rutas, "RutasSistema no puede ser nulo.").backupsDir(), new AutorizacionService(), null);
+    }
+
+    public BackupService(Connection connection, RutasSistema rutas, AuditoriaService auditoriaService) {
+        this(connection, Objects.requireNonNull(rutas, "RutasSistema no puede ser nulo.").backupsDir(), new AutorizacionService(), auditoriaService);
     }
 
     public BackupService(Connection connection) {
         this(connection, ConfiguracionLocalStore.cargarRutas()
                 .map(RutasSistema::backupsDir)
-                .orElseGet(() -> Path.of(System.getProperty("user.dir"), "backups")), new AutorizacionService());
+                .orElseGet(() -> Path.of(System.getProperty("user.dir"), "backups")), new AutorizacionService(), null);
     }
 
     /**
@@ -127,7 +140,19 @@ public class BackupService {
                 stmt.executeUpdate(sql);
             }
 
-            return rutaDestino.toAbsolutePath();
+            Path resultado = rutaDestino.toAbsolutePath();
+
+            if (auditoriaService != null && !"pre_restauracion".equals(prefijo)) {
+                auditoriaService.registrar(
+                        AccionAuditoria.CREAR_BACKUP,
+                        "BACKUP",
+                        resultado.getFileName().toString(),
+                        "Respaldo generado en: " + resultado,
+                        ResultadoAuditoria.EXITO
+                );
+            }
+
+            return resultado;
 
         } catch (SQLException | IOException e) {
             throw new BackupException("No se pudo crear la copia de seguridad: " + e.getMessage(), e);
@@ -138,11 +163,16 @@ public class BackupService {
      * Verifica que un archivo sea una base de datos SQLite íntegra y contenga las 4 tablas obligatorias (CU-015, RN-018).
      *
      * @param rutaArchivo Ruta al archivo .db candidato.
-     * @return true si supera las tres pruebas de validación.
+     * @return true si supera las tres validaciones estructurales.
+     * @throws BackupException Si el archivo no existe, no es legible, no es SQLite o le faltan tablas del negocio.
      */
     public static boolean validarArchivoBackup(Path rutaArchivo) {
-        if (rutaArchivo == null || !Files.exists(rutaArchivo) || !Files.isRegularFile(rutaArchivo)) {
-            throw new BackupException("El archivo de copia de seguridad no existe.");
+        if (rutaArchivo == null || !Files.exists(rutaArchivo)) {
+            throw new BackupException("El archivo de respaldo especificado no existe.");
+        }
+
+        if (!Files.isRegularFile(rutaArchivo) || !Files.isReadable(rutaArchivo)) {
+            throw new BackupException("El archivo de respaldo no es un archivo legible válido.");
         }
 
         try {
@@ -197,7 +227,8 @@ public class BackupService {
     }
 
     /**
-     * Valida un archivo de respaldo, crea un respaldo preventivo de la base activa y restaura los datos (CU-015, RN-018).
+     * Valida un archivo de respaldo, crea un respaldo preventivo de la base activa y restaura los datos (CU-015, RN-018, RN-029).
+     * Reemplaza exclusivamente las 4 tablas de negocio, preservando usuarios y auditoría intactos (VP-024).
      *
      * @param rutaOrigen Ruta al archivo .db validado.
      * @return Path del respaldo preventivo automático 'pre_restauracion_*.db' generado.
@@ -226,7 +257,7 @@ public class BackupService {
                 // Desactivar temporalmente foreign keys para el volcado
                 stmt.execute("PRAGMA foreign_keys = OFF;");
 
-                // Vaciar tablas activas
+                // Vaciar exclusivamente tablas activas de negocio (RN-029)
                 stmt.execute("DELETE FROM pagos;");
                 stmt.execute("DELETE FROM cuotas;");
                 stmt.execute("DELETE FROM creditos;");
@@ -263,6 +294,16 @@ public class BackupService {
 
             // Garantizar integridad estructural DDL de índices y esquema
             SchemaInitializer.inicializar(connection);
+
+            if (auditoriaService != null) {
+                auditoriaService.registrar(
+                        AccionAuditoria.RESTAURAR_BACKUP,
+                        "BACKUP",
+                        rutaOrigen.getFileName().toString(),
+                        "Restaurado desde: " + rutaOrigen.getFileName() + ", Preventivo: " + respaldoPreventivo.getFileName(),
+                        ResultadoAuditoria.EXITO
+                );
+            }
 
         } catch (SQLException e) {
             try {

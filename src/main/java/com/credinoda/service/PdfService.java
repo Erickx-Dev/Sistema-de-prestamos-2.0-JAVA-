@@ -1,10 +1,12 @@
 package com.credinoda.service;
 
 import com.credinoda.common.ConfiguracionLocalStore;
-import com.credinoda.common.RutasSistema;
 import com.credinoda.common.Formatters;
+import com.credinoda.common.RutasSistema;
 import com.credinoda.domain.dto.DatosComprobante;
 import com.credinoda.domain.exception.PdfServiceException;
+import com.credinoda.domain.model.AccionAuditoria;
+import com.credinoda.domain.model.ResultadoAuditoria;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.client.j2se.MatrixToImageWriter;
 import com.google.zxing.common.BitMatrix;
@@ -33,7 +35,7 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 
 /**
- * Servicio para la maquetación y generación de comprobantes de pago en PDF tamaño carta con código QR (CU-011, RN-012, VP-009).
+ * Servicio para la maquetación y generación de comprobantes de pago en PDF tamaño carta con código QR (CU-011, RN-012, VP-009, RN-027).
  * Utiliza OpenPDF para maquetar el documento en 5 secciones y ZXing para incrustar la matriz QR de validación digital en memoria.
  */
 public class PdfService {
@@ -63,19 +65,33 @@ public class PdfService {
     private static final Font FONT_LEGAL = FontFactory.getFont(FontFactory.HELVETICA, 6.5f, COLOR_SECUNDARIO_GRIS);
 
     private final Path defaultOutputDir;
+    private final AuditoriaService auditoriaService;
 
     public PdfService() {
+        this((AuditoriaService) null);
+    }
+
+    public PdfService(AuditoriaService auditoriaService) {
         this(ConfiguracionLocalStore.cargarRutas()
                 .map(RutasSistema::comprobantesDir)
-                .orElseGet(() -> Path.of(System.getProperty("user.dir"), "comprobantes")));
+                .orElseGet(() -> Path.of(System.getProperty("user.dir"), "comprobantes")), auditoriaService);
     }
 
     public PdfService(RutasSistema rutas) {
-        this(Objects.requireNonNull(rutas, "RutasSistema no puede ser nulo.").comprobantesDir());
+        this(rutas, null);
+    }
+
+    public PdfService(RutasSistema rutas, AuditoriaService auditoriaService) {
+        this(Objects.requireNonNull(rutas, "RutasSistema no puede ser nulo.").comprobantesDir(), auditoriaService);
     }
 
     public PdfService(Path defaultOutputDir) {
+        this(defaultOutputDir, null);
+    }
+
+    public PdfService(Path defaultOutputDir, AuditoriaService auditoriaService) {
         this.defaultOutputDir = Objects.requireNonNull(defaultOutputDir, "Directorio de salida no puede ser nulo.");
+        this.auditoriaService = auditoriaService;
         try {
             Files.createDirectories(this.defaultOutputDir);
         } catch (IOException e) {
@@ -150,6 +166,16 @@ public class PdfService {
                 document.add(crearBloqueFirmasYQr(datos));
 
                 document.close();
+            }
+
+            if (auditoriaService != null) {
+                auditoriaService.registrar(
+                        AccionAuditoria.GENERAR_PDF,
+                        "PAGOS",
+                        datos.numeroRecibo(),
+                        "Recibo: " + datos.numeroRecibo() + ", Cliente: " + datos.clienteNombre() + ", Archivo: " + destino.getFileName(),
+                        ResultadoAuditoria.EXITO
+                );
             }
 
             return destino;
