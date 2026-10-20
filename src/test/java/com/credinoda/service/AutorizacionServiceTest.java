@@ -39,12 +39,11 @@ class AutorizacionServiceTest {
     }
 
     @Test
-    @DisplayName("VP-020: La matriz de permisos otorga operaciones core al Operador pero deniega gestión y respaldos")
+    @DisplayName("VP-020: La matriz de permisos otorga operaciones core al Operador pero deniega gestión, respaldos y edición de clientes")
     void testMatrizPermisosOperador() {
         // Permisos concedidos
         assertThat(Permiso.tienePermiso(Rol.OPERADOR, Permiso.CLIENTES_VER)).isTrue();
         assertThat(Permiso.tienePermiso(Rol.OPERADOR, Permiso.CLIENTES_CREAR)).isTrue();
-        assertThat(Permiso.tienePermiso(Rol.OPERADOR, Permiso.CLIENTES_EDITAR)).isTrue();
         assertThat(Permiso.tienePermiso(Rol.OPERADOR, Permiso.CREDITOS_VER)).isTrue();
         assertThat(Permiso.tienePermiso(Rol.OPERADOR, Permiso.CREDITOS_CREAR)).isTrue();
         assertThat(Permiso.tienePermiso(Rol.OPERADOR, Permiso.PAGOS_VER)).isTrue();
@@ -52,17 +51,19 @@ class AutorizacionServiceTest {
         assertThat(Permiso.tienePermiso(Rol.OPERADOR, Permiso.REPORTES_VER)).isTrue();
 
         // Permisos denegados
+        assertThat(Permiso.tienePermiso(Rol.OPERADOR, Permiso.CLIENTES_EDITAR)).isFalse();
         assertThat(Permiso.tienePermiso(Rol.OPERADOR, Permiso.BACKUP_GESTIONAR)).isFalse();
         assertThat(Permiso.tienePermiso(Rol.OPERADOR, Permiso.USUARIOS_GESTIONAR)).isFalse();
     }
 
     @Test
-    @DisplayName("VP-020: Sesión activa de Operador valida requirePermission con éxito para pagos y falla para backup")
+    @DisplayName("VP-020: Sesión activa de Operador valida requirePermission con éxito para pagos y falla para backup y edición de clientes")
     void testVerificacionEnSesionOperador() {
         SesionUsuario sesionOperador = new SesionUsuario(1, "cajero1", "Pedro Gómez", Rol.OPERADOR);
         ContextoSeguridad.setSesionActual(sesionOperador);
 
         assertThat(autorizacionService.hasPermission(Permiso.PAGOS_REGISTRAR)).isTrue();
+        assertThat(autorizacionService.hasPermission(Permiso.CLIENTES_EDITAR)).isFalse();
         assertThat(autorizacionService.hasPermission(Permiso.BACKUP_GESTIONAR)).isFalse();
         assertThat(autorizacionService.hasPermission(Permiso.USUARIOS_GESTIONAR)).isFalse();
 
@@ -71,6 +72,10 @@ class AutorizacionServiceTest {
                 .doesNotThrowAnyException();
 
         // requirePermission lanza AccesoDenegadoException si no tiene el permiso
+        assertThatThrownBy(() -> autorizacionService.requirePermission(Permiso.CLIENTES_EDITAR))
+                .isInstanceOf(AccesoDenegadoException.class)
+                .hasMessageContaining("No cuenta con privilegios suficientes");
+
         assertThatThrownBy(() -> autorizacionService.requirePermission(Permiso.BACKUP_GESTIONAR))
                 .isInstanceOf(AccesoDenegadoException.class)
                 .hasMessageContaining("No cuenta con privilegios suficientes");
