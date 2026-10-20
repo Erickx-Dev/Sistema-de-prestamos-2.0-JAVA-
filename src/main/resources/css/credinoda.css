@@ -557,7 +557,7 @@
     -fx-alignment: CENTER;
 }
 
-.badge-activo, .badge-pagado, .badge-pagada {
+.badge-activo, .badge-pagado, .badge-pagada, .badge-al-dia {
     -fx-background-color: #DDF5E6;
     -fx-text-fill: #166534;
 }
@@ -567,7 +567,7 @@
     -fx-text-fill: #B45309;
 }
 
-.badge-mora, .badge-vencido, .badge-vencida {
+.badge-mora, .badge-vencido, .badge-vencida, .badge-en-mora {
     -fx-background-color: #FEE2E2;
     -fx-text-fill: #B91C1C;
     -fx-border-color: #FCA5A5;
@@ -995,3 +995,9 @@
 }
 
 
+
+.audit-detail-pane {
+    -fx-background-color: transparent;
+    -fx-border-color: #DCE5DE;
+    -fx-border-width: 1px 0 0 0;
+}

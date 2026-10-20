@@ -1,5 +1,6 @@
 package com.credinoda.ui.components;
 
+import com.credinoda.domain.model.Rol;
 import com.credinoda.ui.navigation.NavAction;
 import com.credinoda.ui.navigation.NavigationBar;
 import javafx.application.Platform;
@@ -11,7 +12,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Pruebas unitarias para los componentes visuales reutilizables de la Fase 5:
+ * Pruebas unitarias para los componentes visuales reutilizables:
  * {@link MetricCard}, {@link SectionHeader}, {@link ToastNotification} y {@link NavigationBar}.
  */
 class MetricCardTest {
@@ -124,21 +125,25 @@ class MetricCardTest {
     }
 
     @Test
-    @DisplayName("NavigationBar adapta visibilidad de botones según rol: Administrador (7 opciones) vs Operador (5 opciones)")
+    @DisplayName("NavigationBar adapta visibilidad de botones según rol: Administrador (8 opciones) vs Operador (5 opciones)")
     void navigationBarDebeAdaptarVisibilidadSegunRol() {
         NavigationBar navBar = new NavigationBar();
 
-        // Rol Administrador: Usuarios y Backup visibles
-        navBar.aplicarPermisos(com.credinoda.domain.model.Rol.ADMINISTRADOR);
+        // Rol Administrador: Usuarios, Auditoría y Backup visibles
+        navBar.aplicarPermisos(Rol.ADMINISTRADOR);
         assertThat(navBar.getUsuariosButton().isVisible()).isTrue();
         assertThat(navBar.getUsuariosButton().isManaged()).isTrue();
+        assertThat(navBar.getAuditoriaButton().isVisible()).isTrue();
+        assertThat(navBar.getAuditoriaButton().isManaged()).isTrue();
         assertThat(navBar.getButtons().get(NavAction.BACKUP).isVisible()).isTrue();
         assertThat(navBar.getButtons().get(NavAction.BACKUP).isManaged()).isTrue();
 
-        // Rol Operador: Usuarios y Backup ocultos
-        navBar.aplicarPermisos(com.credinoda.domain.model.Rol.OPERADOR);
+        // Rol Operador: Usuarios, Auditoría y Backup ocultos
+        navBar.aplicarPermisos(Rol.OPERADOR);
         assertThat(navBar.getUsuariosButton().isVisible()).isFalse();
         assertThat(navBar.getUsuariosButton().isManaged()).isFalse();
+        assertThat(navBar.getAuditoriaButton().isVisible()).isFalse();
+        assertThat(navBar.getAuditoriaButton().isManaged()).isFalse();
         assertThat(navBar.getButtons().get(NavAction.BACKUP).isVisible()).isFalse();
         assertThat(navBar.getButtons().get(NavAction.BACKUP).isManaged()).isFalse();
 

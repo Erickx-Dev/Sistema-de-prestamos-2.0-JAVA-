@@ -7,12 +7,14 @@ import com.credinoda.domain.exception.CrediNodaException;
 import com.credinoda.domain.exception.CreditoNoEncontradoException;
 import com.credinoda.domain.exception.DatosInvalidosException;
 import com.credinoda.domain.exception.MontoInvalidoException;
+import com.credinoda.domain.model.AccionAuditoria;
 import com.credinoda.domain.model.Credito;
 import com.credinoda.domain.model.Cuota;
 import com.credinoda.domain.model.EstadoCredito;
 import com.credinoda.domain.model.EstadoCuota;
 import com.credinoda.domain.model.FrecuenciaPago;
 import com.credinoda.domain.model.Permiso;
+import com.credinoda.domain.model.ResultadoAuditoria;
 import com.credinoda.persistence.repository.ClienteRepository;
 import com.credinoda.persistence.repository.CreditoRepository;
 import com.credinoda.persistence.repository.PagoRepository;
@@ -28,8 +30,8 @@ import java.util.Objects;
 
 /**
  * Servicio de lógica financiera y amortización de créditos.
- * Implementa el cálculo de interés simple mensual, cronogramas de pago con ajuste exacto de centavos
- * y persistencia atómica transaccional (RN-004 a RN-008, RN-010, RN-011).
+ * Implementa el cálculo de interés simple mensual, cronogramas de pago con ajuste exacto de centavos,
+ * persistencia atómica transaccional y registro atómico de auditoría (RN-004 a RN-008, RN-010, RN-011, RN-027, RN-028).
  */
 public class CreditoService {
 
@@ -38,20 +40,28 @@ public class CreditoService {
     private final ClienteRepository clienteRepository;
     private final PagoRepository pagoRepository;
     private final Autorizador autorizador;
+    private final AuditoriaService auditoriaService;
 
     public CreditoService(Connection connection, CreditoRepository creditoRepository,
                           ClienteRepository clienteRepository, PagoRepository pagoRepository,
-                          Autorizador autorizador) {
+                          Autorizador autorizador, AuditoriaService auditoriaService) {
         this.connection = Objects.requireNonNull(connection, "La conexión JDBC no puede ser nula");
         this.creditoRepository = Objects.requireNonNull(creditoRepository, "CreditoRepository no puede ser nulo");
         this.clienteRepository = Objects.requireNonNull(clienteRepository, "ClienteRepository no puede ser nulo");
         this.pagoRepository = Objects.requireNonNull(pagoRepository, "PagoRepository no puede ser nulo");
         this.autorizador = Objects.requireNonNull(autorizador, "Autorizador no puede ser nulo");
+        this.auditoriaService = auditoriaService;
+    }
+
+    public CreditoService(Connection connection, CreditoRepository creditoRepository,
+                          ClienteRepository clienteRepository, PagoRepository pagoRepository,
+                          Autorizador autorizador) {
+        this(connection, creditoRepository, clienteRepository, pagoRepository, autorizador, null);
     }
 
     public CreditoService(Connection connection, CreditoRepository creditoRepository,
                           ClienteRepository clienteRepository, PagoRepository pagoRepository) {
-        this(connection, creditoRepository, clienteRepository, pagoRepository, new AutorizacionService());
+        this(connection, creditoRepository, clienteRepository, pagoRepository, new AutorizacionService(), null);
     }
 
     /**
@@ -76,56 +86,65 @@ public class CreditoService {
             throw new DatosInvalidosException("El plazo en meses debe ser mayor a 0.");
         }
 
+        BigDecimal meses = BigDecimal.valueOf(plazoMeses);
         return capital.multiply(tasaMensual)
-                .multiply(BigDecimal.valueOf(plazoMeses))
+                .multiply(meses)
                 .setScale(2, RoundingMode.HALF_UP);
     }
 
     /**
-     * Calcula el monto total a pagar sumando capital e intereses.
+     * Calcula el monto total a pagar sumando capital e intereses (RN-004).
      *
-     * @param capital Capital prestado.
-     * @param intereses Intereses calculados.
-     * @return Total a pagar con escala de 2 decimales.
+     * @param capital Monto prestado.
+     * @param intereses Total de intereses calculados.
+     * @return Suma exacta de Capital + Intereses.
      */
     public BigDecimal calcularTotalPagar(BigDecimal capital, BigDecimal intereses) {
+        Objects.requireNonNull(capital, "Capital no puede ser nulo");
+        Objects.requireNonNull(intereses, "Intereses no pueden ser nulos");
         return capital.add(intereses).setScale(2, RoundingMode.HALF_UP);
     }
 
     /**
-     * Determina el número exacto de cuotas según el plazo y la frecuencia pactada (RN-005).
-     * Semanal: meses * 4 | Quincenal: meses * 2.
+     * Calcula el número total de cuotas según el plazo en meses y la periodicidad seleccionada (RN-005).
      *
      * @param plazoMeses Plazo en meses.
-     * @param frecuencia Frecuencia de pago.
-     * @return Cantidad de cuotas.
+     * @param frecuencia Frecuencia de pago (SEMANAL o QUINCENAL).
+     * @return Cantidad entera de cuotas del cronograma.
      */
     public int calcularNumeroCuotas(int plazoMeses, FrecuenciaPago frecuencia) {
-        if (frecuencia == null || plazoMeses <= 0) {
-            return 0;
+        if (plazoMeses <= 0) {
+            throw new DatosInvalidosException("El plazo en meses debe ser mayor a 0.");
         }
-        return switch (frecuencia) {
-            case SEMANAL -> plazoMeses * AppConfig.WEEKS_PER_MONTH;
-            case QUINCENAL -> plazoMeses * AppConfig.FORTNIGHTS_PER_MONTH;
-        };
+        Objects.requireNonNull(frecuencia, "Frecuencia de pago no puede ser nula");
+        int cuotasPorMes = (frecuencia == FrecuenciaPago.SEMANAL) ? 4 : 2;
+        return plazoMeses * cuotasPorMes;
     }
 
     /**
-     * Genera el plan de cuotas proyectando fechas de vencimiento y aplicando el ajuste de centavos
-     * en la última cuota para garantizar la igualdad estricta sum(cuotas) == total_pagar (RN-006, RN-007).
+     * Genera el plan de cuotas aplicando la regla de redondeo bancario HALF_UP y el ajuste residual de
+     * centavos en la última cuota para garantizar que sum(cuotas) == total_pagar (RN-006, RN-007, VP-004, VP-005).
      *
-     * @param totalPagar Monto total pactado a amortizar.
+     * @param totalPagar Monto total del crédito a amortizar.
      * @param numeroCuotas Cantidad de cuotas del plan.
      * @param frecuencia Periodicidad (SEMANAL o QUINCENAL).
-     * @param fechaInicio Fecha de desembolso del crédito.
-     * @return Lista de cuotas generadas en estado PENDIENTE.
+     * @param fechaInicio Fecha de otorgamiento del crédito.
+     * @return Lista inmutable de cuotas proyectadas.
      */
-    public List<Cuota> generarPlanPagos(BigDecimal totalPagar, int numeroCuotas, FrecuenciaPago frecuencia, LocalDate fechaInicio) {
-        if (numeroCuotas <= 0) {
-            throw new DatosInvalidosException("El número de cuotas debe ser mayor a cero.");
+    public List<Cuota> generarPlanPagos(BigDecimal totalPagar, int numeroCuotas,
+                                        FrecuenciaPago frecuencia, LocalDate fechaInicio) {
+        if (totalPagar == null || totalPagar.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new MontoInvalidoException("El total a pagar debe ser mayor a 0.");
         }
+        if (numeroCuotas <= 0) {
+            throw new DatosInvalidosException("El número de cuotas debe ser mayor a 0.");
+        }
+        Objects.requireNonNull(frecuencia, "Frecuencia de pago no puede ser nula");
+        Objects.requireNonNull(fechaInicio, "Fecha de inicio no puede ser nula");
 
-        BigDecimal cuotaBase = totalPagar.divide(BigDecimal.valueOf(numeroCuotas), 2, RoundingMode.HALF_UP);
+        BigDecimal n = BigDecimal.valueOf(numeroCuotas);
+        BigDecimal cuotaBase = totalPagar.divide(n, 2, RoundingMode.HALF_UP);
+
         BigDecimal sumaBase = cuotaBase.multiply(BigDecimal.valueOf(numeroCuotas));
         BigDecimal ajuste = totalPagar.subtract(sumaBase);
 
@@ -152,7 +171,7 @@ public class CreditoService {
 
     /**
      * Crea y persiste atómicamente un nuevo crédito junto con todo su plan de cuotas bajo una única
-     * transacción JDBC (CU-006).
+     * transacción JDBC y audita atómicamente el evento (CU-006, RN-027, RN-028, VP-022).
      *
      * @param clienteId ID del cliente prestatario.
      * @param capital Monto del capital solicitado.
@@ -201,6 +220,17 @@ public class CreditoService {
                 creditoRepository.crearCuota(c);
             }
 
+            if (auditoriaService != null) {
+                auditoriaService.registrarEnTransaccion(
+                        connection,
+                        AccionAuditoria.CREAR_CREDITO,
+                        "CREDITOS",
+                        String.valueOf(credito.getId()),
+                        "ClienteId: " + clienteId + ", Capital: " + capital.toPlainString() + ", Total: " + totalPagar.toPlainString() + ", Cuotas: " + cuotas.size(),
+                        ResultadoAuditoria.EXITO
+                );
+            }
+
             connection.commit();
             return credito;
         } catch (Exception e) {
@@ -222,23 +252,7 @@ public class CreditoService {
     }
 
     /**
-     * Obtiene un crédito por su identificador primario (CU-007).
-     *
-     * @param id ID del crédito.
-     * @return Entidad del crédito.
-     * @throws CreditoNoEncontradoException Si no existe.
-     */
-    public Credito obtenerCreditoPorId(int id) {
-        try {
-            return creditoRepository.obtenerPorId(id)
-                    .orElseThrow(() -> new CreditoNoEncontradoException("Crédito con ID " + id + " no encontrado."));
-        } catch (SQLException e) {
-            throw new CrediNodaException("Error al consultar crédito: " + e.getMessage(), e);
-        }
-    }
-
-    /**
-     * Lista la totalidad de créditos registrados en el sistema (CU-012).
+     * Lista todos los créditos registrados en el sistema.
      *
      * @return Lista completa de créditos.
      */
@@ -251,10 +265,26 @@ public class CreditoService {
     }
 
     /**
-     * Obtiene el cronograma de cuotas asociadas a un crédito ordenadas cronológicamente.
+     * Obtiene un crédito por su identificador primario (CU-007).
+     *
+     * @param id ID del crédito.
+     * @return Entidad Credito.
+     * @throws CreditoNoEncontradoException Si el crédito no existe.
+     */
+    public Credito obtenerCreditoPorId(int id) {
+        try {
+            return creditoRepository.obtenerPorId(id)
+                    .orElseThrow(() -> new CreditoNoEncontradoException("Crédito con ID " + id + " no encontrado."));
+        } catch (SQLException e) {
+            throw new CrediNodaException("Error al consultar crédito: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Obtiene la lista completa de cuotas pertenecientes a un crédito ordenadas cronológicamente (CU-007).
      *
      * @param creditoId ID del crédito.
-     * @return Lista de cuotas del crédito.
+     * @return Lista de cuotas asociadas.
      */
     public List<Cuota> obtenerCuotasCredito(int creditoId) {
         try {
@@ -265,17 +295,18 @@ public class CreditoService {
     }
 
     /**
-     * Calcula dinámicamente el saldo insoluto restante de un crédito (RN-010).
-     * Saldo = total_pagar - total_pagado_credito.
+     * Calcula dinámicamente el saldo pendiente de un crédito restando todos los abonos efectuados (RN-010).
+     * Saldo = TotalPagar - sum(Pagos).
      *
      * @param creditoId ID del crédito.
-     * @return Saldo pendiente (cero si ya fue cancelado en su totalidad).
+     * @return Saldo pendiente de amortizar (mínimo 0.00).
      */
     public BigDecimal calcularSaldoPendiente(int creditoId) {
         Credito credito = obtenerCreditoPorId(creditoId);
         try {
-            BigDecimal pagado = pagoRepository.obtenerTotalPagadoCredito(creditoId);
-            return credito.getTotalPagar().subtract(pagado).max(BigDecimal.ZERO);
+            BigDecimal totalPagado = pagoRepository.obtenerTotalPagadoCredito(creditoId);
+            BigDecimal saldo = credito.getTotalPagar().subtract(totalPagado);
+            return saldo.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP) : saldo;
         } catch (SQLException e) {
             throw new CrediNodaException("Error al calcular saldo pendiente: " + e.getMessage(), e);
         }
@@ -322,7 +353,17 @@ public class CreditoService {
     public int actualizarCuotasEnMora(LocalDate fechaReferencia) {
         LocalDate corte = (fechaReferencia != null) ? fechaReferencia : LocalDate.now();
         try {
-            return creditoRepository.actualizarMoraCuotas(corte);
+            int afectadas = creditoRepository.actualizarMoraCuotas(corte);
+            if (auditoriaService != null && afectadas > 0) {
+                auditoriaService.registrar(
+                        AccionAuditoria.SINCRONIZAR_MORA,
+                        "CUOTAS",
+                        null,
+                        "Fecha de corte: " + corte + ", Cuotas actualizadas en mora: " + afectadas,
+                        ResultadoAuditoria.EXITO
+                );
+            }
+            return afectadas;
         } catch (SQLException e) {
             throw new CrediNodaException("Error al sincronizar cuotas en mora: " + e.getMessage(), e);
         }

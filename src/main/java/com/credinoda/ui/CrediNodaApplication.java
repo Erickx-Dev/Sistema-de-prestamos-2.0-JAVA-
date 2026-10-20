@@ -8,9 +8,12 @@ import com.credinoda.persistence.DatabaseConnection;
 import com.credinoda.persistence.SchemaInitializer;
 import com.credinoda.persistence.repository.ClienteRepository;
 import com.credinoda.persistence.repository.CreditoRepository;
+import com.credinoda.persistence.repository.AuditoriaRepository;
 import com.credinoda.persistence.repository.PagoRepository;
 import com.credinoda.persistence.repository.UsuarioRepository;
+import com.credinoda.service.AuditoriaService;
 import com.credinoda.service.AutenticacionService;
+import com.credinoda.service.AutorizacionService;
 import com.credinoda.service.BCryptPasswordHasher;
 import com.credinoda.service.BackupService;
 import com.credinoda.service.ClienteService;
@@ -39,6 +42,7 @@ import com.credinoda.ui.views.CreditoNewView;
 import com.credinoda.ui.views.DashboardView;
 import com.credinoda.ui.views.PagosView;
 import com.credinoda.ui.views.ReportesView;
+import com.credinoda.ui.views.AuditoriaView;
 import com.credinoda.ui.views.UsuariosView;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -80,6 +84,9 @@ public class CrediNodaApplication extends Application {
     private CreditoRepository creditoRepository;
     private PagoRepository pagoRepository;
     private UsuarioRepository usuarioRepository;
+    private AuditoriaRepository auditoriaRepository;
+
+    private AuditoriaService auditoriaService;
 
     private ClienteService clienteService;
     private CreditoService creditoService;
@@ -246,17 +253,19 @@ public class CrediNodaApplication extends Application {
             this.creditoRepository = new CreditoRepository(connection);
             this.pagoRepository = new PagoRepository(connection);
             this.usuarioRepository = new UsuarioRepository(connection);
+            this.auditoriaRepository = new AuditoriaRepository(connection);
+            this.auditoriaService = new AuditoriaService(auditoriaRepository);
 
             this.passwordHasher = new BCryptPasswordHasher();
-            this.autenticacionService = new AutenticacionService(usuarioRepository, passwordHasher);
-            this.usuarioService = new UsuarioService(usuarioRepository, passwordHasher);
+            this.autenticacionService = new AutenticacionService(usuarioRepository, passwordHasher, auditoriaService);
+            this.usuarioService = new UsuarioService(usuarioRepository, passwordHasher, new AutorizacionService(auditoriaService), auditoriaService);
 
-            this.clienteService = new ClienteService(clienteRepository, creditoRepository);
-            this.creditoService = new CreditoService(connection, creditoRepository, clienteRepository, pagoRepository);
-            this.pagoService = new PagoService(connection, pagoRepository, creditoRepository, creditoService);
-            this.reporteService = new ReporteService(creditoRepository, pagoRepository);
-            this.pdfService = new PdfService(rutas);
-            this.backupService = new BackupService(connection, rutas);
+            this.clienteService = new ClienteService(clienteRepository, creditoRepository, new AutorizacionService(auditoriaService), auditoriaService);
+            this.creditoService = new CreditoService(connection, creditoRepository, clienteRepository, pagoRepository, new AutorizacionService(auditoriaService), auditoriaService);
+            this.pagoService = new PagoService(connection, pagoRepository, creditoRepository, creditoService, new AutorizacionService(auditoriaService), auditoriaService);
+            this.reporteService = new ReporteService(creditoRepository, pagoRepository, new AutorizacionService(auditoriaService));
+            this.pdfService = new PdfService(rutas, auditoriaService);
+            this.backupService = new BackupService(connection, rutas, auditoriaService);
 
             // Sincronización idempotente de mora al iniciar la aplicación (CU-008, RN-008)
             this.creditoService.actualizarCuotasEnMora(LocalDate.now());
@@ -326,6 +335,9 @@ public class CrediNodaApplication extends Application {
 
         viewRouter.registerView(NavAction.REPORTES,
                 () -> new ReportesView(reporteService, this::showNotification));
+
+        viewRouter.registerView(NavAction.ROUTE_AUDITORIA,
+                () -> new AuditoriaView(auditoriaService, viewRouter, this::showNotification));
 
         viewRouter.registerView(NavAction.ROUTE_USUARIOS,
                 () -> new UsuariosView(usuarioService, viewRouter, this::showNotification));
@@ -457,6 +469,14 @@ public class CrediNodaApplication extends Application {
 
     public AutenticacionService getAutenticacionService() {
         return autenticacionService;
+    }
+
+    public AuditoriaRepository getAuditoriaRepository() {
+        return auditoriaRepository;
+    }
+
+    public AuditoriaService getAuditoriaService() {
+        return auditoriaService;
     }
 
     public UsuarioService getUsuarioService() {

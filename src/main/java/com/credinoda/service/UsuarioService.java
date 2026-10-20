@@ -3,7 +3,9 @@ package com.credinoda.service;
 import com.credinoda.common.Validators;
 import com.credinoda.domain.exception.AutenticacionException;
 import com.credinoda.domain.exception.DatosInvalidosException;
+import com.credinoda.domain.model.AccionAuditoria;
 import com.credinoda.domain.model.Permiso;
+import com.credinoda.domain.model.ResultadoAuditoria;
 import com.credinoda.domain.model.Rol;
 import com.credinoda.domain.model.Usuario;
 import com.credinoda.persistence.repository.UsuarioRepository;
@@ -14,23 +16,32 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Servicio de lógica de negocio para la gestión integral de cuentas de usuario, roles y políticas de seguridad
- * (CU-019, CU-020, RN-022, RN-024, RN-025, VP-021).
+ * Servicio de lógica de negocio para la gestión integral de cuentas de usuario, roles, políticas de seguridad
+ * y registro de auditoría (CU-019, CU-020, RN-022, RN-024, RN-025, RN-027, VP-021).
  */
 public class UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
     private final PasswordHasher passwordHasher;
     private final Autorizador autorizador;
+    private final AuditoriaService auditoriaService;
 
-    public UsuarioService(UsuarioRepository usuarioRepository, PasswordHasher passwordHasher) {
-        this(usuarioRepository, passwordHasher, new AutorizacionService());
-    }
-
-    public UsuarioService(UsuarioRepository usuarioRepository, PasswordHasher passwordHasher, Autorizador autorizador) {
+    public UsuarioService(UsuarioRepository usuarioRepository,
+                          PasswordHasher passwordHasher,
+                          Autorizador autorizador,
+                          AuditoriaService auditoriaService) {
         this.usuarioRepository = Objects.requireNonNull(usuarioRepository, "UsuarioRepository no puede ser nulo");
         this.passwordHasher = Objects.requireNonNull(passwordHasher, "PasswordHasher no puede ser nulo");
         this.autorizador = Objects.requireNonNull(autorizador, "Autorizador no puede ser nulo");
+        this.auditoriaService = auditoriaService;
+    }
+
+    public UsuarioService(UsuarioRepository usuarioRepository, PasswordHasher passwordHasher, Autorizador autorizador) {
+        this(usuarioRepository, passwordHasher, autorizador, null);
+    }
+
+    public UsuarioService(UsuarioRepository usuarioRepository, PasswordHasher passwordHasher) {
+        this(usuarioRepository, passwordHasher, new AutorizacionService(), null);
     }
 
     /**
@@ -73,7 +84,19 @@ public class UsuarioService {
 
             String passwordHash = passwordHasher.hash(rawPassword);
             Usuario nuevo = new Usuario(usernameNormalizado, passwordHash, nombreCompleto.trim(), rol);
-            return usuarioRepository.crear(nuevo);
+            Usuario persistido = usuarioRepository.crear(nuevo);
+
+            if (auditoriaService != null) {
+                auditoriaService.registrar(
+                        AccionAuditoria.CREAR_USUARIO,
+                        "USUARIOS",
+                        String.valueOf(persistido.getId()),
+                        "Username: " + persistido.getUsername() + ", Rol: " + persistido.getRol().name() + ", Nombre: " + persistido.getNombreCompleto(),
+                        ResultadoAuditoria.EXITO
+                );
+            }
+
+            return persistido;
         } catch (SQLException e) {
             throw new DatosInvalidosException("Error al registrar usuario: " + e.getMessage(), e);
         }
@@ -121,12 +144,30 @@ public class UsuarioService {
             actual.setRol(nuevoRol);
         }
 
+        boolean estadoAnteriorActivo = actual.isActivo();
         if (activo != null) {
             actual.setActivo(activo);
         }
 
         try {
             usuarioRepository.actualizar(actual);
+
+            if (auditoriaService != null) {
+                AccionAuditoria accion = (activo != null && !activo && estadoAnteriorActivo)
+                        ? AccionAuditoria.DESACTIVAR_USUARIO
+                        : (activo != null && activo && !estadoAnteriorActivo)
+                        ? AccionAuditoria.ACTIVAR_USUARIO
+                        : AccionAuditoria.ACTUALIZAR_USUARIO;
+
+                auditoriaService.registrar(
+                        accion,
+                        "USUARIOS",
+                        String.valueOf(actual.getId()),
+                        "Modificado usuario: " + actual.getUsername() + ", Rol: " + actual.getRol().name() + ", Activo: " + actual.isActivo(),
+                        ResultadoAuditoria.EXITO
+                );
+            }
+
             return actual;
         } catch (SQLException e) {
             throw new DatosInvalidosException("Error al actualizar usuario: " + e.getMessage(), e);
@@ -134,18 +175,18 @@ public class UsuarioService {
     }
 
     /**
-     * Modifica el estado activo o inactivo de un usuario (CU-019, RN-025).
+     * Habilita o deshabilita un usuario en el sistema.
      *
      * @param id ID del usuario.
-     * @param activo true para activar, false para desactivar.
-     * @return Usuario con el nuevo estado aplicado.
+     * @param activo Nuevo estado de activación.
+     * @return Usuario actualizado.
      */
     public Usuario cambiarEstadoActivo(int id, boolean activo) {
         return actualizarUsuario(id, null, null, activo);
     }
 
     /**
-     * Cambia la contraseña del usuario previa comprobación de la contraseña actual (CU-020, RN-022).
+     * Modifica la contraseña de un usuario validando la clave actual y las políticas de complejidad (CU-020, RN-022).
      *
      * @param id ID del usuario.
      * @param rawCurrentPassword Contraseña actual.
@@ -180,6 +221,16 @@ public class UsuarioService {
         try {
             String nuevoHash = passwordHasher.hash(rawNewPassword);
             usuarioRepository.actualizarPassword(id, nuevoHash);
+
+            if (auditoriaService != null) {
+                auditoriaService.registrar(
+                        AccionAuditoria.CAMBIO_CONTRASENA,
+                        "USUARIOS",
+                        String.valueOf(id),
+                        "Contraseña actualizada para usuario: " + usuario.getUsername(),
+                        ResultadoAuditoria.EXITO
+                );
+            }
         } catch (SQLException e) {
             throw new DatosInvalidosException("Error al actualizar la contraseña: " + e.getMessage(), e);
         }

@@ -576,17 +576,17 @@ flowchart TD
   - `VP-024`: Ciclo de restauración de base de datos verificando la preservación intacta de cuentas de usuario y el historial previo de auditoría.
   - `AuditoriaIntegracionTest`: Trazabilidad completa de acciones desde la UI hacia la bitácora de persistencia.
 - **Tareas de la fase:**
-  - [ ] Diseñar el modelo de auditoría (`EventoAuditoria`, `AccionAuditoria`, `ResultadoAuditoria`, DTOs de filtro y reporte).
-  - [ ] Aprovisionar en `SchemaInitializer` la tabla `auditoria` y los triggers de inmutabilidad `trg_auditoria_no_update` y `trg_auditoria_no_delete`.
-  - [ ] Implementar `AuditoriaRepository` con soporte para inserciones dentro de transacciones activas y consultas multi-filtro.
-  - [ ] Implementar `AuditoriaService` con generador de detalles comparativos (antes $\to$ después), captura de contexto de usuario y reloj inyectable.
-  - [ ] Instrumentar llamadas de auditoría en `ClienteService`, `CreditoService`, `PagoService`, `PdfService`, `BackupService`, `AutenticacionService` y `AutorizacionService`.
-  - [ ] Garantizar formalmente en `BackupService.restaurarBackup` la preservación de las tablas `usuarios` y `auditoria` con suite de prueba dedicada.
-  - [ ] Implementar `AuditoriaView` con controles de filtrado por rango de fechas, usuario, acción y entidad, tabla reactiva y visualización de detalle expandible.
-  - [ ] Añadir acceso a `AuditoriaView` en la `NavigationBar` para el rol `ADMINISTRADOR`.
-  - [ ] Clarificar la nomenclatura en `PagosView.java` hacia "Historial de transacciones".
-  - [ ] Desarrollar y validar suites de pruebas unitarias y de integración de auditoría.
-- **Criterio de finalización:** 100% de tests en verde (`mvn test`), bitácora inmutable protegida por triggers, transacciones financieras auditadas de manera atómica, restauración segura preservando registros de auditoría y vista analítica operativa en JavaFX.
+  - [x] Diseñar el modelo de auditoría (`EventoAuditoria`, `AccionAuditoria`, `ResultadoAuditoria`, DTOs de filtro y reporte).
+  - [x] Aprovisionar en `SchemaInitializer` la tabla `auditoria` y los triggers de inmutabilidad `trg_auditoria_no_update` y `trg_auditoria_no_delete`.
+  - [x] Implementar `AuditoriaRepository` con soporte para inserciones dentro de transacciones activas y consultas multi-filtro.
+  - [x] Implementar `AuditoriaService` con generador de detalles comparativos (antes $\to$ después), captura de contexto de usuario y reloj inyectable.
+  - [x] Instrumentar llamadas de auditoría en `ClienteService`, `CreditoService`, `PagoService`, `PdfService`, `BackupService`, `AutenticacionService` y `AutorizacionService`.
+  - [x] Garantizar formalmente en `BackupService.restaurarBackup` la preservación de las tablas `usuarios` y `auditoria` con suite de prueba dedicada.
+  - [x] Implementar `AuditoriaView` con controles de filtrado por rango de fechas, usuario, acción y entidad, tabla reactiva y visualización de detalle expandible.
+  - [x] Añadir acceso a `AuditoriaView` en la `NavigationBar` para el rol `ADMINISTRADOR`.
+  - [x] Clarificar la nomenclatura en `PagosView.java` hacia "Historial de transacciones".
+  - [x] Desarrollar y validar suites de pruebas unitarias y de integración de auditoría.
+- **Criterio de finalización:** 100% de tests en verde (`mvn test`), bitácora inmutable protegida por triggers, transacciones financieras auditadas de manera atómica, restauración segura preservando registros de auditoría y vista analítica operativa en JavaFX. (Completada: 234/234 tests en verde).
 
 ---
 
