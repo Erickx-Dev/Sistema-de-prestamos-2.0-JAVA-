@@ -41,7 +41,6 @@ public enum Permiso {
     private static final Set<Permiso> PERMISOS_OPERADOR = Collections.unmodifiableSet(EnumSet.of(
             CLIENTES_VER,
             CLIENTES_CREAR,
-            CLIENTES_EDITAR,
             CREDITOS_VER,
             CREDITOS_CREAR,
             PAGOS_VER,

@@ -1,11 +1,14 @@
 package com.credinoda.service;
 
+import com.credinoda.domain.dto.SesionUsuario;
+import com.credinoda.domain.exception.AccesoDenegadoException;
 import com.credinoda.domain.exception.ClienteNoEncontradoException;
 import com.credinoda.domain.exception.DatosInvalidosException;
 import com.credinoda.domain.model.Cliente;
 import com.credinoda.domain.model.Credito;
 import com.credinoda.domain.model.EstadoCredito;
 import com.credinoda.domain.model.FrecuenciaPago;
+import com.credinoda.domain.model.Rol;
 import com.credinoda.persistence.DatabaseConnection;
 import com.credinoda.persistence.SchemaInitializer;
 import com.credinoda.persistence.repository.ClienteRepository;
@@ -46,6 +49,7 @@ class ClienteServiceTest {
 
     @AfterEach
     void tearDown() throws SQLException {
+        ContextoSeguridad.limpiar();
         if (connection != null && !connection.isClosed()) {
             connection.close();
         }
@@ -200,5 +204,31 @@ class ClienteServiceTest {
         assertThatThrownBy(() -> clienteService.crearCliente("E", "3001234567", "10987654"))
                 .isInstanceOf(DatosInvalidosException.class)
                 .hasMessageContaining("nombre");
+    }
+
+    @Test
+    @DisplayName("Debe rechazar la actualización de cliente si el usuario activo tiene rol OPERADOR (RN-024, RN-026)")
+    void testActualizarClienteDenegadoParaOperador() {
+        // Administrador crea el cliente (o sesión de sistema)
+        Cliente creado = clienteService.crearCliente("Cliente Prueba", "3001234567", "10203040");
+
+        // Se conmuta a sesión con rol OPERADOR
+        SesionUsuario sesionOperador = new SesionUsuario(10, "operador1", "Operador Cobranzas", Rol.OPERADOR);
+        ContextoSeguridad.setSesionActual(sesionOperador);
+
+        // Operador intenta actualizar y debe ser denegado estrictamente
+        assertThatThrownBy(() -> clienteService.actualizarCliente(creado.getId(), "Nombre Modificado", "3009999999", "10203040"))
+                .isInstanceOf(AccesoDenegadoException.class)
+                .hasMessageContaining("No cuenta con privilegios suficientes");
+
+        // Operador SÍ puede crear nuevos clientes según matriz de permisos
+        Cliente nuevoClienteOperador = clienteService.crearCliente("Cliente Registrado Por Operador", "3008888888", "99887766");
+        assertThat(nuevoClienteOperador).isNotNull();
+        assertThat(nuevoClienteOperador.getId()).isGreaterThan(0);
+
+        // Pero el Operador NO puede modificar ni siquiera el cliente que él mismo creó
+        assertThatThrownBy(() -> clienteService.actualizarCliente(nuevoClienteOperador.getId(), "Cliente Mutado", "3008888888", "99887766"))
+                .isInstanceOf(AccesoDenegadoException.class)
+                .hasMessageContaining("No cuenta con privilegios suficientes");
     }
 }
