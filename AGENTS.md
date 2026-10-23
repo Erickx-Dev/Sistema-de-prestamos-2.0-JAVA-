@@ -50,6 +50,7 @@ El desarrollo de las 7 fases de [`docs/ROADMAP_JAVA.md`](docs/ROADMAP_JAVA.md) s
 - `feature/fase-6.2-setup-wizard-rutas`
 - `feature/fase-6.3-autenticacion-roles`
 - `feature/fase-6.4-auditoria`
+- `feature/fase-6.5-redisenio-vistas-credito-reportes`
 - `feature/fase-7-e2e-packaging`
 - Para correcciones o ajustes: prefijos normativos `fix/`, `refactor/`, `docs/`, `test/`.
 

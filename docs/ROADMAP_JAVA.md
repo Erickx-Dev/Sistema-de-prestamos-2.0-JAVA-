@@ -590,6 +590,45 @@ flowchart TD
 
 ---
 
+### Fase 6.5: Fidelización Visual y Experiencia de Usuario en Simulación de Créditos y Analítica Financiera
+- **Rama:** `feature/fase-6.5-redisenio-vistas-credito-reportes`
+- **Objetivo:** Refinar visual y funcionalmente las dos pantallas centrales de interacción financiera: incorporar el Ticket Térmico de Liquidación Preliminar y despejar el cronograma en `CreditoNewView`, y consolidar los 10 KPIs en una Tabla Financiera Ejecutiva en `ReportesView`, alcanzando paridad estética y funcional con el diseño objetivo institucional.
+- **Diseños de Referencia Visual Obligatorios (Mockups Oficiales):**
+  > **Directriz para Agentes de IA:** Al iniciar el desarrollo de esta fase, el agente **debe inspeccionar obligatoriamente** ambas imágenes de referencia alojadas en `docs/assets/` utilizando su herramienta de lectura de archivos (`read_file`) para replicar con fidelidad la disposición espacial, tipografías, columnas y estética de cada ventana:
+  - **1. Ventana "Otorgar Nuevo Crédito" (`CreditoNewView`):** [`docs/assets/fase_6_5_otorgar_credito.jpg`](assets/fase_6_5_otorgar_credito.jpg)
+    - *Estructura:* Panel izquierdo con formulario de condiciones, botón `✓ Confirmar y Crear Crédito` y, justo debajo, el recibo térmico `LIQUIDACIÓN PRELIMINAR DE CRÉDITO` (Capital a Prestar, Total de Intereses con `%` dinámico, Número de Cuotas con periodicidad ej. `4 semanales`, Cuota Base, línea punteada, `TOTAL A PAGAR` destacado y código de barras 1D inferior). Panel derecho dedicado al 100% a la tabla `Previsualización del Cronograma de Cuotas` (sin las 4 tarjetas métricas superiores) con columnas `N° Cuota` (`1`, `2`, `3`...), `Fecha Vencimiento` y `Valor de Cuota`.
+    ![Diseño Objetivo - Otorgar Nuevo Crédito](assets/fase_6_5_otorgar_credito.jpg)
+  - **2. Ventana "Reportes y Analítica Financiera" (`ReportesView`):** [`docs/assets/fase_6_5_reportes_financieros.jpg`](assets/fase_6_5_reportes_financieros.jpg)
+    - *Estructura:* Barra superior de filtros rápidos y rango de fechas. En la sección central, sustitución de las 10 tarjetas individuales (`kpiGrid`) por una **Tabla Ejecutiva de 10 Métricas** con 4 columnas (`MÉTRICA`, `VALOR ACTUAL`, `VARIACIÓN/ESTADO`, `DETALLE`) que muestra las 10 métricas financieras con indicadores semánticos en color (`Estable`, `+12%`, `+5.4%`, `Sin riesgo`, `Óptimo`, `Margen: XX,XX%`, `Promedio`). En la parte inferior, los 2 gráficos vectoriales nativos (`Recaudo vs. Proyección Semanal` y `Distribución de Cartera` tipo Donut).
+    ![Diseño Objetivo - Reportes y Analítica Financiera](assets/fase_6_5_reportes_financieros.jpg)
+- **Archivos exactos a crear / modificar:**
+  - `src/main/java/com/credinoda/ui/components/BarcodeHelper.java` (nuevo componente de utilidades de código de barras 1D nativo)
+  - `src/main/java/com/credinoda/ui/components/TicketLiquidacionCard.java` (nueva tarjeta estilizada con formato de recibo/ticket)
+  - `src/main/java/com/credinoda/ui/views/CreditoNewView.java` (reorganización de panel formulario + ticket y cronograma completo a la derecha)
+  - `src/main/java/com/credinoda/ui/views/ReportesView.java` (sustitución de tarjetas por tabla financiera ejecutiva y vinculación semántica de datos)
+  - `src/main/resources/css/credinoda.css` (estilos para ticket térmico, divisores punteados y tabla de métricas)
+  - `src/test/java/com/credinoda/ui/views/CreditoNewViewTest.java` (nueva suite de pruebas para el simulador y ticket)
+  - `src/test/java/com/credinoda/ui/views/ReportesViewTest.java` (actualización de pruebas para tabla de métricas y gráficos)
+- **Casos de uso y Reglas de negocio cubiertas:**
+  - `CU-005` (Simulación interactiva y reactiva de créditos).
+  - `CU-006` (Previsualización de cronograma de cuotas con ajuste de centavos).
+  - `CU-013` (Reportes financieros, 10 KPIs y analítica consolidada).
+  - `RN-004`, `RN-005`, `RN-006`, `RN-007` (Cálculo exacto, interés simple y proyección).
+  - `RN-014` (Visualización integral de 10 KPIs financieros y márgenes contables).
+- **Vectores de prueba y Tests JUnit 5:**
+  - `CreditoNewViewTest`: Verificación de renderizado de `TicketLiquidacionCard`, actualización de desglose de intereses, total a pagar destacado, número de cuotas con frecuencia, código de barras y tabla de amortización con índices limpios.
+  - `ReportesViewTest`: Verificación de poblamiento de las 10 filas de métricas financieras en la tabla con sus respectivos valores, variaciones/estados y notas de contexto.
+- **Tareas de la fase:**
+  - [ ] Implementar `BarcodeHelper` con generación nativa de códigos de barras ZXing hacia JavaFX WritableImage.
+  - [ ] Desarrollar `TicketLiquidacionCard` con diseño térmico, desglose porcentual de intereses y total destacado.
+  - [ ] Reestructurar `CreditoNewView` integrando el ticket en el panel izquierdo y asignando el 100% del panel derecho a la tabla de cuotas.
+  - [ ] Implementar la Tabla Ejecutiva de 10 Métricas en `ReportesView` con semántica de variación y detalle.
+  - [ ] Enriquecer `credinoda.css` con estilos de ticket, divisor punteado y badges de estado contable.
+  - [ ] Desarrollar suite de pruebas unitarias (`CreditoNewViewTest`, actualización de `ReportesViewTest`) y verificar 100% verde en `mvn test`.
+- **Criterio de finalización:** Ambas ventanas reproducen fielmente los diseños proporcionados, con total reactividad, sin errores de renderizado y con el 100% de la suite de pruebas automatizadas en verde.
+
+---
+
 ### Fase 7: Pruebas de Integración End-to-End (E2E) con Base de Datos Limpia y Empaquetado Nativo
 - **Rama:** `feature/fase-7-e2e-packaging`
 - **Objetivo:** Ejecutar la suite integral de pruebas End-to-End validando el ciclo de vida completo de préstamos, cobranzas, emisión de recibos PDF, copias de seguridad vinculadas a Google Drive, control de roles de usuario y trazabilidad de auditoría. Configurar el empaquetado nativo para Windows (`jpackage` / `javafx-maven-plugin`).
