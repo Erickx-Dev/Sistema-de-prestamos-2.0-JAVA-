@@ -33,7 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Pruebas unitarias e integración para los componentes analíticos vectoriales enriquecidos
- * de {@link ReportesView} (Fase 6.1, CU-013, RN-014).
+ * y la Tabla Ejecutiva de 10 Métricas de {@link ReportesView} (Fases 6.1 y 6.5, CU-013, RN-014).
  */
 class ReportesViewTest {
 
@@ -207,5 +207,101 @@ class ReportesViewTest {
         assertThat(Formatters.formatoMonedaCompacta(500000)).isEqualTo("$500k");
         assertThat(Formatters.formatoMonedaCompacta(1000000)).isEqualTo("$1M");
         assertThat(Formatters.formatoMonedaCompacta(1500000)).isEqualTo("$1,5M");
+    }
+
+    @Test
+    @DisplayName("Fase 6.5: Tabla Ejecutiva puebla las 10 filas de métricas financieras con valores y estados semánticos")
+    void debePoblarTablaEjecutivaDe10MetricasFinancieras() {
+        Cliente cliente = clienteService.crearCliente("Sara Valenzuela", "3109876543", "12345678");
+
+        // 1. Crédito al día
+        creditoService.crearCredito(
+                cliente.getId(), new BigDecimal("1000000"), new BigDecimal("0.12"), 1, FrecuenciaPago.QUINCENAL, LocalDate.now());
+
+        // 2. Crédito vencido con mora (iniciado hace 30 días)
+        creditoService.crearCredito(
+                cliente.getId(), new BigDecimal("500000"), new BigDecimal("0.12"), 1, FrecuenciaPago.SEMANAL, LocalDate.now().minusDays(30));
+        creditoService.actualizarCuotasEnMora(LocalDate.now());
+
+        ReportesView reportesView = new ReportesView(reporteService, null);
+        reportesView.loadData(null, null);
+
+        List<ReportesView.FilaMetricaReporte> filas = reportesView.getItemsMetricas();
+        assertThat(filas).hasSize(10);
+
+        // 1. Créditos Activos
+        assertThat(filas.get(0).metrica()).isEqualTo("Créditos Activos");
+        assertThat(filas.get(0).valorActual()).isEqualTo("2");
+        assertThat(filas.get(0).variacionEstado()).isEqualTo("Estable");
+
+        // 2. Créditos Liquidados
+        assertThat(filas.get(1).metrica()).isEqualTo("Créditos Liquidados");
+        assertThat(filas.get(1).valorActual()).isEqualTo("0");
+
+        // 3. Capital Colocado
+        assertThat(filas.get(2).metrica()).isEqualTo("Capital Colocado");
+        assertThat(filas.get(2).valorActual()).isEqualTo("$1.500.000");
+        assertThat(filas.get(2).estiloEstado()).isEqualTo(ReportesView.EstiloEstado.POSITIVO);
+
+        // 4. Intereses Proyectados
+        assertThat(filas.get(3).metrica()).isEqualTo("Intereses Proyectados");
+        assertThat(filas.get(3).variacionEstado()).isEqualTo("Estimado");
+
+        // 5. Recaudo Total
+        assertThat(filas.get(4).metrica()).isEqualTo("Recaudo Total");
+
+        // 6. Saldo en Mora (detecta alerta por crédito vencido)
+        assertThat(filas.get(5).metrica()).isEqualTo("Saldo en Mora");
+        assertThat(filas.get(5).variacionEstado()).isEqualTo("En mora");
+        assertThat(filas.get(5).estiloEstado()).isEqualTo(ReportesView.EstiloEstado.ALERTA);
+
+        // 7. Tasa de Morosidad (alerta por tasa > 0%)
+        assertThat(filas.get(6).metrica()).isEqualTo("Tasa de Morosidad");
+        assertThat(filas.get(6).variacionEstado()).isEqualTo("Crítico");
+        assertThat(filas.get(6).estiloEstado()).isEqualTo(ReportesView.EstiloEstado.ALERTA);
+
+        // 8. Ganancia Líquida
+        assertThat(filas.get(7).metrica()).isEqualTo("Ganancia Líquida");
+        assertThat(filas.get(7).variacionEstado()).startsWith("Margen: ");
+
+        // 9. Ticket Promedio
+        assertThat(filas.get(8).metrica()).isEqualTo("Ticket Promedio");
+        assertThat(filas.get(8).valorActual()).isEqualTo("$750.000");
+
+        // 10. Plazo Promedio
+        assertThat(filas.get(9).metrica()).isEqualTo("Plazo Promedio");
+        assertThat(filas.get(9).valorActual()).isEqualTo("1 meses");
+    }
+
+    @Test
+    @DisplayName("Fase 6.5: Tabla Ejecutiva muestra estados 'Sin riesgo' y 'Óptimo' en verde cuando la cartera está al día")
+    void debeMostrarEstadosOptimosYSinRiesgoCuandoNoHayMora() {
+        Cliente cliente = clienteService.crearCliente("Andrés Morales", "3123456789", "87654321");
+
+        // Crédito recién creado al día
+        creditoService.crearCredito(
+                cliente.getId(), new BigDecimal("800000"), new BigDecimal("0.10"), 1, FrecuenciaPago.QUINCENAL, LocalDate.now());
+
+        ReportesView reportesView = new ReportesView(reporteService, null);
+        reportesView.loadData(null, null);
+
+        List<ReportesView.FilaMetricaReporte> filas = reportesView.getItemsMetricas();
+        assertThat(filas).hasSize(10);
+
+        // Saldo en Mora
+        ReportesView.FilaMetricaReporte filaMora = filas.get(5);
+        assertThat(filaMora.metrica()).isEqualTo("Saldo en Mora");
+        assertThat(filaMora.valorActual()).isEqualTo("$0");
+        assertThat(filaMora.variacionEstado()).isEqualTo("Sin riesgo");
+        assertThat(filaMora.detalle()).isEqualTo("Al día");
+        assertThat(filaMora.estiloEstado()).isEqualTo(ReportesView.EstiloEstado.POSITIVO);
+
+        // Tasa de Morosidad
+        ReportesView.FilaMetricaReporte filaTasa = filas.get(6);
+        assertThat(filaTasa.metrica()).isEqualTo("Tasa de Morosidad");
+        assertThat(filaTasa.valorActual()).isEqualTo("0,00%");
+        assertThat(filaTasa.variacionEstado()).isEqualTo("Óptimo");
+        assertThat(filaTasa.detalle()).isEqualTo("0% registrado");
+        assertThat(filaTasa.estiloEstado()).isEqualTo(ReportesView.EstiloEstado.POSITIVO);
     }
 }

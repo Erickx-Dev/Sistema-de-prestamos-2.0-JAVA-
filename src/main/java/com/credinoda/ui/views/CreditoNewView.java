@@ -13,10 +13,10 @@ import com.credinoda.service.ClienteService;
 import com.credinoda.service.CreditoService;
 import com.credinoda.ui.components.ClienteDialog;
 import com.credinoda.ui.components.ConfirmDialog;
-import com.credinoda.ui.components.MetricCard;
 import com.credinoda.ui.components.PermissionGuard;
 import com.credinoda.ui.components.SectionHeader;
 import com.credinoda.ui.components.TableColumnHelper;
+import com.credinoda.ui.components.TicketLiquidacionCard;
 import com.credinoda.ui.components.ToastNotification;
 import com.credinoda.ui.navigation.NavAction;
 import com.credinoda.ui.navigation.ViewRouter;
@@ -44,8 +44,8 @@ import java.util.Optional;
 import java.util.function.BiConsumer;
 
 /**
- * Vista de Simulación y Otorgamiento de Nuevo Crédito (CU-005, CU-006, RN-004 a RN-007).
- * Recalcula reactivamente intereses, total a pagar, número de cuotas y cronograma preliminar
+ * Vista de Simulación y Otorgamiento de Nuevo Crédito (CU-005, CU-006, RN-004 a RN-007, Fase 6.5).
+ * Integra el ticket térmico de liquidación preliminar y la proyección reactiva del cronograma de cuotas
  * con ajuste exacto de centavos en la última cuota antes de confirmar la persistencia.
  */
 public class CreditoNewView extends VBox implements ViewRouter.RoutableView {
@@ -62,14 +62,11 @@ public class CreditoNewView extends VBox implements ViewRouter.RoutableView {
     private final ComboBox<FrecuenciaPago> frecuenciaCombo;
     private final TextField tasaPorcentajeField;
 
-    private final MetricCard cardIntereses;
-    private final MetricCard cardTotalPagar;
-    private final MetricCard cardNumCuotas;
-    private final MetricCard cardValorCuota;
+    private final Button crearCreditoButton;
+    private final TicketLiquidacionCard ticketCard;
 
     private final TableView<Cuota> tablaSimulacion;
     private final ObservableList<Cuota> itemsSimulacion = FXCollections.observableArrayList();
-    private final Button crearCreditoButton;
 
     public CreditoNewView(ClienteService clienteService,
                           CreditoService creditoService,
@@ -91,7 +88,7 @@ public class CreditoNewView extends VBox implements ViewRouter.RoutableView {
         HBox mainSplit = new HBox(18);
         VBox.setVgrow(mainSplit, Priority.ALWAYS);
 
-        // Panel izquierdo: Formulario de condiciones del crédito
+        // Panel izquierdo: Formulario de condiciones del crédito + Ticket de liquidación
         VBox formCard = new VBox(14);
         formCard.getStyleClass().add("card");
         formCard.setPrefWidth(390);
@@ -162,30 +159,22 @@ public class CreditoNewView extends VBox implements ViewRouter.RoutableView {
         this.crearCreditoButton.setMaxWidth(Double.MAX_VALUE);
         this.crearCreditoButton.setOnAction(e -> handleCrearCredito());
 
+        // Ticket térmico de liquidación preliminar (Fase 6.5)
+        this.ticketCard = new TicketLiquidacionCard();
+
         formCard.getChildren().addAll(
                 formTitle,
                 clienteBox,
                 buildFieldBox("Capital a Prestar ($) *", capitalField),
                 plazoFreqRow,
                 buildFieldBox("Tasa de Interés Mensual (%) *", tasaPorcentajeField),
-                crearCreditoButton
+                crearCreditoButton,
+                ticketCard
         );
 
-        // Panel derecho: Resumen del simulador y previsualización del cronograma
+        // Panel derecho: 100% dedicado a la tabla de previsualización del cronograma
         VBox previewPane = new VBox(14);
         HBox.setHgrow(previewPane, Priority.ALWAYS);
-
-        HBox simMetrics = new HBox(12);
-        this.cardIntereses = new MetricCard("Total Intereses", "$0", "📈", MetricCard.AccentVariant.INFO);
-        this.cardTotalPagar = new MetricCard("Total a Pagar", "$0", "💰", MetricCard.AccentVariant.PRIMARY);
-        this.cardNumCuotas = new MetricCard("N° de Cuotas", "0", "🗓", MetricCard.AccentVariant.INFO);
-        this.cardValorCuota = new MetricCard("Cuota Base", "$0", "💵", MetricCard.AccentVariant.SUCCESS);
-
-        for (MetricCard c : List.of(cardIntereses, cardTotalPagar, cardNumCuotas, cardValorCuota)) {
-            HBox.setHgrow(c, Priority.ALWAYS);
-            c.setMaxWidth(Double.MAX_VALUE);
-        }
-        simMetrics.getChildren().addAll(cardIntereses, cardTotalPagar, cardNumCuotas, cardValorCuota);
 
         VBox tableCard = new VBox(10);
         tableCard.getStyleClass().add("card");
@@ -198,7 +187,7 @@ public class CreditoNewView extends VBox implements ViewRouter.RoutableView {
         VBox.setVgrow(tablaSimulacion, Priority.ALWAYS);
 
         tableCard.getChildren().addAll(simTableTitle, tablaSimulacion);
-        previewPane.getChildren().addAll(simMetrics, tableCard);
+        previewPane.getChildren().add(tableCard);
 
         mainSplit.getChildren().addAll(formCard, previewPane);
         getChildren().addAll(header, mainSplit);
@@ -231,9 +220,10 @@ public class CreditoNewView extends VBox implements ViewRouter.RoutableView {
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         table.setPlaceholder(new Label("Ingrese capital y plazo válidos para previsualizar el plan de pagos."));
 
+        // Fase 6.5: Índice limpio (1, 2, 3...) sin prefijo "Cuota #"
         TableColumn<Cuota, String> colNum = TableColumnHelper.textoColumn(
                 "N° Cuota",
-                c -> "Cuota #" + c.getNumeroCuota(),
+                c -> String.valueOf(c.getNumeroCuota()),
                 Pos.CENTER,
                 110
         );
@@ -285,7 +275,7 @@ public class CreditoNewView extends VBox implements ViewRouter.RoutableView {
     }
 
     /**
-     * Simula en tiempo real el crédito sin tocar la base de datos (CU-005).
+     * Simula en tiempo real el crédito sin tocar la base de datos (CU-005, Fase 6.5).
      */
     public void updateSimulacion() {
         try {
@@ -307,12 +297,8 @@ public class CreditoNewView extends VBox implements ViewRouter.RoutableView {
             int numCuotas = creditoService.calcularNumeroCuotas(plazo, frecuencia);
             List<Cuota> plan = creditoService.generarPlanPagos(totalPagar, numCuotas, frecuencia, LocalDate.now());
 
-            cardIntereses.setValue(Formatters.formatoMoneda(intereses));
-            cardTotalPagar.setValue(Formatters.formatoMoneda(totalPagar));
-            cardNumCuotas.setValue(String.valueOf(numCuotas));
-            if (!plan.isEmpty()) {
-                cardValorCuota.setValue(Formatters.formatoMoneda(plan.get(0).getMonto()));
-            }
+            BigDecimal cuotaBase = !plan.isEmpty() ? plan.get(0).getMonto() : BigDecimal.ZERO;
+            ticketCard.actualizar(capital, tasaPct, intereses, numCuotas, frecuencia, cuotaBase, totalPagar);
             itemsSimulacion.setAll(plan);
         } catch (Exception e) {
             clearSimulacion();
@@ -320,10 +306,7 @@ public class CreditoNewView extends VBox implements ViewRouter.RoutableView {
     }
 
     private void clearSimulacion() {
-        cardIntereses.setValue("$0");
-        cardTotalPagar.setValue("$0");
-        cardNumCuotas.setValue("0");
-        cardValorCuota.setValue("$0");
+        ticketCard.limpiar();
         itemsSimulacion.clear();
     }
 
@@ -436,6 +419,14 @@ public class CreditoNewView extends VBox implements ViewRouter.RoutableView {
 
     public TextField getTasaPorcentajeField() {
         return tasaPorcentajeField;
+    }
+
+    public TicketLiquidacionCard getTicketLiquidacionCard() {
+        return ticketCard;
+    }
+
+    public TableView<Cuota> getTablaSimulacion() {
+        return tablaSimulacion;
     }
 
     public ObservableList<Cuota> getItemsSimulacion() {

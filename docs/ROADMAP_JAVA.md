@@ -625,13 +625,13 @@ flowchart TD
   - `CreditoNewViewTest`: Verificación de renderizado de `TicketLiquidacionCard`, actualización de desglose de intereses, total a pagar destacado, número de cuotas con frecuencia, código de barras y tabla de amortización con índices limpios.
   - `ReportesViewTest`: Verificación de poblamiento de las 10 filas de métricas financieras en la tabla con sus respectivos valores, variaciones/estados y notas de contexto.
 - **Tareas de la fase:**
-  - [ ] Implementar `BarcodeHelper` con generación nativa de códigos de barras ZXing hacia JavaFX WritableImage.
-  - [ ] Desarrollar `TicketLiquidacionCard` con diseño térmico, desglose porcentual de intereses y total destacado.
-  - [ ] Reestructurar `CreditoNewView` integrando el ticket en el panel izquierdo y asignando el 100% del panel derecho a la tabla de cuotas.
-  - [ ] Implementar la Tabla Ejecutiva de 10 Métricas en `ReportesView` con semántica de variación y detalle.
-  - [ ] Enriquecer `credinoda.css` con estilos de ticket, divisor punteado y badges de estado contable.
-  - [ ] Desarrollar suite de pruebas unitarias (`CreditoNewViewTest`, actualización de `ReportesViewTest`) y verificar 100% verde en `mvn test`.
-- **Criterio de finalización:** Ambas ventanas reproducen fielmente los diseños proporcionados, con total reactividad, sin errores de renderizado y con el 100% de la suite de pruebas automatizadas en verde.
+  - [x] Implementar `BarcodeHelper` con generación nativa de códigos de barras ZXing hacia JavaFX WritableImage.
+  - [x] Desarrollar `TicketLiquidacionCard` con diseño térmico, desglose porcentual de intereses y total destacado.
+  - [x] Reestructurar `CreditoNewView` integrando el ticket en el panel izquierdo y asignando el 100% del panel derecho a la tabla de cuotas.
+  - [x] Implementar la Tabla Ejecutiva de 10 Métricas en `ReportesView` con semántica de variación y detalle.
+  - [x] Enriquecer `credinoda.css` con estilos de ticket, divisor punteado y badges de estado contable.
+  - [x] Desarrollar suite de pruebas unitarias (`CreditoNewViewTest`, actualización de `ReportesViewTest`) y verificar 100% verde en `mvn test`.
+- **Criterio de finalización:** Ambas ventanas reproducen fielmente los diseños proporcionados, con total reactividad, sin errores de renderizado y con el 100% de la suite de pruebas automatizadas en verde. (Completada: 240/240 tests en verde).
 
 ---
 
