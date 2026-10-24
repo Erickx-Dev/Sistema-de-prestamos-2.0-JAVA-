@@ -1001,3 +1001,128 @@
     -fx-border-color: #DCE5DE;
     -fx-border-width: 1px 0 0 0;
 }
+
+
+/* ==========================================================================
+ * 15. FIDELIZACIÓN VISUAL Y ANALÍTICA FINANCIERA (Fase 6.5)
+ * ========================================================================== */
+
+/* Recibo Térmico de Liquidación Preliminar (TicketLiquidacionCard) */
+.ticket-card {
+    -fx-background-color: #FAFBF9;
+    -fx-background-radius: 6px;
+    -fx-border-color: #DCE5DE;
+    -fx-border-radius: 6px;
+    -fx-border-width: 1px;
+    -fx-padding: 12px 14px 12px 14px;
+    -fx-spacing: 5px;
+    -fx-effect: dropshadow(gaussian, rgba(38, 53, 45, 0.05), 6, 0, 0, 2);
+}
+
+.ticket-title {
+    -fx-text-fill: #26352D;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-alignment: CENTER;
+}
+
+.ticket-timestamp {
+    -fx-text-fill: #647067;
+    -fx-font-size: 9px;
+    -fx-alignment: CENTER;
+}
+
+.ticket-divider {
+    -fx-border-color: transparent transparent #CBD5E1 transparent;
+    -fx-border-style: dashed;
+    -fx-border-width: 0 0 1px 0;
+    -fx-min-height: 4px;
+    -fx-pref-height: 4px;
+}
+
+.ticket-rows-container {
+    -fx-spacing: 3px;
+    -fx-padding: 2px 0 2px 0;
+}
+
+.ticket-row-label {
+    -fx-text-fill: #647067;
+    -fx-font-size: 11px;
+}
+
+.ticket-row-value {
+    -fx-text-fill: #26352D;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+
+.ticket-total-label {
+    -fx-text-fill: #26352D;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
+
+.ticket-total-value {
+    -fx-text-fill: #166534;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+}
+
+.ticket-footnote {
+    -fx-text-fill: #647067;
+    -fx-font-size: 9px;
+    -fx-alignment: CENTER;
+}
+
+.ticket-barcode {
+    -fx-alignment: CENTER;
+    -fx-opacity: 0.90;
+}
+
+/* Tabla Ejecutiva de 10 Métricas Financieras (ReportesView) */
+.kpi-executive-table {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 8px;
+    -fx-border-color: #DCE5DE;
+    -fx-border-radius: 8px;
+    -fx-border-width: 1px;
+}
+
+.kpi-executive-table .table-row-cell {
+    -fx-cell-size: 34px;
+}
+
+.kpi-table-metric {
+    -fx-font-weight: bold;
+    -fx-text-fill: #26352D;
+    -fx-font-size: 12px;
+}
+
+.kpi-table-value {
+    -fx-font-weight: bold;
+    -fx-text-fill: #26352D;
+    -fx-font-size: 12px;
+}
+
+.kpi-status-positive {
+    -fx-text-fill: #166534;
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+}
+
+.kpi-status-danger {
+    -fx-text-fill: #B91C1C;
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+}
+
+.kpi-status-neutral {
+    -fx-text-fill: #475569;
+    -fx-font-weight: normal;
+    -fx-font-size: 12px;
+}
+
+.kpi-table-detail {
+    -fx-text-fill: #647067;
+    -fx-font-size: 11px;
+}

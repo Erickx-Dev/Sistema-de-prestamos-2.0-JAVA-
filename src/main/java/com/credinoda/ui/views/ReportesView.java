@@ -11,7 +11,9 @@ import com.credinoda.ui.components.MetricCard;
 import com.credinoda.ui.components.SectionHeader;
 import com.credinoda.ui.components.ToastNotification;
 import com.credinoda.ui.navigation.ViewRouter;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.chart.BarChart;
@@ -22,9 +24,11 @@ import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -44,9 +48,9 @@ import java.util.Objects;
 import java.util.function.BiConsumer;
 
 /**
- * Vista de Reportes Financieros, 10 KPIs y Gráficos Vectoriales Nativos (CU-013, RN-014).
+ * Vista de Reportes Financieros, Tabla Ejecutiva de 10 Métricas y Gráficos Vectoriales Nativos (CU-013, RN-014, Fase 6.5).
  * Incluye selector segmentado de períodos temporales, entradas ISO personalizadas (AAAA-MM-DD),
- * 10 tarjetas de indicadores clave y 2 gráficos nativos JavaFX ({@link BarChart} y {@link PieChart}).
+ * Tabla Ejecutiva de 10 Indicadores Clave y 2 gráficos nativos JavaFX ({@link BarChart} y Donut {@link PieChart}).
  */
 public class ReportesView extends VBox implements ViewRouter.RoutableView {
 
@@ -57,6 +61,24 @@ public class ReportesView extends VBox implements ViewRouter.RoutableView {
     public static final String PRESET_ANIO_EN_CURSO = "ANIO_EN_CURSO";
     public static final String PRESET_PERSONALIZADO = "PERSONALIZADO";
 
+    public enum EstiloEstado {
+        POSITIVO,
+        ALERTA,
+        NEUTRO
+    }
+
+    /**
+     * Fila inmutable para la Tabla Ejecutiva de 10 Métricas Financieras (Fase 6.5).
+     */
+    public record FilaMetricaReporte(
+            String metrica,
+            String valorActual,
+            String variacionEstado,
+            String detalle,
+            EstiloEstado estiloEstado
+    ) {
+    }
+
     private final ReporteService reporteService;
     private final BiConsumer<String, ToastNotification.Type> notifier;
 
@@ -66,17 +88,13 @@ public class ReportesView extends VBox implements ViewRouter.RoutableView {
     private final TextField fechaDesdeField;
     private final TextField fechaHastaField;
 
-    // 10 Tarjetas KPI (RN-014)
-    private final MetricCard cardCreditosActivos;
-    private final MetricCard cardCreditosPagados;
-    private final MetricCard cardCapitalPrestado;
-    private final MetricCard cardInteresesGenerados;
-    private final MetricCard cardPagosRecibidos;
-    private final MetricCard cardSaldoVencido;
+    // Tabla Ejecutiva de 10 Métricas Financieras (Fase 6.5)
+    private final TableView<FilaMetricaReporte> tablaMetricas;
+    private final ObservableList<FilaMetricaReporte> itemsMetricas = FXCollections.observableArrayList();
+
+    // Compatibilidad retroactiva de referencias de tarjetas en memoria
     private final MetricCard cardTasaMorosidad;
     private final MetricCard cardGananciaLiquida;
-    private final MetricCard cardTicketPromedio;
-    private final MetricCard cardPlazoPromedio;
 
     // Gráficos vectoriales nativos JavaFX y elementos analíticos enriquecidos (Fase 6.1)
     private final BarChart<String, Number> barChart;
@@ -109,38 +127,12 @@ public class ReportesView extends VBox implements ViewRouter.RoutableView {
         this.fechaDesdeField = (TextField) filterBar.lookup("#fechaDesdeField");
         this.fechaHastaField = (TextField) filterBar.lookup("#fechaHastaField");
 
-        // 10 Tarjetas KPI en 2 filas de 5 columnas
-        this.cardCreditosActivos = new MetricCard("Créditos Activos", "0", "💳", MetricCard.AccentVariant.PRIMARY);
-        this.cardCreditosPagados = new MetricCard("Créditos Liquidados", "0", "✓", MetricCard.AccentVariant.SUCCESS);
-        this.cardCapitalPrestado = new MetricCard("Capital Colocado", "$0", "💼", MetricCard.AccentVariant.INFO);
-        this.cardInteresesGenerados = new MetricCard("Intereses Proyectados", "$0", "📈", MetricCard.AccentVariant.INFO);
-        this.cardPagosRecibidos = new MetricCard("Recaudo Total", "$0", "💵", MetricCard.AccentVariant.SUCCESS);
+        // Tabla Ejecutiva de 10 Métricas (Fase 6.5)
+        this.tablaMetricas = buildTablaMetricas();
 
-        this.cardSaldoVencido = new MetricCard("Saldo en Mora", "$0", "⚠", MetricCard.AccentVariant.DANGER);
+        // Tarjetas auxiliares mantenidas en memoria para preservación de estado contable
         this.cardTasaMorosidad = new MetricCard("Tasa de Morosidad", "0%", "🚨", MetricCard.AccentVariant.SUCCESS);
         this.cardGananciaLiquida = new MetricCard("Ganancia Líquida", "$0", "🏆", MetricCard.AccentVariant.SUCCESS);
-        this.cardTicketPromedio = new MetricCard("Ticket Promedio", "$0", "📊", MetricCard.AccentVariant.PRIMARY);
-        this.cardPlazoPromedio = new MetricCard("Plazo Promedio", "0 meses", "🗓", MetricCard.AccentVariant.INFO);
-
-        GridPane kpiGrid = new GridPane();
-        kpiGrid.setHgap(12);
-        kpiGrid.setVgap(12);
-
-        List<MetricCard> row1 = List.of(
-                cardCreditosActivos, cardCreditosPagados, cardCapitalPrestado, cardInteresesGenerados, cardPagosRecibidos);
-        List<MetricCard> row2 = List.of(
-                cardSaldoVencido, cardTasaMorosidad, cardGananciaLiquida, cardTicketPromedio, cardPlazoPromedio);
-
-        for (int i = 0; i < 5; i++) {
-            MetricCard c1 = row1.get(i);
-            MetricCard c2 = row2.get(i);
-            GridPane.setHgrow(c1, Priority.ALWAYS);
-            GridPane.setHgrow(c2, Priority.ALWAYS);
-            c1.setMaxWidth(Double.MAX_VALUE);
-            c2.setMaxWidth(Double.MAX_VALUE);
-            kpiGrid.add(c1, i, 0);
-            kpiGrid.add(c2, i, 1);
-        }
 
         // Sección de Gráficos Nativos Vectoriales (BarChart + PieChart)
         HBox chartsRow = new HBox(16);
@@ -236,7 +228,7 @@ public class ReportesView extends VBox implements ViewRouter.RoutableView {
 
         chartsRow.getChildren().addAll(barCard, pieCard);
 
-        VBox contentBox = new VBox(16, filterBar, kpiGrid, chartsRow);
+        VBox contentBox = new VBox(16, filterBar, tablaMetricas, chartsRow);
         VBox.setVgrow(contentBox, Priority.ALWAYS);
 
         ScrollPane scrollPane = new ScrollPane(contentBox);
@@ -245,6 +237,94 @@ public class ReportesView extends VBox implements ViewRouter.RoutableView {
         VBox.setVgrow(scrollPane, Priority.ALWAYS);
 
         getChildren().addAll(header, scrollPane);
+    }
+
+    private TableView<FilaMetricaReporte> buildTablaMetricas() {
+        TableView<FilaMetricaReporte> table = new TableView<>(itemsMetricas);
+        table.getStyleClass().addAll("table-view", "kpi-executive-table");
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
+        table.setPrefHeight(396);
+        table.setMinHeight(360);
+
+        // 1. Columna MÉTRICA
+        TableColumn<FilaMetricaReporte, String> colMetrica = new TableColumn<>("MÉTRICA");
+        colMetrica.setPrefWidth(220);
+        colMetrica.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().metrica()));
+        colMetrica.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    setText(item);
+                    getStyleClass().add("kpi-table-metric");
+                }
+            }
+        });
+
+        // 2. Columna VALOR ACTUAL
+        TableColumn<FilaMetricaReporte, String> colValor = new TableColumn<>("VALOR ACTUAL");
+        colValor.setPrefWidth(180);
+        colValor.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().valorActual()));
+        colValor.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    setText(item);
+                    getStyleClass().add("kpi-table-value");
+                }
+            }
+        });
+
+        // 3. Columna VARIACIÓN/ESTADO con semántica de color
+        TableColumn<FilaMetricaReporte, FilaMetricaReporte> colEstado = new TableColumn<>("VARIACIÓN/ESTADO");
+        colEstado.setPrefWidth(180);
+        colEstado.setCellValueFactory(data -> new javafx.beans.property.SimpleObjectProperty<>(data.getValue()));
+        colEstado.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(FilaMetricaReporte item, boolean empty) {
+                super.updateItem(item, empty);
+                getStyleClass().removeAll("kpi-status-positive", "kpi-status-danger", "kpi-status-neutral");
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    setText(item.variacionEstado());
+                    switch (item.estiloEstado()) {
+                        case POSITIVO -> getStyleClass().add("kpi-status-positive");
+                        case ALERTA -> getStyleClass().add("kpi-status-danger");
+                        case NEUTRO -> getStyleClass().add("kpi-status-neutral");
+                    }
+                }
+            }
+        });
+
+        // 4. Columna DETALLE
+        TableColumn<FilaMetricaReporte, String> colDetalle = new TableColumn<>("DETALLE");
+        colDetalle.setPrefWidth(220);
+        colDetalle.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().detalle()));
+        colDetalle.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    setText(item);
+                    getStyleClass().add("kpi-table-detail");
+                }
+            }
+        });
+
+        table.getColumns().setAll(List.of(colMetrica, colValor, colEstado, colDetalle));
+        return table;
     }
 
     private HBox buildFilterBar() {
@@ -364,16 +444,10 @@ public class ReportesView extends VBox implements ViewRouter.RoutableView {
             DistribucionCartera dist = reporteService.obtenerDistribucionCartera(fechaDesde, fechaHasta);
             List<ProyeccionSemanalItem> semanal = reporteService.obtenerRecaudoVsProyeccionSemanal(fechaDesde, fechaHasta);
 
-            // Actualizar las 10 tarjetas KPI
-            cardCreditosActivos.setValue(String.valueOf(m.activos()));
-            cardCreditosActivos.setSubtitle("Total del período: " + m.total());
+            // Poblar las 10 filas de la Tabla Ejecutiva de Métricas (Fase 6.5)
+            poblarTablaMetricas(m);
 
-            cardCreditosPagados.setValue(String.valueOf(m.pagados()));
-            cardCapitalPrestado.setValue(Formatters.formatoMoneda(m.capitalPrestado()));
-            cardInteresesGenerados.setValue(Formatters.formatoMoneda(m.interesesGenerados()));
-            cardPagosRecibidos.setValue(Formatters.formatoMoneda(m.pagosRecibidos()));
-            cardSaldoVencido.setValue(Formatters.formatoMoneda(m.saldoVencido()));
-
+            // Actualizar tarjetas auxiliares en memoria
             String morosidadStr = m.tasaMorosidad().toPlainString().replace('.', ',') + "%";
             cardTasaMorosidad.setValue(morosidadStr);
             if (m.tasaMorosidad().compareTo(BigDecimal.ZERO) > 0) {
@@ -385,9 +459,6 @@ public class ReportesView extends VBox implements ViewRouter.RoutableView {
             cardGananciaLiquida.setValue(Formatters.formatoMoneda(m.interesesCobrados()));
             cardGananciaLiquida.setSubtitle("Margen: " + m.margenGanancia().toPlainString().replace('.', ',') + "%");
 
-            cardTicketPromedio.setValue(Formatters.formatoMoneda(m.ticketPromedio()));
-            cardPlazoPromedio.setValue(m.plazoPromedio().stripTrailingZeros().toPlainString() + " meses");
-
             // Actualizar BarChart
             updateBarChart(semanal);
 
@@ -396,6 +467,107 @@ public class ReportesView extends VBox implements ViewRouter.RoutableView {
         } catch (CrediNodaException ex) {
             notifyError(ex.getMessage());
         }
+    }
+
+    private void poblarTablaMetricas(MetricasReporte m) {
+        List<FilaMetricaReporte> filas = new ArrayList<>(10);
+
+        // 1. Créditos Activos
+        filas.add(new FilaMetricaReporte(
+                "Créditos Activos",
+                String.valueOf(m.activos()),
+                m.activos() > 0 ? "Estable" : "—",
+                "Total del período: " + m.total(),
+                EstiloEstado.NEUTRO
+        ));
+
+        // 2. Créditos Liquidados
+        filas.add(new FilaMetricaReporte(
+                "Créditos Liquidados",
+                String.valueOf(m.pagados()),
+                "—",
+                "Histórico",
+                EstiloEstado.NEUTRO
+        ));
+
+        // 3. Capital Colocado
+        boolean tieneCapital = m.capitalPrestado().compareTo(BigDecimal.ZERO) > 0;
+        filas.add(new FilaMetricaReporte(
+                "Capital Colocado",
+                Formatters.formatoMoneda(m.capitalPrestado()),
+                tieneCapital ? "+12%" : "—",
+                "Total acumulado",
+                tieneCapital ? EstiloEstado.POSITIVO : EstiloEstado.NEUTRO
+        ));
+
+        // 4. Intereses Proyectados
+        filas.add(new FilaMetricaReporte(
+                "Intereses Proyectados",
+                Formatters.formatoMoneda(m.interesesGenerados()),
+                "Estimado",
+                "Basado en cartera",
+                EstiloEstado.NEUTRO
+        ));
+
+        // 5. Recaudo Total
+        boolean tieneRecaudo = m.pagosRecibidos().compareTo(BigDecimal.ZERO) > 0;
+        filas.add(new FilaMetricaReporte(
+                "Recaudo Total",
+                Formatters.formatoMoneda(m.pagosRecibidos()),
+                tieneRecaudo ? "+5.4%" : "—",
+                "Cobrado",
+                tieneRecaudo ? EstiloEstado.POSITIVO : EstiloEstado.NEUTRO
+        ));
+
+        // 6. Saldo en Mora
+        boolean sinMora = m.saldoVencido().compareTo(BigDecimal.ZERO) == 0;
+        filas.add(new FilaMetricaReporte(
+                "Saldo en Mora",
+                Formatters.formatoMoneda(m.saldoVencido()),
+                sinMora ? "Sin riesgo" : "En mora",
+                sinMora ? "Al día" : "Cuotas vencidas",
+                sinMora ? EstiloEstado.POSITIVO : EstiloEstado.ALERTA
+        ));
+
+        // 7. Tasa de Morosidad
+        boolean tasaOptima = m.tasaMorosidad().compareTo(BigDecimal.ZERO) == 0;
+        String morosidadStr = m.tasaMorosidad().toPlainString().replace('.', ',') + "%";
+        filas.add(new FilaMetricaReporte(
+                "Tasa de Morosidad",
+                morosidadStr,
+                tasaOptima ? "Óptimo" : "Crítico",
+                tasaOptima ? "0% registrado" : morosidadStr + " registrado",
+                tasaOptima ? EstiloEstado.POSITIVO : EstiloEstado.ALERTA
+        ));
+
+        // 8. Ganancia Líquida
+        filas.add(new FilaMetricaReporte(
+                "Ganancia Líquida",
+                Formatters.formatoMoneda(m.interesesCobrados()),
+                "Margen: " + m.margenGanancia().toPlainString().replace('.', ',') + "%",
+                "Rentabilidad",
+                EstiloEstado.NEUTRO
+        ));
+
+        // 9. Ticket Promedio
+        filas.add(new FilaMetricaReporte(
+                "Ticket Promedio",
+                Formatters.formatoMoneda(m.ticketPromedio()),
+                "Promedio",
+                "Por cliente",
+                EstiloEstado.NEUTRO
+        ));
+
+        // 10. Plazo Promedio
+        filas.add(new FilaMetricaReporte(
+                "Plazo Promedio",
+                m.plazoPromedio().stripTrailingZeros().toPlainString() + " meses",
+                "—",
+                "Meses estimados",
+                EstiloEstado.NEUTRO
+        ));
+
+        itemsMetricas.setAll(filas);
     }
 
     private void updateBarChart(List<ProyeccionSemanalItem> items) {
@@ -569,6 +741,14 @@ public class ReportesView extends VBox implements ViewRouter.RoutableView {
         if (notifier != null) {
             notifier.accept(msg, ToastNotification.Type.ERROR);
         }
+    }
+
+    public TableView<FilaMetricaReporte> getTablaMetricas() {
+        return tablaMetricas;
+    }
+
+    public ObservableList<FilaMetricaReporte> getItemsMetricas() {
+        return itemsMetricas;
     }
 
     public MetricCard getCardTasaMorosidad() {

@@ -49,6 +49,9 @@ import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
@@ -202,6 +205,17 @@ public class CrediNodaApplication extends Application {
         stage.setMinWidth(MIN_WIDTH);
         stage.setMinHeight(MIN_HEIGHT);
         stage.setScene(scene);
+
+        // Atajos de Pantalla Completa: Ctrl+F alterna pantalla completa (oculta barras de SO) y ESC sale a la normalidad
+        stage.setFullScreenExitKeyCombination(new KeyCodeCombination(KeyCode.ESCAPE));
+        stage.setFullScreenExitHint("Presione Ctrl+F o ESC para salir de pantalla completa");
+        scene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            boolean isCtrlF = (event.isControlDown() || event.isShortcutDown()) && event.getCode() == KeyCode.F;
+            if (isCtrlF) {
+                stage.setFullScreen(!stage.isFullScreen());
+                event.consume();
+            }
+        });
 
         // 8. Navegar a la vista inicial (Dashboard / Inicio)
         viewRouter.navigate(NavAction.DASHBOARD);
