@@ -32,7 +32,7 @@ flowchart TD
         NAV_BAR["NavigationBar (56px)\n(Marca/Logout, Módulos dinámicos según Rol, Respaldo)"]
         CONTENT["ContentArea (StackPane)\nContenedor exclusivo de la vista activa"]
         FX_VIEWS["Vistas: DashboardView, ClientesView, ClienteDetailView,\nCreditoNewView, CreditoDetailView, PagosView, ReportesView, AuditoriaView, UsuariosView"]
-        FX_DIALOGS["Diálogos Modales / Flujos Independientes:\nSetupWizard, UbicacionNoDisponibleDialog, LoginDialog, CambiarContrasenaDialog,\nConfirmDialog, ClienteDialog, PagoDialog, DetallePagoDialog, BackupDialog, UsuarioDialog"]
+        FX_DIALOGS["Diálogos Modales / Flujos Independientes:\nSetupWizard, UbicacionNoDisponibleDialog, ActivacionLicenciaDialog, LoginDialog,\nCambiarContrasenaDialog, ConfirmDialog, ClienteDialog, PagoDialog, DetallePagoDialog, BackupDialog, UsuarioDialog"]
         CSS["Estilos: /css/credinoda.css"]
     end
 
@@ -47,16 +47,18 @@ flowchart TD
         S_AUTH["AutenticacionService + UsuarioService (BCrypt)"]
         S_AUD["AuditoriaService (Bitácora Inmutable)"]
         S_CFG["ConfiguracionInicialService"]
+        S_LIC["LicenciaService (Ed25519 + Hardware ID + Anti-Tampering Reloj)"]
     end
 
     subgraph Persistence_Layer["3. Capa de Persistencia (com.credinoda.persistence)"]
         DB_CONN["DatabaseConnection (PRAGMA foreign_keys = ON)"]
-        SCHEMA["SchemaInitializer (DDL Limpio: 4 tablas de negocio + usuarios + auditoria)"]
+        SCHEMA["SchemaInitializer (DDL Limpio: 4 tablas de negocio + usuarios + auditoria + control_licencia)"]
         R_CLI["ClienteRepository"]
         R_CRE["CreditoRepository"]
         R_PAG["PagoRepository"]
         R_USR["UsuarioRepository"]
         R_AUD["AuditoriaRepository"]
+        R_LIC["LicenciaRepository"]
         SQLITE[("SQLite Database\ncreditos.db (Ruta configurable)")]
     end
 
@@ -66,12 +68,14 @@ flowchart TD
         STORE["ConfiguracionLocalStore (Windows/Linux/macOS)"]
         FMT["Formatters (Moneda, Fecha, Porcentaje)"]
         VAL["Validators (parsearMonto, Validadores, Contraseñas)"]
+        CRYPTO["LicenciaCryptoVerifier (Ed25519 + HmacSHA256)"]
+        HWID["HardwareIdProvider + SystemHardwareIdProvider (Windows/macOS/Linux)"]
     end
 
     subgraph Domain_Layer["1. Capa de Dominio (com.credinoda.domain)"]
-        ENT["Entidades: Cliente, Credito, Cuota, Pago, Usuario, EventoAuditoria"]
-        ENUM["Enums: FrecuenciaPago, EstadoCredito, EstadoCuota, Rol, Permiso, AccionAuditoria, ResultadoAuditoria"]
-        DTO["Records DTO Inmutables:\nProximoPagoItem, PagoDetalleItem, DatosComprobante, MetricasReporte, DistribucionCartera,\nProyeccionSemanalItem, BackupInfo, SesionUsuario, FiltroAuditoria, RegistroAuditoriaItem, EstadoInstalacion"]
+        ENT["Entidades: Cliente, Credito, Cuota, Pago, Usuario, EventoAuditoria, DatosLicencia, RegistroControlLicencia"]
+        ENUM["Enums: FrecuenciaPago, EstadoCredito, EstadoCuota, Rol, Permiso, AccionAuditoria, ResultadoAuditoria, EstadoLicencia"]
+        DTO["Records DTO Inmutables:\nProximoPagoItem, PagoDetalleItem, DatosComprobante, MetricasReporte, DistribucionCartera,\nProyeccionSemanalItem, BackupInfo, SesionUsuario, FiltroAuditoria, RegistroAuditoriaItem, EstadoInstalacion, ResultadoValidacionLicencia"]
         EXC["Excepciones de Negocio:\nCrediNodaException (extends RuntimeException) y subclases"]
     end
 
@@ -81,7 +85,7 @@ flowchart TD
     FX_VIEWS --> FX_DIALOGS
     MAIN_LAYOUT -.-> CSS
 
-    FX_VIEWS & FX_DIALOGS --> S_CLI & S_CRE & S_PAG & S_REP & S_PDF & S_BAK & S_SEC & S_AUTH & S_AUD & S_CFG
+    FX_VIEWS & FX_DIALOGS --> S_CLI & S_CRE & S_PAG & S_REP & S_PDF & S_BAK & S_SEC & S_AUTH & S_AUD & S_CFG & S_LIC
     FX_VIEWS & FX_DIALOGS --> FMT & VAL
 
     S_CLI --> R_CLI & R_CRE & S_AUD & S_SEC
@@ -94,30 +98,31 @@ flowchart TD
     S_SEC --> R_USR
     S_AUD --> R_AUD
     S_CFG --> STORE & RUTAS & DB_CONN & SCHEMA & S_AUTH
+    S_LIC --> R_LIC & R_AUD & STORE & CRYPTO & HWID & S_AUD
 
-    R_CLI & R_CRE & R_PAG & R_USR & R_AUD --> DB_CONN --> SQLITE
+    R_CLI & R_CRE & R_PAG & R_USR & R_AUD & R_LIC --> DB_CONN --> SQLITE
     UI_Layer & Service_Layer & Persistence_Layer --> Domain_Layer
 ```
 
 ### Especificación de Capas:
 
 1. **`domain` (`com.credinoda.domain`):**
-   - **`model`:** Entidades POJO/inmutables (`Cliente`, `Credito`, `Cuota`, `Pago`, `Usuario`, `EventoAuditoria`) y enumeraciones con nombres canónicos (`FrecuenciaPago`, `EstadoCredito`, `EstadoCuota`, `Rol`, `Permiso`, `AccionAuditoria`, `ResultadoAuditoria`). `Cuota` implementa el cálculo dinámico de `etiquetaEstado()`.
-   - **`dto`:** Registros (`record`) inmutables tipados (`ProximoPagoItem`, `PagoDetalleItem`, `DatosComprobante`, `MetricasReporte`, `DistribucionCartera`, `ProyeccionSemanalItem`, `BackupInfo`, `SesionUsuario`, `FiltroAuditoria`, `RegistroAuditoriaItem`, `EstadoInstalacion`, `ResultadoValidacionUbicacion`).
-   - **`exception`:** Jerarquía de excepciones de dominio no chequeadas donde `CrediNodaException` hereda de `RuntimeException` (`ClienteNoEncontradoException`, `CreditoNoEncontradoException`, `AutenticacionException`, `UsuarioBloqueadoException`, `AccesoDenegadoException`, `ConfiguracionException`, etc.).
+   - **`model`:** Entidades POJO/inmutables (`Cliente`, `Credito`, `Cuota`, `Pago`, `Usuario`, `EventoAuditoria`, `DatosLicencia`, `RegistroControlLicencia`) y enumeraciones con nombres canónicos (`FrecuenciaPago`, `EstadoCredito`, `EstadoCuota`, `Rol`, `Permiso`, `AccionAuditoria`, `ResultadoAuditoria`, `EstadoLicencia`). `Cuota` implementa el cálculo dinámico de `etiquetaEstado()`.
+   - **`dto`:** Registros (`record`) inmutables tipados (`ProximoPagoItem`, `PagoDetalleItem`, `DatosComprobante`, `MetricasReporte`, `DistribucionCartera`, `ProyeccionSemanalItem`, `BackupInfo`, `SesionUsuario`, `FiltroAuditoria`, `RegistroAuditoriaItem`, `EstadoInstalacion`, `ResultadoValidacionUbicacion`, `ResultadoValidacionLicencia`).
+   - **`exception`:** Jerarquía de excepciones de dominio no chequeadas donde `CrediNodaException` hereda de `RuntimeException` (`ClienteNoEncontradoException`, `CreditoNoEncontradoException`, `AutenticacionException`, `UsuarioBloqueadoException`, `AccesoDenegadoException`, `ConfiguracionException`, `LicenciaException`, `RelojManipuladoException`, etc.).
 2. **`common` (`com.credinoda.common`):**
-   - Componentes transversales completamente desacoplados de la UI: `AppConfig` (parámetros financieros inmutables), `RutasSistema` (record de rutas dinámicas), `ConfiguracionLocalStore` (persistencia multiplataforma en Windows `%APPDATA%`, Linux `~/.config` y macOS con soporte de override `-Dcredinoda.config.dir` para tests), `Formatters` (formateo contable exacto) y `Validators` (parseo tolerante de montos, validación de contraseñas y validación de carpetas operativas).
+   - Componentes transversales completamente desacoplados de la UI: `AppConfig` (parámetros financieros inmutables), `RutasSistema` (record de rutas dinámicas), `ConfiguracionLocalStore` (persistencia multiplataforma en Windows `%APPDATA%`, Linux `~/.config` y macOS con soporte de override `-Dcredinoda.config.dir` para tests y ancla secundaria de licencia/tiempo), `Formatters` (formateo contable exacto), `Validators` (parseo tolerante de montos, validación de contraseñas y validación de carpetas operativas), `LicenciaCryptoVerifier` (verificación criptográfica asimétrica `Ed25519` nativa JCA y sello `HmacSHA256`) y `HardwareIdProvider` / `SystemHardwareIdProvider` (generación de huella única del equipo multiplataforma en Windows, macOS y Linux).
 3. **`persistence` (`com.credinoda.persistence`):**
    - `DatabaseConnection`: Administra la conexión JDBC hacia SQLite con `PRAGMA foreign_keys = ON` inyectando la ruta dinámica de la base de datos.
-   - `SchemaInitializer`: Crea desde cero las tablas relacionales (`clientes`, `creditos`, `cuotas`, `pagos`, `usuarios`, `auditoria`) e índices optimizados, con triggers de inmutabilidad sobre la bitácora de auditoría.
-   - `repository`: `ClienteRepository`, `CreditoRepository`, `PagoRepository`, `UsuarioRepository` y `AuditoriaRepository` con `PreparedStatement`.
+   - `SchemaInitializer`: Crea desde cero las tablas relacionales (`clientes`, `creditos`, `cuotas`, `pagos`, `usuarios`, `auditoria`, `control_licencia`) e índices optimizados, con triggers de inmutabilidad sobre la bitácora de auditoría.
+   - `repository`: `ClienteRepository`, `CreditoRepository`, `PagoRepository`, `UsuarioRepository`, `AuditoriaRepository` y `LicenciaRepository` con `PreparedStatement`.
 4. **`service` (`com.credinoda.service`):**
-   - Orquesta los casos de uso del sistema: `ClienteService`, `CreditoService`, `PagoService`, `ReporteService`, `PdfService`, `BackupService`, `AutenticacionService` (BCrypt costo 12), `UsuarioService`, `AutorizacionService` (`hasPermission`/`requirePermission`), `AuditoriaService` (registro atómico en transacciones) y `ConfiguracionInicialService`. Prohibido importar paquetes de JavaFX en esta capa.
+   - Orquesta los casos de uso del sistema: `ClienteService`, `CreditoService`, `PagoService`, `ReporteService`, `PdfService`, `BackupService`, `AutenticacionService` (BCrypt costo 12), `UsuarioService`, `AutorizacionService` (`hasPermission`/`requirePermission`), `AuditoriaService` (registro atómico en transacciones), `ConfiguracionInicialService` y `LicenciaService` (activación 100% offline, correspondencia de Hardware ID, control de expiración y motor Anti-Tampering de reloj). Prohibido importar paquetes de JavaFX en esta capa.
 5. **`ui` (`com.credinoda.ui`):**
    - Diseñado estrictamente según la Sección I.2 del plan de migración y el diseño Stitch: la ventana principal `MainShell` contiene **únicamente dos regiones**:
      - **Barra de Navegación Persistente (`NavigationBar`):** Superior horizontal (56px) con bloque de marca interactivo (cierre de sesión al pulsar), menú horizontal de módulos según el rol del usuario autenticado, y botón de acción de respaldo a la derecha.
      - **Área de Contenido Dinámica (`ContentArea`):** Ocupa el 100% del espacio restante para desplegar la vista activa (`DashboardView`, `ClientesView`, `ClienteDetailView`, `CreditoNewView`, `CreditoDetailView`, `PagosView`, `ReportesView`, `AuditoriaView`, `UsuariosView`).
-   - Flujos modales independientes: `SetupWizard` (primer arranque), `LoginDialog` (autenticación previa), `BackupDialog`, `ClienteDialog`, `PagoDialog`, etc. Las alertas se manejan mediante el banner flotante temporal (`ToastNotification`).
+   - Flujos modales independientes: `SetupWizard` (primer arranque), `UbicacionNoDisponibleDialog`, `ActivacionLicenciaDialog` (interceptor de licenciamiento y protección de reloj previo al login), `LoginDialog` (autenticación previa), `BackupDialog`, `ClienteDialog`, `PagoDialog`, etc. Las alertas se manejan mediante el banner flotante temporal (`ToastNotification`).
 
 ---
 
@@ -135,6 +140,7 @@ flowchart TD
 | `CU-016` (Configurar ubicación de datos y respaldos en primer inicio)<br>`CU-017` (Recuperar ubicación de datos no disponible) | `RN-019` (Configuración externa multiplataforma en AppData/XDG, escritura atómica)<br>`RN-020` (Validación de carpetas: permisos, advertencia estricta contra BD activa en la nube, soporte de Google Drive Desktop para respaldos)<br>`RN-021` (Nunca recrear en silencio una BD ausente en la ruta configurada) | `VP-015` (Primer arranque $\to$ Setup Wizard; segundo arranque $\to$ Login directo)<br>`VP-016` (Ruta inaccesible no genera BD vacía)<br>`VP-017` (Validación de carpetas y reutilización de BD existente) | **Fases 6.2, 7** |
 | `CU-018` (Iniciar y cerrar sesión)<br>`CU-019` (Gestionar usuarios y roles)<br>`CU-020` (Cambiar contraseña) | `RN-022` (Credenciales BCrypt costo 12, política de contraseñas)<br>`RN-023` (Bloqueo tras 5 intentos fallidos por 15 minutos, mensaje genérico)<br>`RN-024` (Matriz rol-permiso: Administrador completo vs. Operador restringido a cobranza y créditos preexistentes)<br>`RN-025` (Invariante: siempre $\ge 1$ Administrador activo; baja lógica)<br>`RN-026` (Doble capa: validación mandatoria en service y ocultamiento en UI; logout en marca de Navbar) | `VP-018` (Hash y verificación BCrypt)<br>`VP-019` (Bloqueo y desbloqueo temporal)<br>`VP-020` (Acceso denegado según matriz de roles)<br>`VP-021` (Protección del último administrador) | **Fases 6.3, 7** |
 | `CU-021` (Consultar bitácora de auditoría) | `RN-027` (Bitácora inmutable protegida por triggers SQLite)<br>`RN-028` (Evento atómico en la misma transacción JDBC de negocio)<br>`RN-029` (Restauración de respaldos preserva intactos usuarios y auditoría) | `VP-022` (Pago auditado atómicamente; rollback sin eventos)<br>`VP-023` (UPDATE/DELETE sobre auditoría rechazados por triggers)<br>`VP-024` (Restauración preserva usuarios y bitácora) | **Fases 6.4, 7** |
+| `CU-022` (Verificar licencia y reloj en arranque y sesión)<br>`CU-023` (Obtener y copiar Hardware ID del equipo)<br>`CU-024` (Activar o renovar licencia offline vía Base64 o archivo `.lic`) | `RN-030` (Criptografía asimétrica Ed25519 con llave pública X.509 estática embebida; firma digital sobre payload canónico)<br>`RN-031` (Huella Hardware ID determinista multiplataforma en Windows, macOS y Linux + SHA-256 `CN20-XXXX-XXXX-XXXX-XXXX` y correspondencia estricta)<br>`RN-032` (Validación de fecha `expira_en` y Anti-Tampering de reloj con marca monótona UTC en BD + AppData/XDG y tolerancia de 15 a 30 min)<br>`RN-033` (Interceptor bloqueante previo a Login/MainShell, preservación de `control_licencia` en restauraciones y latido de tiempo en sesión) | `VP-025` (Firma Ed25519 válida vs. rechazo por alteración de payload)<br>`VP-026` (Coincidencia exacta de Hardware ID multiplataforma y rechazo de licencia de otro equipo)<br>`VP-027` (Bloqueo por fecha `expira_en` vencida y reactivación)<br>`VP-028` (Tolerancia de reloj $\le 20$ min y bloqueo por retraso $> 20$ min hasta restablecer hora)<br>`VP-029` (Preservación de licencia y marca temporal al restaurar backup) | **Fases 6.6, 7** |
 
 ---
 
@@ -629,24 +635,119 @@ flowchart TD
 
 ---
 
+### Fase 6.6: Sistema de Licenciamiento y Activación 100% Offline Multiplataforma (Criptografía Ed25519, Hardware ID Windows/macOS/Linux, Anti-Tampering de Reloj e Interceptor UI)
+- **Rama:** `feature/fase-6.6-licenciamiento-offline`
+- **Objetivo:** Integrar un subsistema de licenciamiento comercial y activación 100% *offline* multiplataforma (**Windows, macOS y Linux**) que vincule criptográficamente cada instalación al equipo físico del cliente (`Hardware ID`), valide la vigencia temporal (`expira_en`), proteja el sistema contra la manipulación regresiva del reloj del sistema operativo (*Anti-Tampering*) y bloquee el acceso antes de inicializar la interfaz principal (`LoginDialog` / `MainShell`) mediante una ventana modal de activación (`ActivacionLicenciaDialog`).
+- **Librerías Estándar y Dependencias Recomendadas (Cero Dependencias Externas Adicionales en `pom.xml`):**
+  | Componente Técnico | API / Librería Recomendada | Justificación Arquitectónica y de Seguridad |
+  | :--- | :--- | :--- |
+  | **Criptografía Asimétrica** | **JDK 21 JCA (`java.security`: `KeyFactory`, `Signature`, `X509EncodedKeySpec`) con algoritmo `Ed25519` (JEP 339)** *(y soporte alternativo `SHA256withRSA`)* | Nativo en Java 21 LTS sin requerir BouncyCastle. `Ed25519` genera firmas deterministas de 64 bytes y llaves públicas de 32 bytes (cadenas Base64 cortas ideales para activación offline), resistentes a ataques de canal lateral. |
+  | **Codificación y Sello Local** | **`java.util.Base64` + `javax.crypto.Mac` (`HmacSHA256`) + `java.security.MessageDigest` (`SHA-256`)** | Serialización canónica `<payload_base64url>.<signature_base64url>` sin acoplar librerías JSON pesadas, y firma HMAC para evitar la edición manual de la marca de tiempo en SQLite o `.properties`. |
+  | **Identificación de Hardware (Windows / macOS / Linux)** | **`java.lang.ProcessBuilder` + `java.nio.file.Files` + `java.net.NetworkInterface`**<br>• **Windows:** CIM/PowerShell (`Win32_ComputerSystemProduct`, `Win32_Processor`, `Win32_DiskDrive`) + Registro `MachineGuid`<br>• **macOS:** `ioreg -rd1 -c IOPlatformExpertDevice` (`IOPlatformUUID`, `IOPlatformSerialNumber`)<br>• **Linux:** `/etc/machine-id`, `/var/lib/dbus/machine-id`, `/sys/class/dmi/id/product_uuid` | 100% libre de librerías JNI/JNA con binarios nativos `.dll`/`.dylib`/`.so` externos, alineado con los 3 perfiles de `pom.xml` (`windows`, `mac`, `linux`) y `ConfiguracionLocalStore`, generando un `Hardware ID` determinista (`CN20-XXXX-XXXX-XXXX-XXXX`). |
+  | **Control de Tiempo e Inyección** | **`java.time.Clock`, `java.time.Instant`, `java.time.LocalDate`, `java.time.Duration`** | Permite evaluar marcas de tiempo en UTC independientes de cambios de zona horaria e inyectar relojes simulados (`Clock.fixed` / `Clock.offset`) en pruebas JUnit 5. |
+  | **Interfaz y Portapapeles** | **`javafx.scene.input.Clipboard`, `ClipboardContent`, `javafx.stage.FileChooser`** | API nativa de JavaFX 21 para copiado en un clic del `Hardware ID` y carga de archivos de licencia `.lic`. |
+
+- **Inventario de Clases Nuevas a Crear:**
+  - **Capa `domain` (`com.credinoda.domain`):**
+    - `src/main/java/com/credinoda/domain/model/EstadoLicencia.java` (enum canónico: `VALIDA`, `NO_REGISTRADA`, `FORMATO_INVALIDO`, `FIRMA_INVALIDA`, `HARDWARE_NO_COINCIDE`, `EXPIRADA`, `RELOJ_MANIPULADO`)
+    - `src/main/java/com/credinoda/domain/model/DatosLicencia.java` (modelo inmutable del payload firmado: `licenciaId`, `titular`, `hardwareId`, `fechaEmision`, `fechaExpiracion`, `tipoLicencia`, `firmaBase64`)
+    - `src/main/java/com/credinoda/domain/model/RegistroControlLicencia.java` (entidad de persistencia para la fila única de control de licencia y marca de tiempo máxima UTC)
+    - `src/main/java/com/credinoda/domain/dto/ResultadoValidacionLicencia.java` (record inmutable: `EstadoLicencia estado`, `DatosLicencia datos`, `String hardwareIdActual`, `long diasRestantes`, `String mensajeDetalle`)
+    - `src/main/java/com/credinoda/domain/exception/LicenciaException.java` (excepción de dominio que hereda de `CrediNodaException`)
+    - `src/main/java/com/credinoda/domain/exception/RelojManipuladoException.java` (subclase específica para bloqueo por retroceso del reloj del sistema)
+  - **Capa `common` (`com.credinoda.common`):**
+    - `src/main/java/com/credinoda/common/LicenciaCryptoVerifier.java` (contiene embebida únicamente la **llave pública estática Ed25519** en formato X.509/SPKI Base64; parsea el contenedor de licencia, reconstruye el payload canónico, verifica la firma digital con `Signature.getInstance("Ed25519")` y calcula sellos `HmacSHA256`)
+    - `src/main/java/com/credinoda/common/HardwareIdProvider.java` (interfaz funcional desacoplada para obtener el identificador del equipo y facilitar pruebas unitarias con mocks)
+    - `src/main/java/com/credinoda/common/SystemHardwareIdProvider.java` (implementación multiplataforma para **Windows, macOS y Linux** que detecta el SO activo, extrae los identificadores físicos de placa/sistema/CPU/disco, normaliza la salida y aplica `SHA-256` formateado como `CN20-XXXX-XXXX-XXXX-XXXX` con caché en memoria)
+  - **Capa `persistence` (`com.credinoda.persistence`):**
+    - `src/main/java/com/credinoda/persistence/repository/LicenciaRepository.java` (repositorio JDBC sobre la tabla `control_licencia` y consulta de marcas de tiempo máximas en `auditoria` y `pagos`)
+  - **Capa `service` (`com.credinoda.service`):**
+    - `src/main/java/com/credinoda/service/LicenciaService.java` (servicio de negocio libre de JavaFX que coordina la verificación criptográfica, correspondencia de `Hardware ID`, vigencia `expira_en`, persistencia dual del timestamp Anti-Tampering con tolerancia de 20 minutos —dentro del rango de 15 a 30 min— y auditoría de activación/bloqueo)
+  - **Capa `ui` (`com.credinoda.ui`):**
+    - `src/main/java/com/credinoda/ui/license/ActivacionLicenciaDialog.java` (diálogo modal bloqueante con visualización del `Hardware ID`, botón de copiado al portapapeles, campo para pegar cadena Base64, selector `FileChooser` para archivo `.lic`, diagnóstico visual del motivo de bloqueo y acción de activación/reintento)
+  - **Suites de Pruebas y Herramienta de Emisión Offline (`src/test/java`):**
+    - `src/test/java/com/credinoda/common/LicenciaKeyGeneratorTool.java` (utilidad de línea de comandos y soporte de tests para generar el par de llaves `Ed25519` del administrador y firmar licencias `.lic` / Base64; la clave privada jamás se incluye en `src/main`)
+    - `src/test/java/com/credinoda/common/LicenciaCryptoVerifierTest.java`
+    - `src/test/java/com/credinoda/common/SystemHardwareIdProviderTest.java`
+    - `src/test/java/com/credinoda/persistence/repository/LicenciaRepositoryTest.java`
+    - `src/test/java/com/credinoda/service/LicenciaServiceTest.java`
+    - `src/test/java/com/credinoda/ui/license/ActivacionLicenciaDialogTest.java`
+
+- **Inventario de Clases Existentes a Modificar:**
+  - `src/main/java/com/credinoda/persistence/SchemaInitializer.java`: Aprovisionar la tabla `DDL_CONTROL_LICENCIA` (`CREATE TABLE IF NOT EXISTS control_licencia (id INTEGER PRIMARY KEY CHECK (id = 1), licencia_token TEXT, hardware_id TEXT NOT NULL, titular TEXT, fecha_emision TEXT, fecha_expiracion TEXT, ultimo_timestamp_utc INTEGER NOT NULL, hmac_integridad TEXT NOT NULL)`).
+  - `src/main/java/com/credinoda/common/ConfiguracionLocalStore.java`: Añadir propiedades atómicas opcionales (`license.token`, `security.last_seen_utc`, `security.last_seen_hmac`) en `credinoda.properties` (resuelto automáticamente en Windows `%APPDATA%\CrediNoda`, macOS `~/Library/Application Support/CrediNoda` y Linux `~/.config/credinoda`) como **ancla secundaria de tiempo y licencia**, evitando que el reemplazo manual del archivo `creditos.db` reinicie el reloj o borre la marca máxima de ejecución.
+  - `src/main/java/com/credinoda/domain/model/AccionAuditoria.java`: Añadir los eventos `ACTIVAR_LICENCIA`, `LICENCIA_RECHAZADA` y `BLOQUEO_RELOJ_MANIPULADO`.
+  - `src/main/java/com/credinoda/service/BackupService.java`: Modificar `restaurarBackup(Path)` para preservar intacta la tabla `control_licencia` de la base de datos activa (junto con `usuarios` y `auditoria`, extendiendo `RN-029`) y conservar el máximo `ultimo_timestamp_utc` tras una restauración.
+  - `src/main/java/com/credinoda/ui/CrediNodaApplication.java`:
+    1. Instanciar `LicenciaRepository` y `LicenciaService` dentro de `initializeBackend(RutasSistema)`.
+    2. Incorporar el **Interceptor de Licenciamiento** en `iniciarConRutas(Stage, RutasSistema)` antes de mostrar `UsuarioDialog` / `LoginDialog` y antes de `montarYMostrarMainShell(Stage)`: si `licenciaService.validarEstadoActual()` retorna un estado distinto de `EstadoLicencia.VALIDA`, abrir `ActivacionLicenciaDialog` de forma modal; si el usuario cancela o cierra sin activar, cerrar el `Stage` inmediatamente.
+    3. Integrar en `startDayRolloverMonitor()` (el `Timeline` de 60 segundos) la invocación a `licenciaService.registrarLatidoTiempo()` para actualizar la marca de última ejecución en caliente y bloquear la sesión si se detecta atraso malicioso del reloj o vencimiento con la aplicación abierta.
+  - `src/main/resources/css/credinoda.css`: Incorporar reglas CSS para `ActivacionLicenciaDialog` (`.license-dialog-root`, `.hardware-id-card`, `.hardware-id-code`, `.license-textarea`, `.license-status-banner`).
+
+- **Desglose Técnico de Tareas Organizado en 4 Subfases:**
+
+  #### Subfase 6.6.1: Backend y Criptografía Asimétrica (`Ed25519` / Verificación de Licencias)
+  - [ ] Crear `EstadoLicencia`, `DatosLicencia`, `ResultadoValidacionLicencia`, `LicenciaException` y `RelojManipuladoException` en `com.credinoda.domain`.
+  - [ ] Definir el formato canónico del contenedor de licencia offline (`CREDINODA-LIC-V1:<base64url_payload>.<base64url_ed25519_signature>`), donde el payload UTF-8 serializa de forma determinista `licencia_id`, `titular`, `hardware_id`, `emitida_en`, `expira_en` y `tipo`.
+  - [ ] Implementar `LicenciaCryptoVerifier` en `com.credinoda.common` embebiendo únicamente la llave pública `Ed25519` X.509 estática (con constructor sobrecargado para inyectar llaves públicas de prueba en JUnit 5).
+  - [ ] Implementar en `LicenciaCryptoVerifier` la verificación criptográfica con `Signature.getInstance("Ed25519")`, el parseo desde cadena Base64 o archivo `.lic`, y el cálculo de `HmacSHA256` vinculado al `Hardware ID` para sellar los registros locales de tiempo.
+  - [ ] Desarrollar en `src/test/java` la utilidad `LicenciaKeyGeneratorTool` y la suite `LicenciaCryptoVerifierTest` validando `VP-025` (firmas auténticas, detección de alteración de 1 bit en fecha de expiración o Hardware ID, tokens truncados o corruptos).
+
+  #### Subfase 6.6.2: Detección de Hardware Multiplataforma (`Hardware ID` en Windows, macOS y Linux)
+  - [ ] Diseñar la interfaz `HardwareIdProvider` en `com.credinoda.common` para desacoplar la lectura física del sistema operativo.
+  - [ ] Implementar `SystemHardwareIdProvider` con estrategias nativas por sistema operativo (`os.name`) y timeout de seguridad de 3 segundos:
+    - **Windows:** Consultas CIM/PowerShell (`Win32_ComputerSystemProduct` UUID, `Win32_Processor` ProcessorId, `Win32_DiskDrive` SerialNumber) y lectura de `MachineGuid` en `HKLM\SOFTWARE\Microsoft\Cryptography`.
+    - **macOS:** Consulta `ioreg -rd1 -c IOPlatformExpertDevice` para extraer `IOPlatformUUID` y `IOPlatformSerialNumber`.
+    - **Linux:** Lectura directa de `/etc/machine-id`, `/var/lib/dbus/machine-id` y `/sys/class/dmi/id/product_uuid` (con fallback a `lsblk`/`lscpu` si aplica).
+    - **Fallback de Contingencia:** Huella determinista combinando MAC de interfaz física (`NetworkInterface`), arquitectura y host si el entorno restringe subprocesos.
+  - [ ] Implementar el algoritmo de normalización (descartando valores genéricos de BIOS como `FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF` o `To be filled by O.E.M.`) y aplicar hash `SHA-256` truncado y agrupado con formato legible `CN20-XXXX-XXXX-XXXX-XXXX`.
+  - [ ] Implementar validación estricta en `LicenciaService` que compare de forma insensible a mayúsculas/espacios el `hardware_id` firmado en la licencia contra el `HardwareIdProvider.obtenerHardwareId()` del equipo actual (`RN-031`).
+  - [ ] Desarrollar `SystemHardwareIdProviderTest` validando `VP-026` (determinismo en Windows/macOS/Linux, formato `CN20-XXXX-XXXX-XXXX-XXXX`, resiliencia ante salidas OEM vacías y rechazo `HARDWARE_NO_COINCIDE`).
+
+  #### Subfase 6.6.3: Base de Datos, Persistencia Dual y Auditoría de Tiempo (*Anti-Tampering*)
+  - [ ] Añadir la tabla `control_licencia` (`CHECK (id = 1)`) en `SchemaInitializer.java` para almacenar el token activo, metadatos de vigencia, `ultimo_timestamp_utc` (epoch seconds) y `hmac_integridad`.
+  - [ ] Implementar `LicenciaRepository` en `com.credinoda.persistence.repository` con operaciones `obtenerControl()`, `guardarOActualizarControl(...)` y `obtenerMaximoTimestampHistorico()` (consultando el mayor timestamp registrado en las tablas `auditoria` y `pagos`).
+  - [ ] Extender `ConfiguracionLocalStore.java` para persistir y leer atómicamente el espejo del token de licencia y la marca `security.last_seen_utc` firmada con HMAC en el archivo `credinoda.properties` del sistema operativo activo (Windows `%APPDATA%`, macOS `Application Support`, Linux `~/.config`).
+  - [ ] Implementar en `LicenciaService` el motor **Anti-Tampering de Reloj** (`RN-032`):
+    - Calcular la marca máxima conocida como $\text{max\_visto} = \max(\text{BD.ultimo\_timestamp\_utc},\ \text{Props.last\_seen\_utc},\ \text{BD.max\_auditoria\_utc})$.
+    - Si $\text{ahora\_utc} < \text{max\_visto} - \text{TOLERANCIA}$ (con tolerancia configurada en **20 minutos**, dentro del rango de 15 a 30 minutos), retornar `EstadoLicencia.RELOJ_MANIPULADO` sin sobrescribir `max_visto` y auditar `BLOQUEO_RELOJ_MANIPULADO`.
+    - Si el reloj es consistente ($\text{ahora\_utc} \ge \text{max\_visto} - \text{TOLERANCIA}$), actualizar `ultimo_timestamp_utc = max(ahora_utc, max_visto)` tanto en SQLite como en `ConfiguracionLocalStore` y verificar que `LocalDate.now(clock)` no supere `expira_en` (`RN-032`).
+  - [ ] Actualizar `BackupService.restaurarBackup` para que `control_licencia` nunca sea borrada ni sobrescrita por un backup antiguo y conserve la marca de tiempo más reciente (`RN-033`, `VP-029`).
+  - [ ] Desarrollar `LicenciaRepositoryTest` y `LicenciaServiceTest` validando `VP-027`, `VP-028` y `VP-029` con `Clock` inyectado.
+
+  #### Subfase 6.6.4: Flujo de Bloqueo, Interceptor de Arranque e Interfaz de Usuario (`ActivacionLicenciaDialog`)
+  - [ ] Construir `ActivacionLicenciaDialog` en `com.credinoda.ui.license` siguiendo la línea estética institucional de `LoginDialog` y `SetupWizard`:
+    - Banner superior dinámico según el estado (`NO_REGISTRADA`, `EXPIRADA`, `HARDWARE_NO_COINCIDE`, `FIRMA_INVALIDA` o `RELOJ_MANIPULADO` indicando la fecha/hora mínima requerida).
+    - Tarjeta destacada con el **ID Único del Equipo (`CN20-XXXX-XXXX-XXXX-XXXX`)** en campo de solo lectura monoespaciado y botón **"📋 Copiar ID"** que copie al portapapeles (`Clipboard`) y muestre confirmación visual inmediata (`✓ Copiado`).
+    - Área de texto (`TextArea`) para pegar el código de licencia en Base64 y botón **"📂 Cargar archivo .lic"** mediante `FileChooser`.
+    - Botón primario **"🔑 Validar y Activar Licencia"** (y botón **"🔄 Reintentar Verificación de Hora"** cuando el bloqueo sea por retroceso de reloj) más botón **"Salir"**.
+  - [ ] Integrar el interceptor en `CrediNodaApplication.iniciarConRutas(Stage, RutasSistema)` como compuerta obligatoria previa a la creación de administrador / `LoginDialog` y `MainShell`, y añadir el chequeo periódico `licenciaService.registrarLatidoTiempo()` en `startDayRolloverMonitor()`.
+  - [ ] Añadir los estilos correspondientes en `src/main/resources/css/credinoda.css`.
+  - [ ] Desarrollar `ActivacionLicenciaDialogTest` verificando el renderizado del `Hardware ID`, copiado al portapapeles, carga de licencia válida y transición de desbloqueo.
+
+- **Criterio de finalización:** 100% de los tests unitarios y de integración en verde (`mvn test`, incluyendo vectores `VP-025` a `VP-029`), bloqueo efectivo ante ausencia/vencimiento/alteración de licencia o retraso del reloj $> 20$ minutos, preservación de licencia ante restauración de backups y activación fluida 100% offline en Windows, macOS y Linux.
+
+---
+
 ### Fase 7: Pruebas de Integración End-to-End (E2E) con Base de Datos Limpia y Empaquetado Nativo
 - **Rama:** `feature/fase-7-e2e-packaging`
-- **Objetivo:** Ejecutar la suite integral de pruebas End-to-End validando el ciclo de vida completo de préstamos, cobranzas, emisión de recibos PDF, copias de seguridad vinculadas a Google Drive, control de roles de usuario y trazabilidad de auditoría. Configurar el empaquetado nativo para Windows (`jpackage` / `javafx-maven-plugin`).
+- **Objetivo:** Ejecutar la suite integral de pruebas End-to-End validando el ciclo de vida completo de préstamos, cobranzas, emisión de recibos PDF, copias de seguridad vinculadas a Google Drive, control de roles de usuario, trazabilidad de auditoría y licenciamiento offline con protección de reloj. Configurar el empaquetado nativo para Windows (`jpackage` / `javafx-maven-plugin`).
 - **Archivos exactos a crear:**
   - `src/test/java/com/credinoda/it/CrediNodaE2ETest.java`
   - Configuración final de plugins de distribución en `pom.xml` (`javafx-maven-plugin`, `jpackage`)
   - `README.md` del proyecto Java con instrucciones de compilación, ejecución y empaquetado.
 - **Casos de uso y Reglas de negocio cubiertas:**
-  - Cobertura completa e integrada de `CU-001` a `CU-021` y `RN-001` a `RN-029`.
+  - Cobertura completa e integrada de `CU-001` a `CU-024` y `RN-001` a `RN-033`.
 - **Vectores de prueba y Tests JUnit 5:**
   - `CrediNodaE2ETest`:
     - *Escenario E2E 1:* Alta de cliente $\to$ otorgamiento de crédito con ajuste de centavos $\to$ pagos parciales $\to$ comprobante PDF con QR $\to$ liquidación total $\to$ crédito pasa a `PAGADO`.
     - *Escenario E2E 2:* Creación de créditos con fecha anterior $\to$ detección de mora $\to$ verificación en Dashboard y Reportes (`tasa_morosidad`) $\to$ pago con recuperación.
-    - *Escenario E2E 3:* Población de datos $\to$ backup rápido en carpeta sincronizable $\to$ borrado intencional de registros $\to$ restauración en caliente $\to$ verificación de consistencia íntegra preservando usuarios y auditoría.
-    - *Escenario E2E 4:* Flujo de Primer Inicio en entorno limpio $\to$ Setup Wizard completa rutas dinámicas y crea Administrador inicial $\to$ Login directo $\to$ reinicio que lee la configuración sin reabrir el asistente.
+    - *Escenario E2E 3:* Población de datos $\to$ backup rápido en carpeta sincronizable $\to$ borrado intencional de registros $\to$ restauración en caliente $\to$ verificación de consistencia íntegra preservando usuarios, auditoría y control de licencia.
+    - *Escenario E2E 4:* Flujo de Primer Inicio en entorno limpio $\to$ Setup Wizard completa rutas dinámicas y crea Administrador inicial $\to$ Activación de licencia offline vinculada al Hardware ID $\to$ Login directo $\to$ reinicio que lee la configuración y licencia sin reabrir asistentes.
     - *Escenario E2E 5:* Sesión de Operador registra pago (auditado) $\to$ intenta acceder a restauración o auditoría (denegado y auditado) $\to$ Administrador ingresa y consulta la bitácora verificando la autoría exacta.
+    - *Escenario E2E 6:* Ciclo de Licenciamiento y Anti-Tampering: intento de arranque sin licencia (bloqueado) $\to$ activación con firma Ed25519 válida para el Hardware ID $\to$ simulación de atraso de reloj de 2 horas (bloqueo `RELOJ_MANIPULADO`) $\to$ restablecimiento de hora real (desbloqueo) $\to$ simulación de paso del tiempo más allá de `expira_en` (bloqueo `EXPIRADA`) $\to$ renovación con nueva licencia.
 - **Tareas de la fase:**
-  - [ ] Implementar la suite `CrediNodaE2ETest` ejecutando los 5 escenarios maestros sobre SQLite en memoria y directorios temporales aislados (`-Dcredinoda.config.dir`).
+  - [ ] Implementar la suite `CrediNodaE2ETest` ejecutando los 6 escenarios maestros sobre SQLite en memoria y directorios temporales aislados (`-Dcredinoda.config.dir`).
   - [ ] Configurar el plugin de empaquetado en `pom.xml` para generar la imagen de ejecución portable y/o instalador de Windows (`jpackage`).
   - [ ] Verificar que la aplicación empaquetada arranque de forma autónoma usando las ubicaciones de datos y respaldos definidas en el Asistente de Configuración (sin escrituras en el directorio de instalación).
   - [ ] Redactar el `README.md` del proyecto Java con comandos de construcción, configuración de Google Drive para escritorio y ejecución.
@@ -671,10 +772,15 @@ flowchart TD
   - Control de acceso en dos capas (`Autorizador.requirePermission` en capa de negocio y `hasPermission` en interfaz gráfica).
   - Matriz de permisos tipada: Administrador con control total vs. Operador restringido a cobranza y créditos a preexistentes.
   - Bloqueo preventivo por intentos fallidos recurrentes.
+- [ ] **Licenciamiento Offline y Protección Anti-Tampering:**
+  - Verificación criptográfica asimétrica 100% offline mediante `Ed25519` (JDK 21 JCA) con únicamente la llave pública estática embebida en la aplicación.
+  - Vinculación estricta de cada licencia al `Hardware ID` único del equipo multiplataforma en **Windows, macOS y Linux** (`CN20-XXXX-XXXX-XXXX-XXXX`).
+  - Protección contra retroceso del reloj del sistema (*Anti-Tampering*) con persistencia dual (SQLite + `ConfiguracionLocalStore`), sello HMAC y tolerancia de 20 minutos (rango 15–30 min).
+  - Interceptor modal bloqueante (`ActivacionLicenciaDialog`) previo al inicio de sesión y a la carga del `MainShell`.
 - [ ] **Trazabilidad y Auditoría:**
   - Bitácora inmutable protegida por triggers de base de datos contra `UPDATE` y `DELETE`.
   - Registro atómico de eventos financieros en la misma transacción de persistencia.
-  - Restauración segura de copias de seguridad preservando intactas las cuentas de usuario y el histórico de auditoría.
+  - Restauración segura de copias de seguridad preservando intactas las cuentas de usuario, el histórico de auditoría y el control de licencia/tiempo.
 - [ ] **Instalación, Portabilidad y Respaldos:**
   - Configuración externa multiplataforma (`credinoda.properties` en AppData/XDG) desacoplada de rutas de instalación.
   - Setup Wizard guiado para primer arranque con validación de carpetas y advertencia contra bases de datos activas en la nube.
