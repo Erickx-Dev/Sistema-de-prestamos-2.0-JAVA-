@@ -16,9 +16,9 @@ import java.util.Optional;
 import java.util.Properties;
 
 /**
- * Gestor de persistencia multiplataforma de la configuración local en disco (RN-019).
- * Almacena las rutas en 'credinoda.properties' dentro de las carpetas estándar del sistema operativo
- * (Windows %APPDATA%, Linux ~/.config, macOS ~/Library/Application Support) y permite override
+ * Gestor de persistencia multiplataforma de la configuración local y ancla de seguridad en disco (RN-019, RN-030, RN-032).
+ * Almacena las rutas y el ancla secundaria de licenciamiento/tiempo en 'credinoda.properties' dentro de las carpetas estándar
+ * del sistema operativo (Windows %APPDATA%, Linux ~/.config, macOS ~/Library/Application Support) y permite override
  * mediante la propiedad de JVM '-Dcredinoda.config.dir' para pruebas automatizadas aisladas.
  */
 public final class ConfiguracionLocalStore {
@@ -30,6 +30,11 @@ public final class ConfiguracionLocalStore {
     public static final String KEY_DATABASE_PATH = "database.path";
     public static final String KEY_BACKUPS_DIR = "backups.dir";
     public static final String KEY_COMPROBANTES_DIR = "comprobantes.dir";
+
+    // Claves del ancla secundaria de licenciamiento y control de tiempo Anti-Tampering (RN-032)
+    public static final String KEY_LICENSE_TOKEN = "license.token";
+    public static final String KEY_SECURITY_LAST_SEEN_UTC = "security.last_seen_utc";
+    public static final String KEY_SECURITY_LAST_SEEN_HMAC = "security.last_seen_hmac";
 
     private ConfiguracionLocalStore() {
         // Clase utilitaria estática, no instanciable
@@ -127,7 +132,7 @@ public final class ConfiguracionLocalStore {
     }
 
     /**
-     * Guarda atómicamente la configuración en disco garantizando que nunca quede en un estado corrupto (RN-019).
+     * Guarda atómicamente la configuración de rutas en disco preservando cualquier propiedad preexistente (RN-019).
      *
      * @param rutas Instancia con las rutas operativas a persistir.
      * @throws ConfiguracionException Si ocurre un error al persistir la configuración.
@@ -143,6 +148,13 @@ public final class ConfiguracionLocalStore {
             Files.createDirectories(configDir);
 
             Properties props = new Properties();
+            if (Files.isRegularFile(archivoFinal)) {
+                try (BufferedReader reader = Files.newBufferedReader(archivoFinal, StandardCharsets.UTF_8)) {
+                    props.load(reader);
+                } catch (IOException ignored) {
+                }
+            }
+
             props.setProperty(KEY_DATA_DIR, rutas.dataDir().toAbsolutePath().normalize().toString());
             props.setProperty(KEY_DATABASE_PATH, rutas.databasePath().toAbsolutePath().normalize().toString());
             props.setProperty(KEY_BACKUPS_DIR, rutas.backupsDir().toAbsolutePath().normalize().toString());
@@ -164,6 +176,109 @@ public final class ConfiguracionLocalStore {
             } catch (IOException ignored) {
             }
             throw new ConfiguracionException("Error crítico al guardar la configuración en: " + archivoFinal, e);
+        }
+    }
+
+    /**
+     * Persiste atómicamente el ancla secundaria de licencia y tiempo Anti-Tampering en 'credinoda.properties' (RN-032).
+     */
+    public static void guardarAnclaLicenciaTiempo(String token, long lastSeenUtc, String hmac) {
+        Path configDir = resolverDirectorioConfiguracion();
+        Path archivoFinal = resolverArchivoConfiguracion();
+        Path archivoTmp = configDir.resolve(CONFIG_FILE_NAME + ".tmp");
+
+        try {
+            Files.createDirectories(configDir);
+
+            Properties props = new Properties();
+            if (Files.isRegularFile(archivoFinal)) {
+                try (BufferedReader reader = Files.newBufferedReader(archivoFinal, StandardCharsets.UTF_8)) {
+                    props.load(reader);
+                } catch (IOException ignored) {
+                }
+            }
+
+            if (token != null && !token.isBlank()) {
+                props.setProperty(KEY_LICENSE_TOKEN, token.trim());
+            }
+            props.setProperty(KEY_SECURITY_LAST_SEEN_UTC, String.valueOf(lastSeenUtc));
+            if (hmac != null && !hmac.isBlank()) {
+                props.setProperty(KEY_SECURITY_LAST_SEEN_HMAC, hmac.trim());
+            }
+
+            try (BufferedWriter writer = Files.newBufferedWriter(archivoTmp, StandardCharsets.UTF_8)) {
+                props.store(writer, "CrediNoda 2.0 — Configuración Local y Seguridad");
+            }
+
+            try {
+                Files.move(archivoTmp, archivoFinal, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(archivoTmp, archivoFinal, StandardCopyOption.REPLACE_EXISTING);
+            }
+
+        } catch (IOException e) {
+            try {
+                Files.deleteIfExists(archivoTmp);
+            } catch (IOException ignored) {
+            }
+            throw new ConfiguracionException("Error crítico al guardar el ancla de seguridad en: " + archivoFinal, e);
+        }
+    }
+
+    /**
+     * Carga el token de licencia almacenado en el ancla local secundaria si existe.
+     */
+    public static Optional<String> cargarTokenLicencia() {
+        Path archivo = resolverArchivoConfiguracion();
+        if (!Files.isRegularFile(archivo)) {
+            return Optional.empty();
+        }
+        Properties props = new Properties();
+        try (BufferedReader reader = Files.newBufferedReader(archivo, StandardCharsets.UTF_8)) {
+            props.load(reader);
+            String val = props.getProperty(KEY_LICENSE_TOKEN);
+            return (val != null && !val.isBlank()) ? Optional.of(val.trim()) : Optional.empty();
+        } catch (IOException e) {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Carga el último timestamp UTC registrado en el ancla local secundaria si existe.
+     */
+    public static Optional<Long> cargarUltimoTimestampUtc() {
+        Path archivo = resolverArchivoConfiguracion();
+        if (!Files.isRegularFile(archivo)) {
+            return Optional.empty();
+        }
+        Properties props = new Properties();
+        try (BufferedReader reader = Files.newBufferedReader(archivo, StandardCharsets.UTF_8)) {
+            props.load(reader);
+            String val = props.getProperty(KEY_SECURITY_LAST_SEEN_UTC);
+            if (val != null && !val.isBlank()) {
+                return Optional.of(Long.parseLong(val.trim()));
+            }
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Carga el sello HMAC de seguridad registrado en el ancla local secundaria si existe.
+     */
+    public static Optional<String> cargarHmacSeguridad() {
+        Path archivo = resolverArchivoConfiguracion();
+        if (!Files.isRegularFile(archivo)) {
+            return Optional.empty();
+        }
+        Properties props = new Properties();
+        try (BufferedReader reader = Files.newBufferedReader(archivo, StandardCharsets.UTF_8)) {
+            props.load(reader);
+            String val = props.getProperty(KEY_SECURITY_LAST_SEEN_HMAC);
+            return (val != null && !val.isBlank()) ? Optional.of(val.trim()) : Optional.empty();
+        } catch (IOException e) {
+            return Optional.empty();
         }
     }
 

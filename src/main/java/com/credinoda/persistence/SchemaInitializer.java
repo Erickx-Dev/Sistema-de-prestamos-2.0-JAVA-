@@ -7,8 +7,8 @@ import java.sql.Statement;
 
 /**
  * Inicializador del esquema DDL limpio de la base de datos relacional SQLite de CrediNoda 2.0.
- * Aprovisiona de forma idempotente las 4 tablas de negocio, usuarios, bitácora de auditoría e índices,
- * e instala los triggers de inmutabilidad sobre la auditoría (RN-027, RN-028).
+ * Aprovisiona de forma idempotente las 4 tablas de negocio, usuarios, bitácora de auditoría,
+ * tabla de control de licencia e índices, e instala los triggers de inmutabilidad sobre la auditoría (RN-027, RN-028, RN-030).
  */
 public final class SchemaInitializer {
 
@@ -94,6 +94,19 @@ public final class SchemaInitializer {
             );
             """;
 
+    private static final String DDL_CONTROL_LICENCIA = """
+            CREATE TABLE IF NOT EXISTS control_licencia (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                licencia_token TEXT,
+                hardware_id TEXT NOT NULL,
+                titular TEXT,
+                fecha_emision TEXT,
+                fecha_expiracion TEXT,
+                ultimo_timestamp_utc INTEGER NOT NULL,
+                hmac_integridad TEXT NOT NULL
+            );
+            """;
+
     private static final String[] DDL_INDICES = {
             "CREATE INDEX IF NOT EXISTS idx_creditos_cliente ON creditos(cliente_id);",
             "CREATE INDEX IF NOT EXISTS idx_cuotas_credito ON cuotas(credito_id);",
@@ -127,7 +140,7 @@ public final class SchemaInitializer {
     }
 
     /**
-     * Aprovisiona las tablas de negocio, usuarios, auditoría, índices y triggers en una conexión SQLite existente.
+     * Aprovisiona las tablas de negocio, usuarios, auditoría, control de licencia, índices y triggers en una conexión SQLite existente.
      *
      * @param conn Conexión activa a la base de datos.
      * @throws SQLException Si ocurre un error al ejecutar las sentencias DDL.
@@ -140,6 +153,7 @@ public final class SchemaInitializer {
             stmt.execute(DDL_PAGOS);
             stmt.execute(DDL_USUARIOS);
             stmt.execute(DDL_AUDITORIA);
+            stmt.execute(DDL_CONTROL_LICENCIA);
             for (String indexSql : DDL_INDICES) {
                 stmt.execute(indexSql);
             }

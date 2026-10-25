@@ -687,45 +687,45 @@ flowchart TD
 - **Desglose Técnico de Tareas Organizado en 4 Subfases:**
 
   #### Subfase 6.6.1: Backend y Criptografía Asimétrica (`Ed25519` / Verificación de Licencias)
-  - [ ] Crear `EstadoLicencia`, `DatosLicencia`, `ResultadoValidacionLicencia`, `LicenciaException` y `RelojManipuladoException` en `com.credinoda.domain`.
-  - [ ] Definir el formato canónico del contenedor de licencia offline (`CREDINODA-LIC-V1:<base64url_payload>.<base64url_ed25519_signature>`), donde el payload UTF-8 serializa de forma determinista `licencia_id`, `titular`, `hardware_id`, `emitida_en`, `expira_en` y `tipo`.
-  - [ ] Implementar `LicenciaCryptoVerifier` en `com.credinoda.common` embebiendo únicamente la llave pública `Ed25519` X.509 estática (con constructor sobrecargado para inyectar llaves públicas de prueba en JUnit 5).
-  - [ ] Implementar en `LicenciaCryptoVerifier` la verificación criptográfica con `Signature.getInstance("Ed25519")`, el parseo desde cadena Base64 o archivo `.lic`, y el cálculo de `HmacSHA256` vinculado al `Hardware ID` para sellar los registros locales de tiempo.
-  - [ ] Desarrollar en `src/test/java` la utilidad `LicenciaKeyGeneratorTool` y la suite `LicenciaCryptoVerifierTest` validando `VP-025` (firmas auténticas, detección de alteración de 1 bit en fecha de expiración o Hardware ID, tokens truncados o corruptos).
+  - [x] Crear `EstadoLicencia`, `DatosLicencia`, `ResultadoValidacionLicencia`, `LicenciaException` y `RelojManipuladoException` en `com.credinoda.domain`.
+  - [x] Definir el formato canónico del contenedor de licencia offline (`CREDINODA-LIC-V1:<base64url_payload>.<base64url_ed25519_signature>`), donde el payload UTF-8 serializa de forma determinista `licencia_id`, `titular`, `hardware_id`, `emitida_en`, `expira_en` y `tipo`.
+  - [x] Implementar `LicenciaCryptoVerifier` en `com.credinoda.common` embebiendo únicamente la llave pública `Ed25519` X.509 estática (con constructor sobrecargado para inyectar llaves públicas de prueba en JUnit 5).
+  - [x] Implementar en `LicenciaCryptoVerifier` la verificación criptográfica con `Signature.getInstance("Ed25519")`, el parseo desde cadena Base64 o archivo `.lic`, y el cálculo de `HmacSHA256` vinculado al `Hardware ID` para sellar los registros locales de tiempo.
+  - [x] Desarrollar en `src/test/java` la utilidad `LicenciaKeyGeneratorTool` y la suite `LicenciaCryptoVerifierTest` validando `VP-025` (firmas auténticas, detección de alteración de 1 bit en fecha de expiración o Hardware ID, tokens truncados o corruptos).
 
   #### Subfase 6.6.2: Detección de Hardware Multiplataforma (`Hardware ID` en Windows, macOS y Linux)
-  - [ ] Diseñar la interfaz `HardwareIdProvider` en `com.credinoda.common` para desacoplar la lectura física del sistema operativo.
-  - [ ] Implementar `SystemHardwareIdProvider` con estrategias nativas por sistema operativo (`os.name`) y timeout de seguridad de 3 segundos:
+  - [x] Diseñar la interfaz `HardwareIdProvider` en `com.credinoda.common` para desacoplar la lectura física del sistema operativo.
+  - [x] Implementar `SystemHardwareIdProvider` con estrategias nativas por sistema operativo (`os.name`) y timeout de seguridad de 3 segundos:
     - **Windows:** Consultas CIM/PowerShell (`Win32_ComputerSystemProduct` UUID, `Win32_Processor` ProcessorId, `Win32_DiskDrive` SerialNumber) y lectura de `MachineGuid` en `HKLM\SOFTWARE\Microsoft\Cryptography`.
     - **macOS:** Consulta `ioreg -rd1 -c IOPlatformExpertDevice` para extraer `IOPlatformUUID` y `IOPlatformSerialNumber`.
     - **Linux:** Lectura directa de `/etc/machine-id`, `/var/lib/dbus/machine-id` y `/sys/class/dmi/id/product_uuid` (con fallback a `lsblk`/`lscpu` si aplica).
     - **Fallback de Contingencia:** Huella determinista combinando MAC de interfaz física (`NetworkInterface`), arquitectura y host si el entorno restringe subprocesos.
-  - [ ] Implementar el algoritmo de normalización (descartando valores genéricos de BIOS como `FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF` o `To be filled by O.E.M.`) y aplicar hash `SHA-256` truncado y agrupado con formato legible `CN20-XXXX-XXXX-XXXX-XXXX`.
-  - [ ] Implementar validación estricta en `LicenciaService` que compare de forma insensible a mayúsculas/espacios el `hardware_id` firmado en la licencia contra el `HardwareIdProvider.obtenerHardwareId()` del equipo actual (`RN-031`).
-  - [ ] Desarrollar `SystemHardwareIdProviderTest` validando `VP-026` (determinismo en Windows/macOS/Linux, formato `CN20-XXXX-XXXX-XXXX-XXXX`, resiliencia ante salidas OEM vacías y rechazo `HARDWARE_NO_COINCIDE`).
+  - [x] Implementar el algoritmo de normalización (descartando valores genéricos de BIOS como `FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF` o `To be filled by O.E.M.`) y aplicar hash `SHA-256` truncado y agrupado con formato legible `CN20-XXXX-XXXX-XXXX-XXXX`.
+  - [x] Implementar validación estricta en `LicenciaService` que compare de forma insensible a mayúsculas/espacios el `hardware_id` firmado en la licencia contra el `HardwareIdProvider.obtenerHardwareId()` del equipo actual (`RN-031`).
+  - [x] Desarrollar `SystemHardwareIdProviderTest` validando `VP-026` (determinismo en Windows/macOS/Linux, formato `CN20-XXXX-XXXX-XXXX-XXXX`, resiliencia ante salidas OEM vacías y rechazo `HARDWARE_NO_COINCIDE`).
 
   #### Subfase 6.6.3: Base de Datos, Persistencia Dual y Auditoría de Tiempo (*Anti-Tampering*)
-  - [ ] Añadir la tabla `control_licencia` (`CHECK (id = 1)`) en `SchemaInitializer.java` para almacenar el token activo, metadatos de vigencia, `ultimo_timestamp_utc` (epoch seconds) y `hmac_integridad`.
-  - [ ] Implementar `LicenciaRepository` en `com.credinoda.persistence.repository` con operaciones `obtenerControl()`, `guardarOActualizarControl(...)` y `obtenerMaximoTimestampHistorico()` (consultando el mayor timestamp registrado en las tablas `auditoria` y `pagos`).
-  - [ ] Extender `ConfiguracionLocalStore.java` para persistir y leer atómicamente el espejo del token de licencia y la marca `security.last_seen_utc` firmada con HMAC en el archivo `credinoda.properties` del sistema operativo activo (Windows `%APPDATA%`, macOS `Application Support`, Linux `~/.config`).
-  - [ ] Implementar en `LicenciaService` el motor **Anti-Tampering de Reloj** (`RN-032`):
+  - [x] Añadir la tabla `control_licencia` (`CHECK (id = 1)`) en `SchemaInitializer.java` para almacenar el token activo, metadatos de vigencia, `ultimo_timestamp_utc` (epoch seconds) y `hmac_integridad`.
+  - [x] Implementar `LicenciaRepository` en `com.credinoda.persistence.repository` con operaciones `obtenerControl()`, `guardarOActualizarControl(...)` y `obtenerMaximoTimestampHistorico()` (consultando el mayor timestamp registrado en las tablas `auditoria` y `pagos`).
+  - [x] Extender `ConfiguracionLocalStore.java` para persistir y leer atómicamente el espejo del token de licencia y la marca `security.last_seen_utc` firmada con HMAC en el archivo `credinoda.properties` del sistema operativo activo (Windows `%APPDATA%`, macOS `Application Support`, Linux `~/.config`).
+  - [x] Implementar en `LicenciaService` el motor **Anti-Tampering de Reloj** (`RN-032`):
     - Calcular la marca máxima conocida como $\text{max\_visto} = \max(\text{BD.ultimo\_timestamp\_utc},\ \text{Props.last\_seen\_utc},\ \text{BD.max\_auditoria\_utc})$.
     - Si $\text{ahora\_utc} < \text{max\_visto} - \text{TOLERANCIA}$ (con tolerancia configurada en **20 minutos**, dentro del rango de 15 a 30 minutos), retornar `EstadoLicencia.RELOJ_MANIPULADO` sin sobrescribir `max_visto` y auditar `BLOQUEO_RELOJ_MANIPULADO`.
     - Si el reloj es consistente ($\text{ahora\_utc} \ge \text{max\_visto} - \text{TOLERANCIA}$), actualizar `ultimo_timestamp_utc = max(ahora_utc, max_visto)` tanto en SQLite como en `ConfiguracionLocalStore` y verificar que `LocalDate.now(clock)` no supere `expira_en` (`RN-032`).
-  - [ ] Actualizar `BackupService.restaurarBackup` para que `control_licencia` nunca sea borrada ni sobrescrita por un backup antiguo y conserve la marca de tiempo más reciente (`RN-033`, `VP-029`).
-  - [ ] Desarrollar `LicenciaRepositoryTest` y `LicenciaServiceTest` validando `VP-027`, `VP-028` y `VP-029` con `Clock` inyectado.
+  - [x] Actualizar `BackupService.restaurarBackup` para que `control_licencia` nunca sea borrada ni sobrescrita por un backup antiguo y conserve la marca de tiempo más reciente (`RN-033`, `VP-029`).
+  - [x] Desarrollar `LicenciaRepositoryTest` y `LicenciaServiceTest` validando `VP-027`, `VP-028` y `VP-029` con `Clock` inyectado.
 
   #### Subfase 6.6.4: Flujo de Bloqueo, Interceptor de Arranque e Interfaz de Usuario (`ActivacionLicenciaDialog`)
-  - [ ] Construir `ActivacionLicenciaDialog` en `com.credinoda.ui.license` siguiendo la línea estética institucional de `LoginDialog` y `SetupWizard`:
+  - [x] Construir `ActivacionLicenciaDialog` en `com.credinoda.ui.license` siguiendo la línea estética institucional de `LoginDialog` y `SetupWizard`:
     - Banner superior dinámico según el estado (`NO_REGISTRADA`, `EXPIRADA`, `HARDWARE_NO_COINCIDE`, `FIRMA_INVALIDA` o `RELOJ_MANIPULADO` indicando la fecha/hora mínima requerida).
     - Tarjeta destacada con el **ID Único del Equipo (`CN20-XXXX-XXXX-XXXX-XXXX`)** en campo de solo lectura monoespaciado y botón **"📋 Copiar ID"** que copie al portapapeles (`Clipboard`) y muestre confirmación visual inmediata (`✓ Copiado`).
     - Área de texto (`TextArea`) para pegar el código de licencia en Base64 y botón **"📂 Cargar archivo .lic"** mediante `FileChooser`.
     - Botón primario **"🔑 Validar y Activar Licencia"** (y botón **"🔄 Reintentar Verificación de Hora"** cuando el bloqueo sea por retroceso de reloj) más botón **"Salir"**.
-  - [ ] Integrar el interceptor en `CrediNodaApplication.iniciarConRutas(Stage, RutasSistema)` como compuerta obligatoria previa a la creación de administrador / `LoginDialog` y `MainShell`, y añadir el chequeo periódico `licenciaService.registrarLatidoTiempo()` en `startDayRolloverMonitor()`.
-  - [ ] Añadir los estilos correspondientes en `src/main/resources/css/credinoda.css`.
-  - [ ] Desarrollar `ActivacionLicenciaDialogTest` verificando el renderizado del `Hardware ID`, copiado al portapapeles, carga de licencia válida y transición de desbloqueo.
+  - [x] Integrar el interceptor en `CrediNodaApplication.iniciarConRutas(Stage, RutasSistema)` como compuerta obligatoria previa a la creación de administrador / `LoginDialog` y `MainShell`, y añadir el chequeo periódico `licenciaService.registrarLatidoTiempo()` en `startDayRolloverMonitor()`.
+  - [x] Añadir los estilos correspondientes en `src/main/resources/css/credinoda.css`.
+  - [x] Desarrollar `ActivacionLicenciaDialogTest` verificando el renderizado del `Hardware ID`, copiado al portapapeles, carga de licencia válida y transición de desbloqueo.
 
-- **Criterio de finalización:** 100% de los tests unitarios y de integración en verde (`mvn test`, incluyendo vectores `VP-025` a `VP-029`), bloqueo efectivo ante ausencia/vencimiento/alteración de licencia o retraso del reloj $> 20$ minutos, preservación de licencia ante restauración de backups y activación fluida 100% offline en Windows, macOS y Linux.
+- **Criterio de finalización:** 100% de los tests unitarios y de integración en verde (`mvn test`, incluyendo vectores `VP-025` a `VP-029`), bloqueo efectivo ante ausencia/vencimiento/alteración de licencia o retraso del reloj $> 20$ minutos, preservación de licencia ante restauración de backups y activación fluida 100% offline en Windows, macOS y Linux. (Completada: 267/267 tests en verde).
 
 ---
 
