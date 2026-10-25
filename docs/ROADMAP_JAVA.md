@@ -141,6 +141,7 @@ flowchart TD
 | `CU-018` (Iniciar y cerrar sesión)<br>`CU-019` (Gestionar usuarios y roles)<br>`CU-020` (Cambiar contraseña) | `RN-022` (Credenciales BCrypt costo 12, política de contraseñas)<br>`RN-023` (Bloqueo tras 5 intentos fallidos por 15 minutos, mensaje genérico)<br>`RN-024` (Matriz rol-permiso: Administrador completo vs. Operador restringido a cobranza y créditos preexistentes)<br>`RN-025` (Invariante: siempre $\ge 1$ Administrador activo; baja lógica)<br>`RN-026` (Doble capa: validación mandatoria en service y ocultamiento en UI; logout en marca de Navbar) | `VP-018` (Hash y verificación BCrypt)<br>`VP-019` (Bloqueo y desbloqueo temporal)<br>`VP-020` (Acceso denegado según matriz de roles)<br>`VP-021` (Protección del último administrador) | **Fases 6.3, 7** |
 | `CU-021` (Consultar bitácora de auditoría) | `RN-027` (Bitácora inmutable protegida por triggers SQLite)<br>`RN-028` (Evento atómico en la misma transacción JDBC de negocio)<br>`RN-029` (Restauración de respaldos preserva intactos usuarios y auditoría) | `VP-022` (Pago auditado atómicamente; rollback sin eventos)<br>`VP-023` (UPDATE/DELETE sobre auditoría rechazados por triggers)<br>`VP-024` (Restauración preserva usuarios y bitácora) | **Fases 6.4, 7** |
 | `CU-022` (Verificar licencia y reloj en arranque y sesión)<br>`CU-023` (Obtener y copiar Hardware ID del equipo)<br>`CU-024` (Activar o renovar licencia offline vía Base64 o archivo `.lic`) | `RN-030` (Criptografía asimétrica Ed25519 con llave pública X.509 estática embebida; firma digital sobre payload canónico)<br>`RN-031` (Huella Hardware ID determinista multiplataforma en Windows, macOS y Linux + SHA-256 `CN20-XXXX-XXXX-XXXX-XXXX` y correspondencia estricta)<br>`RN-032` (Validación de fecha `expira_en` y Anti-Tampering de reloj con marca monótona UTC en BD + AppData/XDG y tolerancia de 15 a 30 min)<br>`RN-033` (Interceptor bloqueante previo a Login/MainShell, preservación de `control_licencia` en restauraciones y latido de tiempo en sesión) | `VP-025` (Firma Ed25519 válida vs. rechazo por alteración de payload)<br>`VP-026` (Coincidencia exacta de Hardware ID multiplataforma y rechazo de licencia de otro equipo)<br>`VP-027` (Bloqueo por fecha `expira_en` vencida y reactivación)<br>`VP-028` (Tolerancia de reloj $\le 20$ min y bloqueo por retraso $> 20$ min hasta restablecer hora)<br>`VP-029` (Preservación de licencia y marca temporal al restaurar backup) | **Fases 6.6, 7** |
+| `CU-025` (Ejecutar respaldo automático diario híbrido y purga de retención) | `RN-034` (Respaldo automático diario `creditos_auto_yyyy-MM-dd_hh-mm-ss-a.db` en apertura y consolidación con reemplazo al cerrar la aplicación; retención máxima de 15 copias automáticas, plazo de 30 días para manuales en `backups/` y 5 preventivas; ejecución transparente bajo contexto de sistema) | `VP-030` (Consolidación diaria apertura + cierre en 12h reemplazando archivo del día)<br>`VP-031` (Purga de retención: tope 15 automáticas, expiración a 30 días de manuales y 5 preventivas) | **Fases 6.7, 7** |
 
 ---
 
@@ -730,6 +731,41 @@ flowchart TD
 
 ---
 
+### Fase 6.7: Copias de Seguridad Automáticas Diarias (Estrategia Híbrida Apertura/Cierre) y Política de Retención Inteligente
+- **Rama:** `feature/fase-6.7-backups-automaticos-retencion`
+- **Objetivo:** Implementar la automatización integral de copias de seguridad de la base de datos SQLite mediante una estrategia híbrida en caliente (100% en uso): creación preventiva al abrir la aplicación por primera vez en el día y consolidación con reemplazo al cerrar la jornada, asegurando que jamás se genere más de 1 archivo por día calendario y que contenga todos los movimientos del día. Implementar la política de retención y purga automática para evitar la acumulación de archivos (máximo 15 copias automáticas diarias, plazo de caducidad de 30 días para respaldos manuales en la carpeta oficial de backups y máximo 5 respaldos preventivos).
+- **Archivos a modificar / crear en el desarrollo de la fase:**
+  - `src/main/java/com/credinoda/common/AppConfig.java` (incorporar constantes inmutables de retención: `MAX_AUTO_BACKUPS = 15`, `MANUAL_BACKUP_RETENTION_DAYS = 30`, `MAX_PRE_RESTORE_BACKUPS = 5` y prefijo `AUTO_BACKUP_PREFIX = "creditos_auto"`).
+  - `src/main/java/com/credinoda/domain/model/AccionAuditoria.java` (añadir evento de bitácora `BACKUP_AUTOMATICO` para trazabilidad de creación y purga).
+  - `src/main/java/com/credinoda/service/BackupService.java` (añadir métodos `asegurarBackupDiarioApertura()`, `consolidarBackupDiarioCierre()`, `purgarBackupsAntiguos()` con soporte de inyección de `Clock` para testing determinista de fechas y plazos de 30 días, garantizando ejecución de sistema para cualquier rol).
+  - `src/main/java/com/credinoda/ui/CrediNodaApplication.java` (invocar `asegurarBackupDiarioApertura()` en `initializeBackend` y en el cambio de día de `startDayRolloverMonitor()`; invocar `consolidarBackupDiarioCierre()` en `stop()` y `cerrarSesionYReautenticar()`).
+  - `src/main/java/com/credinoda/ui/components/BackupDialog.java` (incorporar indicador de estado del respaldo automático diario y visualización de la política de retención activa).
+  - `src/test/java/com/credinoda/service/BackupServiceTest.java` (pruebas unitarias para `VP-030` y `VP-031` cubriendo consolidación de apertura/cierre y purga selectiva).
+- **Casos de uso y Reglas de negocio cubiertas:**
+  - `CU-025` (Ejecutar respaldo automático diario híbrido y purga de retención).
+  - `RN-034`:
+    - **Nomenclatura y Formato 12 Horas:** Los respaldos automáticos se denominan `creditos_auto_yyyy-MM-dd_hh-mm-ss-a.db` (ej. `creditos_auto_2026-10-25_06-15-30-pm.db`).
+    - **Apertura Diaria:** Al iniciar el sistema o al cruzar la medianoche, si no existe una copia de la fecha actual en `backupsDir`, se genera inmediatamente en segundo plano.
+    - **Cierre y Consolidación (Único Archivo por Día):** Al cerrar la aplicación (`stop()`), se genera el respaldo final del día con el 100% de los cambios y, tras verificar su integridad, se elimina la copia previa generada en esa misma fecha.
+    - **Contexto de Sistema:** El respaldo automático se ejecuta de manera transparente sin requerir rol `ADMINISTRADOR`, asegurando respaldo en jornadas operadas exclusivamente por cajeros con rol `OPERADOR`.
+    - **Política de Retención Triple:**
+      1. *Automáticos (`creditos_auto_*.db`):* Conservar las **15 copias más recientes** (días operados); las excedentes se purgan cronológicamente.
+      2. *Manuales (`creditos_backup_*.db` en `backupsDir`):* Plazo máximo de **30 días calendario** desde su modificación; las que superen los 30 días se eliminan automáticamente. Las copias exportadas fuera de `backupsDir` permanecen intactas.
+      3. *Preventivos (`pre_restauracion_*.db`):* Conservar los **5 más recientes**.
+- **Vectores de prueba y Tests JUnit 5:**
+  - `VP-030`: Apertura genera `creditos_auto_*_am.db` inicial; registros de pagos durante el día; cierre genera `creditos_auto_*_pm.db` con los datos actualizados y remueve la copia de la mañana, dejando exactamente 1 archivo diario íntegro.
+  - `VP-031`: Simulación de 17 respaldos automáticos de fechas distintas $\to$ purga conserva exactamente los 15 más recientes; simulación de respaldos manuales con más de 30 días $\to$ purga elimina los vencidos y conserva los menores a 30 días; simulación de 7 preventivos $\to$ conserva los 5 más recientes.
+- **Tareas de la fase:**
+  - [ ] Añadir constantes de retención (`MAX_AUTO_BACKUPS`, `MANUAL_BACKUP_RETENTION_DAYS`, `MAX_PRE_RESTORE_BACKUPS`) en `AppConfig.java`.
+  - [ ] Añadir evento `BACKUP_AUTOMATICO` en `AccionAuditoria.java`.
+  - [ ] Implementar en `BackupService.java` los métodos de respaldo diario de apertura, consolidación al cierre y motor de purga de retención con soporte de `Clock`.
+  - [ ] Integrar el ciclo de vida de respaldos automáticos en `CrediNodaApplication.java` (`initializeBackend`, `startDayRolloverMonitor`, `stop`, `cerrarSesionYReautenticar`).
+  - [ ] Actualizar `BackupDialog.java` para reflejar la vigencia del respaldo automático diario y la política de retención.
+  - [ ] Desarrollar suites de pruebas unitarias en `BackupServiceTest.java` validando `VP-030` y `VP-031`.
+- **Criterio de finalización:** 100% de tests en verde (`mvn test`), verificación de creación automática en arranque, actualización sin duplicación en cierre de la app, y purga estricta manteniendo 15 automáticas, manuales $\le 30$ días y 5 preventivas.
+
+---
+
 ### Fase 7: Pruebas de Integración End-to-End (E2E) con Base de Datos Limpia y Empaquetado Nativo
 - **Rama:** `feature/fase-7-e2e-packaging`
 - **Objetivo:** Ejecutar la suite integral de pruebas End-to-End validando el ciclo de vida completo de préstamos, cobranzas, emisión de recibos PDF, copias de seguridad vinculadas a Google Drive, control de roles de usuario, trazabilidad de auditoría y licenciamiento offline con protección de reloj. Configurar el empaquetado nativo para Windows (`jpackage` / `javafx-maven-plugin`).
@@ -738,12 +774,12 @@ flowchart TD
   - Configuración final de plugins de distribución en `pom.xml` (`javafx-maven-plugin`, `jpackage`)
   - `README.md` del proyecto Java con instrucciones de compilación, ejecución y empaquetado.
 - **Casos de uso y Reglas de negocio cubiertas:**
-  - Cobertura completa e integrada de `CU-001` a `CU-024` y `RN-001` a `RN-033`.
+  - Cobertura completa e integrada de `CU-001` a `CU-025` y `RN-001` a `RN-034`.
 - **Vectores de prueba y Tests JUnit 5:**
   - `CrediNodaE2ETest`:
     - *Escenario E2E 1:* Alta de cliente $\to$ otorgamiento de crédito con ajuste de centavos $\to$ pagos parciales $\to$ comprobante PDF con QR $\to$ liquidación total $\to$ crédito pasa a `PAGADO`.
     - *Escenario E2E 2:* Creación de créditos con fecha anterior $\to$ detección de mora $\to$ verificación en Dashboard y Reportes (`tasa_morosidad`) $\to$ pago con recuperación.
-    - *Escenario E2E 3:* Población de datos $\to$ backup rápido en carpeta sincronizable $\to$ borrado intencional de registros $\to$ restauración en caliente $\to$ verificación de consistencia íntegra preservando usuarios, auditoría y control de licencia.
+    - *Escenario E2E 3:* Población de datos $\to$ verificación de respaldo automático diario consolidado en apertura y cierre $\to$ verificación de purga de retención (15 automáticas y 30 días para manuales) $\to$ backup rápido manual en carpeta sincronizable $\to$ borrado intencional de registros $\to$ restauración en caliente $\to$ verificación de consistencia íntegra preservando usuarios, auditoría y control de licencia.
     - *Escenario E2E 4:* Flujo de Primer Inicio en entorno limpio $\to$ Setup Wizard completa rutas dinámicas y crea Administrador inicial $\to$ Activación de licencia offline vinculada al Hardware ID $\to$ Login directo $\to$ reinicio que lee la configuración y licencia sin reabrir asistentes.
     - *Escenario E2E 5:* Sesión de Operador registra pago (auditado) $\to$ intenta acceder a restauración o auditoría (denegado y auditado) $\to$ Administrador ingresa y consulta la bitácora verificando la autoría exacta.
     - *Escenario E2E 6:* Ciclo de Licenciamiento y Anti-Tampering: intento de arranque sin licencia (bloqueado) $\to$ activación con firma Ed25519 válida para el Hardware ID $\to$ simulación de atraso de reloj de 2 horas (bloqueo `RELOJ_MANIPULADO`) $\to$ restablecimiento de hora real (desbloqueo) $\to$ simulación de paso del tiempo más allá de `expira_en` (bloqueo `EXPIRADA`) $\to$ renovación con nueva licencia.
@@ -783,6 +819,7 @@ flowchart TD
   - Registro atómico de eventos financieros en la misma transacción de persistencia.
   - Restauración segura de copias de seguridad preservando intactas las cuentas de usuario, el histórico de auditoría y el control de licencia/tiempo.
 - [ ] **Instalación, Portabilidad y Respaldos:**
+  - Respaldo automático diario híbrido (apertura y cierre sin duplicación en formato 12h) con política de retención estricta (15 automáticas, manuales $\le 30$ días y 5 preventivas).
   - Configuración externa multiplataforma (`credinoda.properties` en AppData/XDG) desacoplada de rutas de instalación.
   - Setup Wizard guiado para primer arranque con validación de carpetas y advertencia contra bases de datos activas en la nube.
   - Soporte transparente para sincronización de respaldos con Google Drive para Escritorio.
