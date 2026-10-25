@@ -48,6 +48,7 @@ public class ClienteDetailView extends VBox implements ViewRouter.RoutableView {
     private Cliente clienteActual;
     private final SectionHeader header;
     private final Button editBtn;
+    private final Button newCreditoBtn;
     private final MetricCard cardDocumento;
     private final MetricCard cardTelefono;
     private final MetricCard cardTotalCreditos;
@@ -84,7 +85,8 @@ public class ClienteDetailView extends VBox implements ViewRouter.RoutableView {
         editBtn.setOnAction(e -> handleEditarCliente());
         PermissionGuard.apply(editBtn, Permiso.CLIENTES_EDITAR);
 
-        Button newCreditoBtn = new Button("+ Nuevo Crédito");
+        this.newCreditoBtn = new Button("+ Nuevo Crédito");
+        PermissionGuard.apply(newCreditoBtn, Permiso.CREDITOS_CREAR);
         newCreditoBtn.getStyleClass().add("btn-primary");
         newCreditoBtn.setOnAction(e -> {
             if (this.viewRouter != null) {
@@ -166,6 +168,7 @@ public class ClienteDetailView extends VBox implements ViewRouter.RoutableView {
 
     @Override
     public void onShow(int currentDataVersion) {
+        PermissionGuard.apply(newCreditoBtn, Permiso.CREDITOS_CREAR);
         PermissionGuard.apply(editBtn, Permiso.CLIENTES_EDITAR);
         loadData();
     }

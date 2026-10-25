@@ -6,6 +6,8 @@ import com.credinoda.domain.model.Credito;
 import com.credinoda.domain.model.Cuota;
 import com.credinoda.domain.model.EstadoCuota;
 import com.credinoda.domain.model.Pago;
+import com.credinoda.domain.model.Permiso;
+import com.credinoda.ui.components.PermissionGuard;
 import com.credinoda.service.ClienteService;
 import com.credinoda.service.CreditoService;
 import com.credinoda.service.PagoService;
@@ -118,6 +120,7 @@ public class CreditoDetailView extends VBox implements ViewRouter.RoutableView {
         this.registrarPagoButton = new Button("💵 Registrar Pago");
         this.registrarPagoButton.getStyleClass().add("btn-primary");
         this.registrarPagoButton.setOnAction(e -> openPagoDialog(null));
+        PermissionGuard.apply(this.registrarPagoButton, Permiso.PAGOS_REGISTRAR);
 
         HBox actions = new HBox(8, backBtn, clienteLinkButton, registrarPagoButton);
         actions.setAlignment(Pos.CENTER_RIGHT);
@@ -218,6 +221,7 @@ public class CreditoDetailView extends VBox implements ViewRouter.RoutableView {
 
     @Override
     public void onShow(int currentDataVersion) {
+        PermissionGuard.apply(registrarPagoButton, Permiso.PAGOS_REGISTRAR);
         loadData();
     }
 
@@ -264,6 +268,12 @@ public class CreditoDetailView extends VBox implements ViewRouter.RoutableView {
     }
 
     public void openPagoDialog(Cuota cuotaPreseleccionada) {
+        if (!PermissionGuard.hasPermission(Permiso.PAGOS_REGISTRAR)) {
+            if (notifier != null) {
+                notifier.accept("El sistema se encuentra en Modo Solo Lectura (Licencia comercial vencida).", ToastNotification.Type.WARNING);
+            }
+            return;
+        }
         if (creditoActual == null) {
             return;
         }

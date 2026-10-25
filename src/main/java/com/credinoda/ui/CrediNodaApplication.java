@@ -156,9 +156,17 @@ public class CrediNodaApplication extends Application {
             ActivacionLicenciaDialog licDialog = new ActivacionLicenciaDialog(stage, licenciaService, estadoLicencia);
             boolean activada = licDialog.mostrarYEsperar();
             if (!activada) {
-                stage.close();
-                return;
+                if (estadoLicencia.estado() == com.credinoda.domain.model.EstadoLicencia.EXPIRADA && licDialog.isIngresoModoSoloLectura()) {
+                    ContextoSeguridad.setModoSoloLectura(true);
+                } else {
+                    stage.close();
+                    return;
+                }
+            } else {
+                ContextoSeguridad.setModoSoloLectura(false);
             }
+        } else {
+            ContextoSeguridad.setModoSoloLectura(false);
         }
 
         // 1. Si no existe ningún administrador activo, solicitar creación inicial
@@ -210,6 +218,7 @@ public class CrediNodaApplication extends Application {
         // 6. Aplicar permisos según rol de la sesión actual y registrar logout
         navigationBar.aplicarPermisos(ContextoSeguridad.getSesionActual().rol());
         navigationBar.setOnLogoutRequested(() -> cerrarSesionYReautenticar(stage));
+        navigationBar.setOnRenovarLicenciaRequested(() -> abrirDialogoRenovacionEnCaliente(stage));
 
         // 7. Configurar escena, hoja de estilos e icono de ventana
         Scene scene = new Scene(mainShell, INITIAL_WIDTH, INITIAL_HEIGHT);
@@ -406,6 +415,27 @@ public class CrediNodaApplication extends Application {
             if (licenciaService != null) {
                 ResultadoValidacionLicencia latido = licenciaService.registrarLatidoTiempo();
                 if (!latido.esValida()) {
+                    if (latido.estado() == com.credinoda.domain.model.EstadoLicencia.EXPIRADA) {
+                        if (!ContextoSeguridad.isModoSoloLectura()) {
+                            ContextoSeguridad.setModoSoloLectura(true);
+                            if (navigationBar != null && ContextoSeguridad.getSesionActual() != null) {
+                                navigationBar.aplicarPermisos(ContextoSeguridad.getSesionActual().rol());
+                            }
+                            if (viewRouter != null) {
+
+                                viewRouter.refreshCurrentView();
+                            }
+                            showNotification("Su suscripción ha expirado. El sistema ha pasado a Modo Solo Lectura.", ToastNotification.Type.WARNING);
+                        }
+                    } else {
+                        bloquearPorLicenciaInvalida(latido);
+                        return;
+                    }
+                } else if (ContextoSeguridad.isModoSoloLectura()) {
+                    ContextoSeguridad.setModoSoloLectura(false);
+                    if (navigationBar != null && ContextoSeguridad.getSesionActual() != null) {
+                        navigationBar.aplicarPermisos(ContextoSeguridad.getSesionActual().rol());
+                    }
                     bloquearPorLicenciaInvalida(latido);
                     return;
                 }
@@ -424,10 +454,37 @@ public class CrediNodaApplication extends Application {
             ActivacionLicenciaDialog dialog = new ActivacionLicenciaDialog(primaryStage, licenciaService, latido);
             boolean reactivada = dialog.mostrarYEsperar();
             if (reactivada) {
+                ContextoSeguridad.setModoSoloLectura(false);
+                if (navigationBar != null && ContextoSeguridad.getSesionActual() != null) {
+                    navigationBar.aplicarPermisos(ContextoSeguridad.getSesionActual().rol());
+                }
+                primaryStage.show();
+            } else if (latido.estado() == com.credinoda.domain.model.EstadoLicencia.EXPIRADA && dialog.isIngresoModoSoloLectura()) {
+                ContextoSeguridad.setModoSoloLectura(true);
+                if (navigationBar != null && ContextoSeguridad.getSesionActual() != null) {
+                    navigationBar.aplicarPermisos(ContextoSeguridad.getSesionActual().rol());
+                }
                 primaryStage.show();
             } else {
                 primaryStage.close();
             }
+        }
+    }
+
+    private void abrirDialogoRenovacionEnCaliente(Stage stage) {
+        ResultadoValidacionLicencia estadoActual = licenciaService.validarEstadoActual();
+        ActivacionLicenciaDialog licDialog = new ActivacionLicenciaDialog(stage, licenciaService, estadoActual);
+        boolean activada = licDialog.mostrarYEsperar();
+        if (activada) {
+            ContextoSeguridad.setModoSoloLectura(false);
+            if (navigationBar != null && ContextoSeguridad.getSesionActual() != null) {
+                navigationBar.aplicarPermisos(ContextoSeguridad.getSesionActual().rol());
+            }
+            if (viewRouter != null) {
+
+                viewRouter.refreshCurrentView();
+            }
+            showNotification("¡Licencia comercial renovada y activada con éxito! Todas las funciones han sido restauradas.", ToastNotification.Type.SUCCESS);
         }
     }
 

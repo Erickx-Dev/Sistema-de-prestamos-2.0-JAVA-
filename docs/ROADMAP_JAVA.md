@@ -724,8 +724,9 @@ flowchart TD
   - [x] Integrar el interceptor en `CrediNodaApplication.iniciarConRutas(Stage, RutasSistema)` como compuerta obligatoria previa a la creación de administrador / `LoginDialog` y `MainShell`, y añadir el chequeo periódico `licenciaService.registrarLatidoTiempo()` en `startDayRolloverMonitor()`.
   - [x] Añadir los estilos correspondientes en `src/main/resources/css/credinoda.css`.
   - [x] Desarrollar `ActivacionLicenciaDialogTest` verificando el renderizado del `Hardware ID`, copiado al portapapeles, carga de licencia válida y transición de desbloqueo.
+  - [x] Incorporar Modo Solo Lectura ante expiración de licencia comercial (RN-030), con doble capa de protección (Servicio y UI) y renovación en caliente desde la barra de navegación sin alterar el diseño canónico de MainShell.
 
-- **Criterio de finalización:** 100% de los tests unitarios y de integración en verde (`mvn test`, incluyendo vectores `VP-025` a `VP-029`), bloqueo efectivo ante ausencia/vencimiento/alteración de licencia o retraso del reloj $> 20$ minutos, preservación de licencia ante restauración de backups y activación fluida 100% offline en Windows, macOS y Linux. (Completada: 267/267 tests en verde).
+- **Criterio de finalización:** 100% de los tests unitarios y de integración en verde (`mvn test`, incluyendo vectores `VP-025` a `VP-029`), bloqueo efectivo ante ausencia/vencimiento/alteración de licencia o retraso del reloj $> 20$ minutos, preservación de licencia ante restauración de backups y activación fluida 100% offline en Windows, macOS y Linux. (Completada: 271/271 tests en verde).
 
 ---
 

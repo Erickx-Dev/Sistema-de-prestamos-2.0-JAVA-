@@ -1,6 +1,7 @@
 package com.credinoda.ui.navigation;
 
 import com.credinoda.domain.model.Rol;
+import com.credinoda.service.ContextoSeguridad;
 import com.credinoda.ui.components.StageIconHelper;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -34,6 +35,8 @@ public class NavigationBar extends HBox {
     private Button usuariosButton;
     private Button auditoriaButton;
     private Region rightDivider;
+    private Button soloLecturaBadge;
+    private Runnable onRenovarLicenciaRequested;
     private Consumer<NavAction> onActionSelected;
     private Consumer<String> onRouteSelected;
     private Runnable onLogoutRequested;
@@ -93,13 +96,24 @@ public class NavigationBar extends HBox {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
+        this.soloLecturaBadge = new Button("🔒 Modo Solo Lectura — Renovar Licencia");
+        this.soloLecturaBadge.getStyleClass().addAll("nav-button", "nav-badge-warning");
+        this.soloLecturaBadge.setStyle("-fx-background-color: #FEF3C7; -fx-text-fill: #B45309; -fx-font-weight: bold; -fx-border-color: #F59E0B; -fx-border-radius: 4px;");
+        this.soloLecturaBadge.setVisible(false);
+        this.soloLecturaBadge.setManaged(false);
+        this.soloLecturaBadge.setOnAction(e -> {
+            if (onRenovarLicenciaRequested != null) {
+                onRenovarLicenciaRequested.run();
+            }
+        });
+
         // 5. Divisor vertical derecho y botón de acción Copia de Seguridad
         this.rightDivider = createVerticalDivider();
         Button backupButton = createNavButton(NavAction.BACKUP);
         backupButton.getStyleClass().add("nav-button-backup");
         buttons.put(NavAction.BACKUP, backupButton);
 
-        getChildren().addAll(brandBox, leftDivider, navItemsBox, spacer, rightDivider, backupButton);
+        getChildren().addAll(brandBox, leftDivider, navItemsBox, spacer, soloLecturaBadge, rightDivider, backupButton);
     }
 
     private HBox buildBrandHeader() {
@@ -177,10 +191,23 @@ public class NavigationBar extends HBox {
      */
     public void aplicarPermisos(Rol rol) {
         boolean esAdmin = (rol == Rol.ADMINISTRADOR);
+        boolean soloLectura = ContextoSeguridad.isModoSoloLectura();
+
+        if (soloLecturaBadge != null) {
+            soloLecturaBadge.setVisible(soloLectura);
+            soloLecturaBadge.setManaged(soloLectura);
+        }
+
+        Button nuevoCreditoBtn = buttons.get(NavAction.CREDITO_NEW);
+        if (nuevoCreditoBtn != null) {
+            nuevoCreditoBtn.setVisible(!soloLectura);
+            nuevoCreditoBtn.setManaged(!soloLectura);
+        }
 
         if (usuariosButton != null) {
-            usuariosButton.setVisible(esAdmin);
-            usuariosButton.setManaged(esAdmin);
+            boolean visibleUsuarios = esAdmin && !soloLectura;
+            usuariosButton.setVisible(visibleUsuarios);
+            usuariosButton.setManaged(visibleUsuarios);
         }
 
         if (auditoriaButton != null) {
@@ -206,6 +233,14 @@ public class NavigationBar extends HBox {
 
     public void setOnRouteSelected(Consumer<String> onRouteSelected) {
         this.onRouteSelected = onRouteSelected;
+    }
+
+    public void setOnRenovarLicenciaRequested(Runnable onRenovarLicenciaRequested) {
+        this.onRenovarLicenciaRequested = onRenovarLicenciaRequested;
+    }
+
+    public Button getSoloLecturaBadge() {
+        return soloLecturaBadge;
     }
 
     public void setOnLogoutRequested(Runnable onLogoutRequested) {

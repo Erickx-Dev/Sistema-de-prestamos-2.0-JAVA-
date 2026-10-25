@@ -5,6 +5,7 @@ import com.credinoda.common.HardwareIdProvider;
 import com.credinoda.common.LicenciaCryptoVerifier;
 import com.credinoda.common.LicenciaKeyGeneratorTool;
 import com.credinoda.domain.dto.ResultadoValidacionLicencia;
+import com.credinoda.domain.model.EstadoLicencia;
 import com.credinoda.persistence.DatabaseConnection;
 import com.credinoda.persistence.SchemaInitializer;
 import com.credinoda.persistence.repository.LicenciaRepository;
@@ -121,6 +122,7 @@ class ActivacionLicenciaDialogTest {
             assertThat(dialog.getLblBannerTitulo().getText()).contains("No Registrada");
             assertThat(dialog.isLicenciaActivada()).isFalse();
             assertThat(dialog.getBtnReintentarHora().isVisible()).isFalse();
+            assertThat(dialog.getBtnModoLectura().isVisible()).isFalse();
         });
     }
 
@@ -136,6 +138,7 @@ class ActivacionLicenciaDialogTest {
             assertThat(dialog.getLblBannerTitulo().getText()).contains("Reloj");
             assertThat(dialog.getBtnReintentarHora().isVisible()).isTrue();
             assertThat(dialog.getBtnReintentarHora().isManaged()).isTrue();
+            assertThat(dialog.getBtnModoLectura().isVisible()).isFalse();
         });
     }
 
@@ -205,6 +208,44 @@ class ActivacionLicenciaDialogTest {
 
             dialog.copiarHardwareIdAlPortapapeles();
             assertThat(dialog.getBtnCopiarId().getText()).isEqualTo("✓ Copiado");
+        });
+    }
+
+    @Test
+    @DisplayName("El botón de Modo Solo Lectura es visible únicamente cuando la licencia está EXPIRADA")
+    void testModoLecturaSoloVisibleEnLicenciaExpirada() throws Exception {
+        ejecutarEnFxThread(() -> {
+            ResultadoValidacionLicencia estadoExpirada = ResultadoValidacionLicencia.error(
+                    EstadoLicencia.EXPIRADA,
+                    simulatedHardwareId,
+                    "La licencia comercial expiró el 2026-10-01"
+            );
+            ActivacionLicenciaDialog dialog = new ActivacionLicenciaDialog(new Stage(), licenciaService, estadoExpirada);
+
+            assertThat(dialog.getBtnModoLectura().isVisible()).isTrue();
+            assertThat(dialog.getBtnModoLectura().isManaged()).isTrue();
+            assertThat(dialog.isIngresoModoSoloLectura()).isFalse();
+
+            dialog.getBtnModoLectura().fire();
+            assertThat(dialog.isIngresoModoSoloLectura()).isTrue();
+        });
+    }
+
+    @Test
+    @DisplayName("El botón de Modo Solo Lectura permanece oculto si la licencia es NO_REGISTRADA o RELOJ_MANIPULADO")
+    void testModoLecturaOcultoEnOtrosEstados() throws Exception {
+        ejecutarEnFxThread(() -> {
+            ResultadoValidacionLicencia estadoNoReg = ResultadoValidacionLicencia.noRegistrada(simulatedHardwareId);
+            ActivacionLicenciaDialog dialog1 = new ActivacionLicenciaDialog(new Stage(), licenciaService, estadoNoReg);
+            assertThat(dialog1.getBtnModoLectura().isVisible()).isFalse();
+            assertThat(dialog1.getBtnModoLectura().isManaged()).isFalse();
+
+            ResultadoValidacionLicencia estadoReloj = ResultadoValidacionLicencia.relojManipulado(
+                    simulatedHardwareId, "Hora alterada"
+            );
+            ActivacionLicenciaDialog dialog2 = new ActivacionLicenciaDialog(new Stage(), licenciaService, estadoReloj);
+            assertThat(dialog2.getBtnModoLectura().isVisible()).isFalse();
+            assertThat(dialog2.getBtnModoLectura().isManaged()).isFalse();
         });
     }
 }

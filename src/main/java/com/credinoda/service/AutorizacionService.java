@@ -38,6 +38,9 @@ public class AutorizacionService implements Autorizador {
 
     @Override
     public boolean hasPermission(Permiso permiso) {
+        if (ContextoSeguridad.isModoSoloLectura() && permiso != null && permiso.esPermisoDeEscritura()) {
+            return false;
+        }
         if (permiso == null) {
             return false;
         }
@@ -56,6 +59,7 @@ public class AutorizacionService implements Autorizador {
             String rolName = sesion != null && sesion.rol() != null ? sesion.rol().name() : "ANONIMO";
             String username = sesion != null ? sesion.username() : "ANONIMO";
             Long usuarioId = sesion != null && sesion.usuarioId() > 0 ? (long) sesion.usuarioId() : null;
+            boolean porSoloLectura = ContextoSeguridad.isModoSoloLectura() && permiso.esPermisoDeEscritura();
 
             if (auditoriaService != null) {
                 auditoriaService.registrarConUsuario(
@@ -65,20 +69,27 @@ public class AutorizacionService implements Autorizador {
                         AccionAuditoria.ACCESO_DENEGADO,
                         "SEGURIDAD",
                         permiso.name(),
-                        String.format("Rol '%s' intentó ejecutar operación que requiere '%s'", rolName, permiso.name()),
+                        porSoloLectura
+                                ? String.format("Operación denegada: Sistema en Modo Solo Lectura por licencia vencida. Requiere '%s'", permiso.name())
+                                : String.format("Rol '%s' intentó ejecutar operación que requiere '%s'", rolName, permiso.name()),
                         ResultadoAuditoria.DENEGADO
                 );
             }
 
             throw new AccesoDenegadoException(
                     permiso,
-                    String.format("Acceso denegado: No cuenta con privilegios suficientes. El rol '%s' no tiene el permiso requerido '%s'", rolName, permiso.name())
+                    porSoloLectura
+                            ? String.format("Acceso denegado: El sistema se encuentra en Modo Solo Lectura por licencia vencida. Renueve su suscripción para ejecutar '%s'.", permiso.name())
+                            : String.format("Acceso denegado: No cuenta con privilegios suficientes. El rol '%s' no tiene el permiso requerido '%s'", rolName, permiso.name())
             );
         }
     }
 
     @Override
     public boolean hasPermission(Rol rol, Permiso permiso) {
+        if (ContextoSeguridad.isModoSoloLectura() && permiso != null && permiso.esPermisoDeEscritura()) {
+            return false;
+        }
         if (rol == null || permiso == null) {
             return false;
         }

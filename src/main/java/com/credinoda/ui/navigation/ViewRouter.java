@@ -234,6 +234,17 @@ public class ViewRouter {
      * Limpia completamente las vistas en caché y reinicia el estado del contenedor de contenido.
      * Invocado al cerrar sesión para garantizar que el siguiente usuario no vea datos residuales en memoria (RN-026).
      */
+    /**
+     * Invalida la caché de vistas y re-renderiza la vista actualmente visible bajo la nueva configuración de seguridad o versión de datos.
+     */
+    public void refreshCurrentView() {
+        String routeToReload = currentRouteKey != null ? currentRouteKey : NavAction.DASHBOARD.getRouteKey();
+        Object paramToReload = currentRouteParam;
+        cachedViews.clear();
+        lastSyncedVersion.clear();
+        navigate(routeToReload, paramToReload);
+    }
+
     public void clearCache() {
         cachedViews.clear();
         lastSyncedVersion.clear();

@@ -57,9 +57,11 @@ public class ActivacionLicenciaDialog {
 
     private Button btnSalir;
     private Button btnReintentarHora;
+    private Button btnModoLectura;
     private Button btnActivar;
 
     private boolean licenciaActivada = false;
+    private boolean ingresoModoSoloLectura = false;
 
     public ActivacionLicenciaDialog(Window owner, LicenciaService licenciaService, ResultadoValidacionLicencia estadoInicial) {
         this.licenciaService = Objects.requireNonNull(licenciaService, "LicenciaService no puede ser nulo");
@@ -192,6 +194,13 @@ public class ActivacionLicenciaDialog {
         this.btnReintentarHora.getStyleClass().add("btn-secondary");
         this.btnReintentarHora.setOnAction(e -> reintentarVerificacionHora());
 
+        this.btnModoLectura = new Button("👁 Continuar en Modo Solo Lectura");
+        this.btnModoLectura.getStyleClass().add("btn-secondary");
+        this.btnModoLectura.setOnAction(e -> {
+            this.ingresoModoSoloLectura = true;
+            this.stage.close();
+        });
+
         this.btnActivar = new Button("🔑 Validar y Activar Licencia");
         this.btnActivar.getStyleClass().add("btn-primary");
         this.btnActivar.setDefaultButton(true);
@@ -199,7 +208,7 @@ public class ActivacionLicenciaDialog {
 
         actualizarVisibilidadBotones(estadoActual.estado());
 
-        footerBox.getChildren().addAll(btnSalir, btnReintentarHora, btnActivar);
+        footerBox.getChildren().addAll(btnSalir, btnReintentarHora, btnModoLectura, btnActivar);
 
         root.getChildren().addAll(brandHeader, bannerBox, hwCard, inputSection, footerBox);
 
@@ -343,6 +352,10 @@ public class ActivacionLicenciaDialog {
         boolean esReloj = (estado == EstadoLicencia.RELOJ_MANIPULADO);
         btnReintentarHora.setVisible(esReloj);
         btnReintentarHora.setManaged(esReloj);
+
+        boolean esExpirada = (estado == EstadoLicencia.EXPIRADA);
+        btnModoLectura.setVisible(esExpirada);
+        btnModoLectura.setManaged(esExpirada);
     }
 
     private void mostrarFeedback(String mensaje, boolean esError) {
@@ -380,6 +393,14 @@ public class ActivacionLicenciaDialog {
 
     public Button getBtnActivar() {
         return btnActivar;
+    }
+
+    public boolean isIngresoModoSoloLectura() {
+        return ingresoModoSoloLectura;
+    }
+
+    public Button getBtnModoLectura() {
+        return btnModoLectura;
     }
 
     public Button getBtnReintentarHora() {
