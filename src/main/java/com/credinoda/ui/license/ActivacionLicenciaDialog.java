@@ -61,19 +61,19 @@ public class ActivacionLicenciaDialog {
 
     private boolean licenciaActivada = false;
 
-    public ActivacionLicenciaDialog(Stage stage, LicenciaService licenciaService, ResultadoValidacionLicencia estadoInicial) {
-        this.stage = Objects.requireNonNull(stage, "El Stage no puede ser nulo");
+    public ActivacionLicenciaDialog(Window owner, LicenciaService licenciaService, ResultadoValidacionLicencia estadoInicial) {
         this.licenciaService = Objects.requireNonNull(licenciaService, "LicenciaService no puede ser nulo");
         this.estadoActual = estadoInicial != null ? estadoInicial : licenciaService.validarEstadoActual();
+        this.stage = new Stage();
+        if (owner != null) {
+            this.stage.initOwner(owner);
+        }
         this.stage.initModality(Modality.APPLICATION_MODAL);
         initUI();
     }
 
-    public ActivacionLicenciaDialog(Window owner, LicenciaService licenciaService, ResultadoValidacionLicencia estadoInicial) {
-        this(new Stage(), licenciaService, estadoInicial);
-        if (owner != null) {
-            this.stage.initOwner(owner);
-        }
+    public ActivacionLicenciaDialog(LicenciaService licenciaService, ResultadoValidacionLicencia estadoInicial) {
+        this((Window) null, licenciaService, estadoInicial);
     }
 
     private void initUI() {
