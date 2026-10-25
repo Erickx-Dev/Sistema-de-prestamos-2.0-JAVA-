@@ -178,4 +178,21 @@ class LicenciaCryptoVerifierTest {
         assertThat(verifier.verificarHmacTiempo(hwId, timestamp, "token_diferente", hmac1)).isFalse();
         assertThat(verifier.verificarHmacTiempo(hwId, timestamp, token, "hmac_invalido")).isFalse();
     }
+
+    @Test
+    @DisplayName("VP-025: Token JSON emitido por el panel administrativo con llave oficial es validado y parseado íntegramente")
+    void testVerificacionTokenPanelAdministrativoJsonOficial() {
+        LicenciaCryptoVerifier verifier = new LicenciaCryptoVerifier();
+        String tokenAdmin = "CREDINODA-LIC-V1:eyJlbWl0aWRhX2VuIjoiMjAyNi0xMC0yNCIsImV4cGlyYV9lbiI6IjIwMjYtMTEtMDgiLCJoYXJkd2FyZV9pZCI6IkNOMjAtOTdGMy0yQjU5LTQ0QTQtQkZEMCIsImxpY2VuY2lhX2lkIjoiYTRlYzBmM2YtNWJlOC00ZTVkLWI3ZDItMjUwY2U1NGI2Zjg3IiwidGlwbyI6IlRSSUFMIiwidGl0dWxhciI6IkVyaWNrc29uIFNvam8ifQ.CGQhh51uPm2CCOuEXO2J8DgQ0TYDLXOzTdyDCOU1cpaNhYWY8w7c1i5QTqg1YU4fqUPn46PeY76gkuM3Ukr7CA";
+
+        DatosLicencia datos = verifier.verificarYParsearToken(tokenAdmin);
+
+        assertThat(datos).isNotNull();
+        assertThat(datos.getLicenciaId()).isEqualTo("a4ec0f3f-5be8-4e5d-b7d2-250ce54b6f87");
+        assertThat(datos.getTitular()).isEqualTo("Erickson Sojo");
+        assertThat(datos.getHardwareId()).isEqualTo("CN20-97F3-2B59-44A4-BFD0");
+        assertThat(datos.getFechaEmision()).isEqualTo(LocalDate.of(2026, 10, 24));
+        assertThat(datos.getFechaExpiracion()).isEqualTo(LocalDate.of(2026, 11, 8));
+        assertThat(datos.getTipoLicencia()).isEqualTo("TRIAL");
+    }
 }

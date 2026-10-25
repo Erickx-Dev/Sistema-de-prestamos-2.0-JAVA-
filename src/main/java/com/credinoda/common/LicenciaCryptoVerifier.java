@@ -20,6 +20,8 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Componente criptográfico para la validación de licencias comerciales offline mediante firmas asimétricas
@@ -139,8 +141,8 @@ public final class LicenciaCryptoVerifier {
         LocalDate fechaEmision;
         LocalDate fechaExpiracion;
         try {
-            fechaEmision = LocalDate.parse(emitidaEnStr);
-            fechaExpiracion = LocalDate.parse(expiraEnStr);
+            fechaEmision = parsearFechaFlexible(emitidaEnStr);
+            fechaExpiracion = parsearFechaFlexible(expiraEnStr);
         } catch (DateTimeParseException e) {
             throw new LicenciaException("Formato de fecha inválido en el payload de la licencia (se requiere YYYY-MM-DD).", EstadoLicencia.FORMATO_INVALIDO, e);
         }
@@ -157,7 +159,7 @@ public final class LicenciaCryptoVerifier {
     }
 
     /**
-     * Construye la representación canónica del payload determinista de una licencia.
+     * Construye la representación canónica JSON del payload determinista de una licencia (claves en orden alfabético).
      */
     public static String construirPayloadCanonica(String licenciaId,
                                                  String titular,
@@ -165,12 +167,13 @@ public final class LicenciaCryptoVerifier {
                                                  LocalDate fechaEmision,
                                                  LocalDate fechaExpiracion,
                                                  String tipo) {
-        return "licencia_id=" + licenciaId.trim() + "\n" +
-                "titular=" + titular.trim() + "\n" +
-                "hardware_id=" + hardwareId.trim().toUpperCase() + "\n" +
-                "emitida_en=" + fechaEmision.toString() + "\n" +
-                "expira_en=" + fechaExpiracion.toString() + "\n" +
-                "tipo=" + (tipo != null ? tipo.trim().toUpperCase() : "COMERCIAL");
+        String tipoNorm = (tipo != null && !tipo.isBlank()) ? tipo.trim().toUpperCase() : "COMERCIAL";
+        return "{\"emitida_en\":\"" + fechaEmision.toString() + "\"," +
+                "\"expira_en\":\"" + fechaExpiracion.toString() + "\"," +
+                "\"hardware_id\":\"" + escaparJson(hardwareId.trim().toUpperCase()) + "\"," +
+                "\"licencia_id\":\"" + escaparJson(licenciaId.trim()) + "\"," +
+                "\"tipo\":\"" + escaparJson(tipoNorm) + "\"," +
+                "\"titular\":\"" + escaparJson(titular.trim()) + "\"}";
     }
 
     /**
@@ -208,8 +211,33 @@ public final class LicenciaCryptoVerifier {
         return publicKey;
     }
 
+    private static final Pattern JSON_PROP_PATTERN =
+            Pattern.compile("\"([^\"]+)\"\\s*:\\s*(?:\"((?:\\\\.|[^\"\\\\])*)\"|([^,}\\s]+))");
+
     private static Map<String, String> parsearLineasClaveValor(String text) {
         Map<String, String> map = new HashMap<>();
+        if (text == null || text.isBlank()) {
+            return map;
+        }
+        String clean = text.trim();
+        // Soporte nativo para payloads JSON emitidos por el panel administrativo
+        if (clean.startsWith("{") && clean.endsWith("}")) {
+            Matcher matcher = JSON_PROP_PATTERN.matcher(clean);
+            while (matcher.find()) {
+                String key = matcher.group(1).trim().toLowerCase();
+                String val = matcher.group(2) != null
+                        ? desescaparJson(matcher.group(2)).trim()
+                        : matcher.group(3).trim();
+                if (!"null".equalsIgnoreCase(val)) {
+                    map.put(key, val);
+                }
+            }
+            if (!map.isEmpty()) {
+                return map;
+            }
+        }
+
+        // Soporte alternativo para formato clave=valor por línea
         String[] lines = text.split("\\r?\\n");
         for (String line : lines) {
             String trimmed = line.trim();
@@ -224,6 +252,22 @@ public final class LicenciaCryptoVerifier {
             }
         }
         return map;
+    }
+
+    private static LocalDate parsearFechaFlexible(String fechaStr) {
+        String s = fechaStr.trim();
+        if (s.length() >= 10 && s.indexOf('T') == 10) {
+            return LocalDate.parse(s.substring(0, 10));
+        }
+        return LocalDate.parse(s);
+    }
+
+    private static String escaparJson(String s) {
+        return s.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    private static String desescaparJson(String s) {
+        return s.replace("\\\"", "\"").replace("\\\\", "\\");
     }
 
     private static byte[] decodeBase64Flexible(String b64) {
