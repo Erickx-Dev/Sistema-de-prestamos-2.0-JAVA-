@@ -3,6 +3,8 @@ package com.credinoda.ui.views;
 import com.credinoda.common.Formatters;
 import com.credinoda.domain.dto.ProximoPagoItem;
 import com.credinoda.domain.model.Credito;
+import com.credinoda.domain.model.Permiso;
+import com.credinoda.ui.components.PermissionGuard;
 import com.credinoda.domain.model.EstadoCredito;
 import com.credinoda.service.CreditoService;
 import com.credinoda.ui.components.MetricCard;
@@ -43,6 +45,7 @@ public class DashboardView extends VBox implements ViewRouter.RoutableView {
     private final MetricCard cardCreditosActivos;
     private final MetricCard cardCapitalPrestado;
     private final MetricCard cardSaldoPendiente;
+    private final SectionHeader header;
     private final TableView<ProximoPagoItem> tablaProximosPagos;
     private final ObservableList<ProximoPagoItem> itemsProximosPagos = FXCollections.observableArrayList();
 
@@ -56,7 +59,7 @@ public class DashboardView extends VBox implements ViewRouter.RoutableView {
         getStyleClass().add("view-container");
         setSpacing(18);
 
-        SectionHeader header = new SectionHeader(
+        this.header = new SectionHeader(
                 "Panel de Control",
                 "Resumen general de cartera activa y próximos cobros programados",
                 "+ Nuevo Crédito",
@@ -66,6 +69,8 @@ public class DashboardView extends VBox implements ViewRouter.RoutableView {
                     }
                 }
         );
+
+        PermissionGuard.apply(header.getPrimaryActionButton(), Permiso.CREDITOS_CREAR);
 
         // Fila de 3 tarjetas KPI de cartera activa (RN-013)
         HBox metricsRow = new HBox(16);
@@ -157,6 +162,7 @@ public class DashboardView extends VBox implements ViewRouter.RoutableView {
 
     @Override
     public void onShow(int currentDataVersion) {
+        PermissionGuard.apply(header.getPrimaryActionButton(), Permiso.CREDITOS_CREAR);
         loadData();
     }
 

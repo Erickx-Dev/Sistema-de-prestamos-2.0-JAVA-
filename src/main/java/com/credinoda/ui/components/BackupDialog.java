@@ -127,6 +127,10 @@ public class BackupDialog {
         this.restaurarButton.getStyleClass().add("btn-danger");
         this.restaurarButton.setMaxWidth(Double.MAX_VALUE);
         this.restaurarButton.setOnAction(e -> handleSeleccionarYRestaurar());
+        if (com.credinoda.service.ContextoSeguridad.isModoSoloLectura()) {
+            this.restaurarButton.setDisable(true);
+            restoreNote.setText("La restauración de copias de seguridad está deshabilitada en Modo Solo Lectura (Licencia comercial vencida). Puede generar respaldos para proteger sus datos.");
+        }
 
         restoreSection.getChildren().addAll(restoreTitle, restoreNote, restaurarButton);
 

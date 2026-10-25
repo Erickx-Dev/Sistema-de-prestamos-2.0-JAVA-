@@ -1126,3 +1126,81 @@
     -fx-text-fill: #647067;
     -fx-font-size: 11px;
 }
+
+
+/* ==========================================================================
+ * 16. SISTEMA DE LICENCIAMIENTO OFFLINE (Fase 6.6)
+ * ========================================================================== */
+
+.license-dialog-root {
+    -fx-background-color: #FFFFFF;
+}
+
+.license-status-banner {
+    -fx-padding: 10px 14px;
+    -fx-background-radius: 6px;
+    -fx-border-radius: 6px;
+    -fx-border-width: 1px;
+    -fx-spacing: 6px;
+}
+
+.license-banner-warning {
+    -fx-background-color: #FEF3C7;
+    -fx-border-color: #F59E0B;
+}
+
+.license-banner-warning .label {
+    -fx-text-fill: #92400E;
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+}
+
+.license-banner-danger {
+    -fx-background-color: #FEE2E2;
+    -fx-border-color: #EF4444;
+}
+
+.license-banner-danger .label {
+    -fx-text-fill: #991B1B;
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+}
+
+.license-banner-success {
+    -fx-background-color: #DCFCE7;
+    -fx-border-color: #22C55E;
+}
+
+.license-banner-success .label {
+    -fx-text-fill: #166534;
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+}
+
+.hardware-id-card {
+    -fx-background-color: #F8FAFC;
+    -fx-border-color: #E2E8F0;
+    -fx-border-radius: 6px;
+    -fx-background-radius: 6px;
+    -fx-border-width: 1px;
+    -fx-padding: 12px 14px;
+    -fx-spacing: 6px;
+}
+
+.hardware-id-code {
+    -fx-font-family: monospace;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #0F172A;
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #CBD5E1;
+    -fx-border-radius: 4px;
+    -fx-background-radius: 4px;
+    -fx-padding: 6px 10px;
+}
+
+.license-textarea {
+    -fx-font-family: monospace;
+    -fx-font-size: 11px;
+    -fx-pref-height: 90px;
+}

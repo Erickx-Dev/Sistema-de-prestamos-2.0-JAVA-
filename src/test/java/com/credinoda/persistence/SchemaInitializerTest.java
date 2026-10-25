@@ -131,6 +131,19 @@ class SchemaInitializerTest {
         }
     }
 
+    @Test
+    @DisplayName("Debe verificar que la tabla control_licencia se crea con su esquema DDL completo")
+    void testTablaControlLicenciaEstructura() throws SQLException {
+        try (Connection conn = DatabaseConnection.getConnection("jdbc:sqlite::memory:")) {
+            SchemaInitializer.inicializar(conn);
+
+            Map<String, String> tipos = obtenerTiposColumnas(conn, "control_licencia");
+            assertThat(tipos).containsKeys("id", "licencia_token", "hardware_id", "titular",
+                    "fecha_emision", "fecha_expiracion", "ultimo_timestamp_utc", "hmac_integridad");
+            assertThat(tipos.get("ultimo_timestamp_utc")).isEqualTo("INTEGER");
+        }
+    }
+
     private Map<String, String> obtenerTiposColumnas(Connection conn, String tabla) throws SQLException {
         Map<String, String> tipos = new HashMap<>();
         try (Statement stmt = conn.createStatement();

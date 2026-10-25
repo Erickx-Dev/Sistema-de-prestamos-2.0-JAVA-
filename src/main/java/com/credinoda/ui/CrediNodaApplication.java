@@ -1,14 +1,17 @@
 package com.credinoda.ui;
 
 import com.credinoda.common.RutasSistema;
+import com.credinoda.common.SystemHardwareIdProvider;
 import com.credinoda.domain.dto.EstadoInstalacion;
+import com.credinoda.domain.dto.ResultadoValidacionLicencia;
 import com.credinoda.domain.dto.SesionUsuario;
 import com.credinoda.domain.model.Usuario;
 import com.credinoda.persistence.DatabaseConnection;
 import com.credinoda.persistence.SchemaInitializer;
+import com.credinoda.persistence.repository.AuditoriaRepository;
 import com.credinoda.persistence.repository.ClienteRepository;
 import com.credinoda.persistence.repository.CreditoRepository;
-import com.credinoda.persistence.repository.AuditoriaRepository;
+import com.credinoda.persistence.repository.LicenciaRepository;
 import com.credinoda.persistence.repository.PagoRepository;
 import com.credinoda.persistence.repository.UsuarioRepository;
 import com.credinoda.service.AuditoriaService;
@@ -20,6 +23,7 @@ import com.credinoda.service.ClienteService;
 import com.credinoda.service.ConfiguracionInicialService;
 import com.credinoda.service.ContextoSeguridad;
 import com.credinoda.service.CreditoService;
+import com.credinoda.service.LicenciaService;
 import com.credinoda.service.PagoService;
 import com.credinoda.service.PdfService;
 import com.credinoda.service.ReporteService;
@@ -30,11 +34,13 @@ import com.credinoda.ui.components.ConfirmDialog;
 import com.credinoda.ui.components.StageIconHelper;
 import com.credinoda.ui.components.ToastNotification;
 import com.credinoda.ui.components.UsuarioDialog;
+import com.credinoda.ui.license.ActivacionLicenciaDialog;
 import com.credinoda.ui.navigation.NavAction;
 import com.credinoda.ui.navigation.NavigationBar;
 import com.credinoda.ui.navigation.ViewRouter;
 import com.credinoda.ui.setup.SetupWizard;
 import com.credinoda.ui.setup.UbicacionNoDisponibleDialog;
+import com.credinoda.ui.views.AuditoriaView;
 import com.credinoda.ui.views.ClienteDetailView;
 import com.credinoda.ui.views.ClientesView;
 import com.credinoda.ui.views.CreditoDetailView;
@@ -42,7 +48,6 @@ import com.credinoda.ui.views.CreditoNewView;
 import com.credinoda.ui.views.DashboardView;
 import com.credinoda.ui.views.PagosView;
 import com.credinoda.ui.views.ReportesView;
-import com.credinoda.ui.views.AuditoriaView;
 import com.credinoda.ui.views.UsuariosView;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -68,6 +73,7 @@ import java.util.Optional;
 /**
  * Aplicación principal JavaFX de CrediNoda 2.0.
  * Orquesta la inicialización de la base de datos SQLite, los servicios de negocio,
+ * el interceptor de licenciamiento comercial offline y protección Anti-Tampering (Fase 6.6),
  * la autenticación y control de accesos por roles (Fase 6.3), el monitor de cambio de día
  * para detección de mora (RN-008) y el contenedor principal {@code MainShell}.
  *
@@ -88,8 +94,10 @@ public class CrediNodaApplication extends Application {
     private PagoRepository pagoRepository;
     private UsuarioRepository usuarioRepository;
     private AuditoriaRepository auditoriaRepository;
+    private LicenciaRepository licenciaRepository;
 
     private AuditoriaService auditoriaService;
+    private LicenciaService licenciaService;
 
     private ClienteService clienteService;
     private CreditoService creditoService;
@@ -142,6 +150,25 @@ public class CrediNodaApplication extends Application {
     public void iniciarConRutas(Stage stage, RutasSistema rutas) {
         initializeBackend(rutas);
 
+        // 0. Interceptor de Licenciamiento y Anti-Tampering (RN-030, RN-032, RN-033)
+        ResultadoValidacionLicencia estadoLicencia = licenciaService.validarEstadoActual();
+        if (!estadoLicencia.esValida()) {
+            ActivacionLicenciaDialog licDialog = new ActivacionLicenciaDialog(stage, licenciaService, estadoLicencia);
+            boolean activada = licDialog.mostrarYEsperar();
+            if (!activada) {
+                if (estadoLicencia.estado() == com.credinoda.domain.model.EstadoLicencia.EXPIRADA && licDialog.isIngresoModoSoloLectura()) {
+                    ContextoSeguridad.setModoSoloLectura(true);
+                } else {
+                    stage.close();
+                    return;
+                }
+            } else {
+                ContextoSeguridad.setModoSoloLectura(false);
+            }
+        } else {
+            ContextoSeguridad.setModoSoloLectura(false);
+        }
+
         // 1. Si no existe ningún administrador activo, solicitar creación inicial
         try {
             if (usuarioRepository.contarAdministradoresActivos() == 0) {
@@ -191,6 +218,7 @@ public class CrediNodaApplication extends Application {
         // 6. Aplicar permisos según rol de la sesión actual y registrar logout
         navigationBar.aplicarPermisos(ContextoSeguridad.getSesionActual().rol());
         navigationBar.setOnLogoutRequested(() -> cerrarSesionYReautenticar(stage));
+        navigationBar.setOnRenovarLicenciaRequested(() -> abrirDialogoRenovacionEnCaliente(stage));
 
         // 7. Configurar escena, hoja de estilos e icono de ventana
         Scene scene = new Scene(mainShell, INITIAL_WIDTH, INITIAL_HEIGHT);
@@ -269,6 +297,9 @@ public class CrediNodaApplication extends Application {
             this.usuarioRepository = new UsuarioRepository(connection);
             this.auditoriaRepository = new AuditoriaRepository(connection);
             this.auditoriaService = new AuditoriaService(auditoriaRepository);
+
+            this.licenciaRepository = new LicenciaRepository(connection);
+            this.licenciaService = new LicenciaService(licenciaRepository, new SystemHardwareIdProvider(), auditoriaService);
 
             this.passwordHasher = new BCryptPasswordHasher();
             this.autenticacionService = new AutenticacionService(usuarioRepository, passwordHasher, auditoriaService);
@@ -381,12 +412,80 @@ public class CrediNodaApplication extends Application {
 
     private void startDayRolloverMonitor() {
         this.moraCheckTimeline = new Timeline(new KeyFrame(Duration.seconds(60), e -> {
+            if (licenciaService != null) {
+                ResultadoValidacionLicencia latido = licenciaService.registrarLatidoTiempo();
+                if (!latido.esValida()) {
+                    if (latido.estado() == com.credinoda.domain.model.EstadoLicencia.EXPIRADA) {
+                        if (!ContextoSeguridad.isModoSoloLectura()) {
+                            ContextoSeguridad.setModoSoloLectura(true);
+                            if (navigationBar != null && ContextoSeguridad.getSesionActual() != null) {
+                                navigationBar.aplicarPermisos(ContextoSeguridad.getSesionActual().rol());
+                            }
+                            if (viewRouter != null) {
+
+                                viewRouter.refreshCurrentView();
+                            }
+                            showNotification("Su suscripción ha expirado. El sistema ha pasado a Modo Solo Lectura.", ToastNotification.Type.WARNING);
+                        }
+                    } else {
+                        bloquearPorLicenciaInvalida(latido);
+                        return;
+                    }
+                } else if (ContextoSeguridad.isModoSoloLectura()) {
+                    ContextoSeguridad.setModoSoloLectura(false);
+                    if (navigationBar != null && ContextoSeguridad.getSesionActual() != null) {
+                        navigationBar.aplicarPermisos(ContextoSeguridad.getSesionActual().rol());
+                    }
+                    bloquearPorLicenciaInvalida(latido);
+                    return;
+                }
+            }
             if (viewRouter != null && viewRouter.checkDayRollover()) {
                 viewRouter.notifyDataChanged();
             }
         }));
         this.moraCheckTimeline.setCycleCount(Timeline.INDEFINITE);
         this.moraCheckTimeline.play();
+    }
+
+    private void bloquearPorLicenciaInvalida(ResultadoValidacionLicencia latido) {
+        if (primaryStage != null) {
+            primaryStage.hide();
+            ActivacionLicenciaDialog dialog = new ActivacionLicenciaDialog(primaryStage, licenciaService, latido);
+            boolean reactivada = dialog.mostrarYEsperar();
+            if (reactivada) {
+                ContextoSeguridad.setModoSoloLectura(false);
+                if (navigationBar != null && ContextoSeguridad.getSesionActual() != null) {
+                    navigationBar.aplicarPermisos(ContextoSeguridad.getSesionActual().rol());
+                }
+                primaryStage.show();
+            } else if (latido.estado() == com.credinoda.domain.model.EstadoLicencia.EXPIRADA && dialog.isIngresoModoSoloLectura()) {
+                ContextoSeguridad.setModoSoloLectura(true);
+                if (navigationBar != null && ContextoSeguridad.getSesionActual() != null) {
+                    navigationBar.aplicarPermisos(ContextoSeguridad.getSesionActual().rol());
+                }
+                primaryStage.show();
+            } else {
+                primaryStage.close();
+            }
+        }
+    }
+
+    private void abrirDialogoRenovacionEnCaliente(Stage stage) {
+        ResultadoValidacionLicencia estadoActual = licenciaService.validarEstadoActual();
+        ActivacionLicenciaDialog licDialog = new ActivacionLicenciaDialog(stage, licenciaService, estadoActual);
+        boolean activada = licDialog.mostrarYEsperar();
+        if (activada) {
+            ContextoSeguridad.setModoSoloLectura(false);
+            if (navigationBar != null && ContextoSeguridad.getSesionActual() != null) {
+                navigationBar.aplicarPermisos(ContextoSeguridad.getSesionActual().rol());
+            }
+            if (viewRouter != null) {
+
+                viewRouter.refreshCurrentView();
+            }
+            showNotification("¡Licencia comercial renovada y activada con éxito! Todas las funciones han sido restauradas.", ToastNotification.Type.SUCCESS);
+        }
     }
 
     private void loadApplicationIcon(Stage stage) {
@@ -495,5 +594,13 @@ public class CrediNodaApplication extends Application {
 
     public UsuarioService getUsuarioService() {
         return usuarioService;
+    }
+
+    public LicenciaRepository getLicenciaRepository() {
+        return licenciaRepository;
+    }
+
+    public LicenciaService getLicenciaService() {
+        return licenciaService;
     }
 }

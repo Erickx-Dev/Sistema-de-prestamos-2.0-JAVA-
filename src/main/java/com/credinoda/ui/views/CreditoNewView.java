@@ -158,6 +158,7 @@ public class CreditoNewView extends VBox implements ViewRouter.RoutableView {
         this.crearCreditoButton.getStyleClass().add("btn-primary");
         this.crearCreditoButton.setMaxWidth(Double.MAX_VALUE);
         this.crearCreditoButton.setOnAction(e -> handleCrearCredito());
+        PermissionGuard.apply(crearCreditoButton, Permiso.CREDITOS_CREAR);
 
         // Ticket térmico de liquidación preliminar (Fase 6.5)
         this.ticketCard = new TicketLiquidacionCard();
@@ -249,6 +250,8 @@ public class CreditoNewView extends VBox implements ViewRouter.RoutableView {
     @Override
     public void onShow(int currentDataVersion) {
         PermissionGuard.apply(quickAddClienteBtn, Permiso.CLIENTES_CREAR);
+        PermissionGuard.apply(crearCreditoButton, Permiso.CREDITOS_CREAR);
+
         reloadClientes(null);
         updateSimulacion();
     }
@@ -326,6 +329,10 @@ public class CreditoNewView extends VBox implements ViewRouter.RoutableView {
     }
 
     private void handleCrearCredito() {
+        if (!PermissionGuard.hasPermission(Permiso.CREDITOS_CREAR)) {
+            notifyError("El sistema se encuentra en Modo Solo Lectura (Licencia comercial vencida).");
+            return;
+        }
         Cliente cliente = clienteCombo.getValue();
         if (cliente == null) {
             notifyError("Debe seleccionar un cliente prestatario.");

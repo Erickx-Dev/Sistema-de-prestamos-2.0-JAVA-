@@ -28,6 +28,10 @@ public enum AccionAuditoria {
     ACTIVAR_USUARIO("Activación de usuario", "Habilitación de acceso para un usuario"),
     DESACTIVAR_USUARIO("Desactivación de usuario", "Baja lógica de usuario"),
 
+    ACTIVAR_LICENCIA("Activación de licencia", "Activación o renovación exitosa de licencia offline"),
+    LICENCIA_RECHAZADA("Licencia rechazada", "Intento fallido de activación o validación de licencia"),
+    BLOQUEO_RELOJ_MANIPULADO("Bloqueo por manipulación de reloj", "Detección de retroceso no autorizado en el reloj del sistema"),
+
     ACCESO_DENEGADO("Acceso denegado", "Intento de ejecución de acción sin permisos requeridos");
 
     private final String nombreVisible;

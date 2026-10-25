@@ -287,6 +287,30 @@ public class BackupService {
                         FROM backup_src.pagos;
                         """);
 
+                // Sincronizar y preservar control de licencia y marcas de tiempo (RN-033, VP-029)
+                boolean backupTieneLicencia = false;
+                try (ResultSet rs = stmt.executeQuery("SELECT count(*) FROM backup_src.sqlite_master WHERE type='table' AND name='control_licencia';")) {
+                    if (rs.next() && rs.getInt(1) > 0) {
+                        backupTieneLicencia = true;
+                    }
+                }
+                if (backupTieneLicencia) {
+                    stmt.execute("""
+                            UPDATE control_licencia
+                            SET ultimo_timestamp_utc = MAX(
+                                control_licencia.ultimo_timestamp_utc,
+                                (SELECT COALESCE(MAX(ultimo_timestamp_utc), 0) FROM backup_src.control_licencia)
+                            )
+                            WHERE id = 1;
+                            """);
+                    stmt.execute("""
+                            INSERT INTO control_licencia (id, licencia_token, hardware_id, titular, fecha_emision, fecha_expiracion, ultimo_timestamp_utc, hmac_integridad)
+                            SELECT id, licencia_token, hardware_id, titular, fecha_emision, fecha_expiracion, ultimo_timestamp_utc, hmac_integridad
+                            FROM backup_src.control_licencia
+                            WHERE id = 1 AND NOT EXISTS (SELECT 1 FROM control_licencia WHERE id = 1);
+                            """);
+                }
+
                 stmt.execute("PRAGMA foreign_keys = ON;");
             }
 

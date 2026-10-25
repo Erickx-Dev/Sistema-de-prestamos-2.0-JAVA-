@@ -96,4 +96,39 @@ class AutorizacionServiceTest {
                     .doesNotThrowAnyException();
         }
     }
+
+    @Test
+    @DisplayName("Modo Solo Lectura por expiración de licencia deniega operaciones de escritura incluso a Administrador")
+    void testModoSoloLecturaDeniegaEscrituraInclusoAAdministrador() {
+        SesionUsuario sesionAdmin = new SesionUsuario(2, "admin_boss", "Erickson Sojo", Rol.ADMINISTRADOR);
+        ContextoSeguridad.setSesionActual(sesionAdmin);
+        ContextoSeguridad.setModoSoloLectura(true);
+
+        try {
+            // Permisos de consulta y respaldo permitidos
+            assertThat(autorizacionService.hasPermission(Permiso.CLIENTES_VER)).isTrue();
+            assertThat(autorizacionService.hasPermission(Permiso.CREDITOS_VER)).isTrue();
+            assertThat(autorizacionService.hasPermission(Permiso.PAGOS_VER)).isTrue();
+            assertThat(autorizacionService.hasPermission(Permiso.REPORTES_VER)).isTrue();
+            assertThat(autorizacionService.hasPermission(Permiso.BACKUP_GESTIONAR)).isTrue();
+            assertThat(autorizacionService.hasPermission(Permiso.AUDITORIA_VER)).isTrue();
+
+            // Permisos de mutación estrictamente denegados
+            assertThat(autorizacionService.hasPermission(Permiso.CLIENTES_CREAR)).isFalse();
+            assertThat(autorizacionService.hasPermission(Permiso.CLIENTES_EDITAR)).isFalse();
+            assertThat(autorizacionService.hasPermission(Permiso.CREDITOS_CREAR)).isFalse();
+            assertThat(autorizacionService.hasPermission(Permiso.PAGOS_REGISTRAR)).isFalse();
+            assertThat(autorizacionService.hasPermission(Permiso.USUARIOS_GESTIONAR)).isFalse();
+
+            assertThatThrownBy(() -> autorizacionService.requirePermission(Permiso.CREDITOS_CREAR))
+                    .isInstanceOf(AccesoDenegadoException.class)
+                    .hasMessageContaining("Modo Solo Lectura");
+
+            assertThatThrownBy(() -> autorizacionService.requirePermission(Permiso.PAGOS_REGISTRAR))
+                    .isInstanceOf(AccesoDenegadoException.class)
+                    .hasMessageContaining("Modo Solo Lectura");
+        } finally {
+            ContextoSeguridad.setModoSoloLectura(false);
+        }
+    }
 }

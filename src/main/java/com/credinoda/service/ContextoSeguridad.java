@@ -12,6 +12,7 @@ public final class ContextoSeguridad {
 
     private static final ThreadLocal<SesionUsuario> SESION_HILO = new ThreadLocal<>();
     private static volatile SesionUsuario sesionGlobal;
+    private static volatile boolean modoSoloLectura = false;
 
     private ContextoSeguridad() {
         // Clase de contexto estático, no instanciable
@@ -87,5 +88,23 @@ public final class ContextoSeguridad {
             return true;
         }
         return sesionGlobal != null && sesionGlobal.usuarioId() != 0;
+    }
+
+    /**
+     * Indica si el sistema opera en Modo Solo Lectura debido a que la licencia comercial está vencida (RN-030).
+     *
+     * @return true si el modo solo lectura está activo.
+     */
+    public static boolean isModoSoloLectura() {
+        return modoSoloLectura;
+    }
+
+    /**
+     * Establece o desactiva el Modo Solo Lectura por expiración de licencia.
+     *
+     * @param soloLectura true para activar solo lectura, false para operación normal.
+     */
+    public static void setModoSoloLectura(boolean soloLectura) {
+        modoSoloLectura = soloLectura;
     }
 }

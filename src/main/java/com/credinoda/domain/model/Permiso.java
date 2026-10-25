@@ -95,4 +95,18 @@ public enum Permiso {
     public static boolean tienePermiso(Rol rol, Permiso permiso) {
         return permiso != null && permiso.tienePermiso(rol);
     }
+
+    /**
+     * Determina si el permiso involucra operaciones de mutación o escritura sobre la base de datos (RN-030).
+     * En Modo Solo Lectura (por expiración de licencia), estos permisos quedan temporalmente denegados.
+     *
+     * @return true si es una operación de escritura, false si es de consulta o respaldo.
+     */
+    public boolean esPermisoDeEscritura() {
+        return this == CLIENTES_CREAR ||
+                this == CLIENTES_EDITAR ||
+                this == CREDITOS_CREAR ||
+                this == PAGOS_REGISTRAR ||
+                this == USUARIOS_GESTIONAR;
+    }
 }
