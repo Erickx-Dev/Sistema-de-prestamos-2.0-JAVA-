@@ -74,6 +74,7 @@ import java.util.Optional;
  * Aplicación principal JavaFX de CrediNoda 2.0.
  * Orquesta la inicialización de la base de datos SQLite, los servicios de negocio,
  * el interceptor de licenciamiento comercial offline y protección Anti-Tampering (Fase 6.6),
+ * el ciclo híbrido de copias de seguridad automáticas diarias y retención (Fase 6.7),
  * la autenticación y control de accesos por roles (Fase 6.3), el monitor de cambio de día
  * para detección de mora (RN-008) y el contenedor principal {@code MainShell}.
  *
@@ -261,6 +262,15 @@ public class CrediNodaApplication extends Application {
                 false
         );
         if (confirm.showAndWait()) {
+            if (backupService != null && connection != null) {
+                try {
+                    if (!connection.isClosed()) {
+                        backupService.consolidarBackupDiarioCierre();
+                    }
+                } catch (Exception ex) {
+                    System.err.println("Advertencia al consolidar respaldo diario al cerrar sesión: " + ex.getMessage());
+                }
+            }
             ContextoSeguridad.limpiarSesion();
             if (viewRouter != null) {
                 viewRouter.clearCache();
@@ -314,6 +324,13 @@ public class CrediNodaApplication extends Application {
 
             // Sincronización idempotente de mora al iniciar la aplicación (CU-008, RN-008)
             this.creditoService.actualizarCuotasEnMora(LocalDate.now());
+
+            // Respaldo automático diario de apertura y purga de retención (CU-025, RN-034)
+            try {
+                this.backupService.asegurarBackupDiarioApertura();
+            } catch (Exception ex) {
+                System.err.println("Advertencia en respaldo automático diario de apertura: " + ex.getMessage());
+            }
         } catch (IOException | SQLException e) {
             throw new IllegalStateException("Error crítico al inicializar el backend de CrediNoda 2.0", e);
         }
@@ -422,7 +439,6 @@ public class CrediNodaApplication extends Application {
                                 navigationBar.aplicarPermisos(ContextoSeguridad.getSesionActual().rol());
                             }
                             if (viewRouter != null) {
-
                                 viewRouter.refreshCurrentView();
                             }
                             showNotification("Su suscripción ha expirado. El sistema ha pasado a Modo Solo Lectura.", ToastNotification.Type.WARNING);
@@ -441,6 +457,13 @@ public class CrediNodaApplication extends Application {
                 }
             }
             if (viewRouter != null && viewRouter.checkDayRollover()) {
+                if (backupService != null) {
+                    try {
+                        backupService.asegurarBackupDiarioApertura();
+                    } catch (Exception ex) {
+                        System.err.println("Advertencia en respaldo automático de cambio de día: " + ex.getMessage());
+                    }
+                }
                 viewRouter.notifyDataChanged();
             }
         }));
@@ -481,7 +504,6 @@ public class CrediNodaApplication extends Application {
                 navigationBar.aplicarPermisos(ContextoSeguridad.getSesionActual().rol());
             }
             if (viewRouter != null) {
-
                 viewRouter.refreshCurrentView();
             }
             showNotification("¡Licencia comercial renovada y activada con éxito! Todas las funciones han sido restauradas.", ToastNotification.Type.SUCCESS);
@@ -512,6 +534,15 @@ public class CrediNodaApplication extends Application {
     public void stop() {
         if (moraCheckTimeline != null) {
             moraCheckTimeline.stop();
+        }
+        if (backupService != null && connection != null) {
+            try {
+                if (!connection.isClosed()) {
+                    backupService.consolidarBackupDiarioCierre();
+                }
+            } catch (Exception e) {
+                System.err.println("Advertencia al consolidar respaldo diario al cierre: " + e.getMessage());
+            }
         }
         if (connection != null) {
             try {

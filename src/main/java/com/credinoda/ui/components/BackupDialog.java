@@ -1,5 +1,6 @@
 package com.credinoda.ui.components;
 
+import com.credinoda.common.AppConfig;
 import com.credinoda.domain.dto.BackupInfo;
 import com.credinoda.domain.exception.CrediNodaException;
 import com.credinoda.service.BackupService;
@@ -27,11 +28,14 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 
 /**
- * Diálogo modal de Copias de Seguridad y Restauración en Caliente (CU-014, CU-015, RN-017, RN-018).
- * Permite crear un respaldo rápido en un clic, exportar una copia a otra ubicación o restaurar
+ * Diálogo modal de Copias de Seguridad, Respaldo Automático Diario y Restauración en Caliente
+ * (CU-014, CU-015, CU-025, RN-017, RN-018, RN-034).
+ * Permite consultar el estado del respaldo automático diario y la política de retención activa,
+ * crear un respaldo rápido en un clic, exportar una copia a otra ubicación o restaurar
  * un archivo .db con validación triple y respaldo preventivo automático.
  */
 public class BackupDialog {
@@ -46,6 +50,8 @@ public class BackupDialog {
     private final BiConsumer<String, ToastNotification.Type> notifier;
 
     private final Label ultimoRespaldoLabel;
+    private final Label respaldoAutomaticoLabel;
+    private final Label politicaRetencionLabel;
     private final Button backupRapidoButton;
     private final Button backupPersonalizadoButton;
     private final Button restaurarButton;
@@ -70,7 +76,7 @@ public class BackupDialog {
 
         BorderPane root = new BorderPane();
         root.getStyleClass().add("dialog-root");
-        root.setPrefWidth(520);
+        root.setPrefWidth(540);
 
         // 1. Cabecera
         HBox header = new HBox(10);
@@ -84,7 +90,7 @@ public class BackupDialog {
         VBox body = new VBox(14);
         body.getStyleClass().add("dialog-body");
 
-        // Estado del último respaldo
+        // Estado del último respaldo y respaldo automático diario (RN-034)
         VBox statusCard = new VBox(6);
         statusCard.getStyleClass().add("card-subtle");
         Label statusTitle = new Label("Último respaldo local registrado:");
@@ -92,7 +98,21 @@ public class BackupDialog {
         this.ultimoRespaldoLabel = new Label();
         this.ultimoRespaldoLabel.getStyleClass().add("section-subtitle");
         this.ultimoRespaldoLabel.setWrapText(true);
-        statusCard.getChildren().addAll(statusTitle, ultimoRespaldoLabel);
+
+        this.respaldoAutomaticoLabel = new Label();
+        this.respaldoAutomaticoLabel.getStyleClass().add("section-subtitle");
+        this.respaldoAutomaticoLabel.setWrapText(true);
+
+        this.politicaRetencionLabel = new Label(String.format(
+                "Política de retención activa: máx. %d copias automáticas diarias, %d días para manuales en carpeta local y %d preventivas.",
+                AppConfig.MAX_AUTO_BACKUPS,
+                AppConfig.MANUAL_BACKUP_RETENTION_DAYS,
+                AppConfig.MAX_PRE_RESTORE_BACKUPS
+        ));
+        this.politicaRetencionLabel.getStyleClass().add("section-subtitle");
+        this.politicaRetencionLabel.setWrapText(true);
+
+        statusCard.getChildren().addAll(statusTitle, ultimoRespaldoLabel, respaldoAutomaticoLabel, politicaRetencionLabel);
 
         // Sección Crear Respaldo
         VBox createSection = new VBox(8);
@@ -182,11 +202,27 @@ public class BackupDialog {
         } catch (Exception e) {
             ultimoRespaldoLabel.setText("No se pudo consultar la carpeta backups/");
         }
+
+        try {
+            Optional<BackupInfo> autoHoy = backupService.obtenerRespaldoAutomaticoDeHoy();
+            if (autoHoy.isPresent()) {
+                BackupInfo info = autoHoy.get();
+                respaldoAutomaticoLabel.setText(String.format(
+                        "✓ Respaldo automático de hoy activo: %s (%.1f KB) — Se consolidará al cerrar.",
+                        info.nombreArchivo(),
+                        info.tamanoKb()
+                ));
+            } else {
+                respaldoAutomaticoLabel.setText("Respaldo automático diario: pendiente de generación en la jornada actual.");
+            }
+        } catch (Exception e) {
+            respaldoAutomaticoLabel.setText("Respaldo automático diario: no disponible.");
+        }
     }
 
     public Path ejecutarBackupRapido() {
         try {
-            Path path = backupService.crearBackup(null, "creditos_backup");
+            Path path = backupService.crearBackup(null, AppConfig.MANUAL_BACKUP_PREFIX);
             refreshUltimoRespaldoInfo();
             if (notifier != null) {
                 notifier.accept("Copia de seguridad creada: " + path.getFileName(), ToastNotification.Type.SUCCESS);
@@ -204,7 +240,7 @@ public class BackupDialog {
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Guardar Copia de Seguridad");
         chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Base de datos SQLite (*.db)", "*.db"));
-        chooser.setInitialFileName("creditos_backup_" + LocalDateTime.now().format(FILE_FMT).toLowerCase(Locale.ROOT) + ".db");
+        chooser.setInitialFileName(AppConfig.MANUAL_BACKUP_PREFIX + "_" + LocalDateTime.now().format(FILE_FMT).toLowerCase(Locale.ROOT) + ".db");
 
         File dest = chooser.showSaveDialog(stage);
         if (dest == null) {
@@ -212,7 +248,7 @@ public class BackupDialog {
         }
 
         try {
-            Path path = backupService.crearBackup(dest.toPath(), "creditos_backup");
+            Path path = backupService.crearBackup(dest.toPath(), AppConfig.MANUAL_BACKUP_PREFIX);
             refreshUltimoRespaldoInfo();
             if (notifier != null) {
                 notifier.accept("Copia de seguridad guardada: " + path.getFileName(), ToastNotification.Type.SUCCESS);
@@ -280,6 +316,14 @@ public class BackupDialog {
 
     public Label getUltimoRespaldoLabel() {
         return ultimoRespaldoLabel;
+    }
+
+    public Label getRespaldoAutomaticoLabel() {
+        return respaldoAutomaticoLabel;
+    }
+
+    public Label getPoliticaRetencionLabel() {
+        return politicaRetencionLabel;
     }
 
     public Button getBackupRapidoButton() {

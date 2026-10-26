@@ -1,5 +1,6 @@
 package com.credinoda.service;
 
+import com.credinoda.common.AppConfig;
 import com.credinoda.common.ConfiguracionLocalStore;
 import com.credinoda.common.RutasSistema;
 import com.credinoda.domain.dto.BackupInfo;
@@ -15,16 +16,21 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.FileTime;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -32,32 +38,47 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
- * Servicio para la gestión de copias de seguridad en caliente (backup) y restauración segura
- * de la base de datos SQLite del sistema CrediNoda (CU-014, CU-015, RN-017, RN-018, RN-027, RN-029).
- * Implementa respaldo consistente vía VACUUM INTO, validación triple de integridad estructural
- * y restauración atómica con respaldo preventivo pre_restauracion automático, preservando intactas
- * las tablas de usuarios y auditoría de la base activa (RN-029, VP-024).
+ * Servicio para la gestión de copias de seguridad en caliente (backup), respaldos automáticos diarios
+ * con estrategia híbrida (apertura y cierre consolidado), política de retención inteligente y restauración
+ * segura de la base de datos SQLite del sistema CrediNoda (CU-014, CU-015, CU-025, RN-017, RN-018, RN-027,
+ * RN-029, RN-033, RN-034).
  */
 public class BackupService {
 
     private static final byte[] SQLITE_HEADER = "SQLite format 3\0".getBytes(StandardCharsets.US_ASCII);
     private static final Set<String> REQUIRED_TABLES = Set.of("clientes", "creditos", "cuotas", "pagos");
-    private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd_hh-mm-ss-a", Locale.ENGLISH);
+    private static final DateTimeFormatter TIMESTAMP_FORMATTER = new DateTimeFormatterBuilder()
+            .parseCaseInsensitive()
+            .appendPattern("yyyy-MM-dd_hh-mm-ss-a")
+            .toFormatter(Locale.ENGLISH);
+    private static final Pattern FILENAME_TIMESTAMP_PATTERN = Pattern.compile(
+            "(\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}-(?:am|pm))(?:_(\\d+))?\\.db$",
+            Pattern.CASE_INSENSITIVE
+    );
 
     private final Connection connection;
     private final Path backupsDir;
     private final Autorizador autorizador;
     private final AuditoriaService auditoriaService;
+    private final Clock clock;
 
-    public BackupService(Connection connection, Path backupsDir, Autorizador autorizador, AuditoriaService auditoriaService) {
+    public BackupService(Connection connection,
+                         Path backupsDir,
+                         Autorizador autorizador,
+                         AuditoriaService auditoriaService,
+                         Clock clock) {
         this.connection = Objects.requireNonNull(connection, "La conexión a la base de datos no puede ser nula.");
         this.backupsDir = Objects.requireNonNull(backupsDir, "El directorio de respaldos no puede ser nulo.");
         this.autorizador = Objects.requireNonNull(autorizador, "El autorizador no puede ser nulo.");
         this.auditoriaService = auditoriaService;
+        this.clock = Objects.requireNonNull(clock, "El reloj (Clock) no puede ser nulo.");
         try {
             Files.createDirectories(this.backupsDir);
         } catch (IOException e) {
@@ -65,26 +86,52 @@ public class BackupService {
         }
     }
 
+    public BackupService(Connection connection, Path backupsDir, Autorizador autorizador, AuditoriaService auditoriaService) {
+        this(connection, backupsDir, autorizador, auditoriaService, Clock.systemDefaultZone());
+    }
+
     public BackupService(Connection connection, Path backupsDir, Autorizador autorizador) {
-        this(connection, backupsDir, autorizador, null);
+        this(connection, backupsDir, autorizador, null, Clock.systemDefaultZone());
+    }
+
+    public BackupService(Connection connection, Path backupsDir, Clock clock) {
+        this(connection, backupsDir, new AutorizacionService(), null, clock);
     }
 
     public BackupService(Connection connection, Path backupsDir) {
-        this(connection, backupsDir, new AutorizacionService(), null);
+        this(connection, backupsDir, new AutorizacionService(), null, Clock.systemDefaultZone());
     }
 
     public BackupService(Connection connection, RutasSistema rutas) {
-        this(connection, Objects.requireNonNull(rutas, "RutasSistema no puede ser nulo.").backupsDir(), new AutorizacionService(), null);
+        this(connection, Objects.requireNonNull(rutas, "RutasSistema no puede ser nulo.").backupsDir(),
+                new AutorizacionService(), null, Clock.systemDefaultZone());
     }
 
     public BackupService(Connection connection, RutasSistema rutas, AuditoriaService auditoriaService) {
-        this(connection, Objects.requireNonNull(rutas, "RutasSistema no puede ser nulo.").backupsDir(), new AutorizacionService(), auditoriaService);
+        this(connection, Objects.requireNonNull(rutas, "RutasSistema no puede ser nulo.").backupsDir(),
+                new AutorizacionService(), auditoriaService, Clock.systemDefaultZone());
+    }
+
+    public BackupService(Connection connection, RutasSistema rutas, AuditoriaService auditoriaService, Clock clock) {
+        this(connection, Objects.requireNonNull(rutas, "RutasSistema no puede ser nulo.").backupsDir(),
+                new AutorizacionService(), auditoriaService, clock);
     }
 
     public BackupService(Connection connection) {
         this(connection, ConfiguracionLocalStore.cargarRutas()
                 .map(RutasSistema::backupsDir)
-                .orElseGet(() -> Path.of(System.getProperty("user.dir"), "backups")), new AutorizacionService(), null);
+                .orElseGet(() -> Path.of(System.getProperty("user.dir"), "backups")),
+                new AutorizacionService(), null, Clock.systemDefaultZone());
+    }
+
+    /**
+     * Crea una nueva vista del servicio vinculada a un {@link Clock} específico (útil para pruebas deterministas).
+     *
+     * @param nuevoClock Reloj a utilizar.
+     * @return Nueva instancia de BackupService con el reloj indicado.
+     */
+    public BackupService withClock(Clock nuevoClock) {
+        return new BackupService(this.connection, this.backupsDir, this.autorizador, this.auditoriaService, nuevoClock);
     }
 
     /**
@@ -96,66 +143,193 @@ public class BackupService {
      */
     public Path crearBackup(Path destino, String prefijo) {
         autorizador.requirePermission(Permiso.BACKUP_GESTIONAR);
-        String prefijoSeguro = (prefijo != null && !prefijo.isBlank()) ? prefijo.trim() : "creditos_backup";
+        String prefijoSeguro = (prefijo != null && !prefijo.isBlank()) ? prefijo.trim() : AppConfig.MANUAL_BACKUP_PREFIX;
 
-        Path rutaDestino;
-        if (destino == null) {
-            String timestamp = LocalDateTime.now().format(TIMESTAMP_FORMATTER).toLowerCase(Locale.ROOT);
-            Path candidato = backupsDir.resolve(String.format("%s_%s.db", prefijoSeguro, timestamp));
-            if (Files.exists(candidato)) {
-                int seq = 1;
-                while (Files.exists(backupsDir.resolve(String.format("%s_%s_%d.db", prefijoSeguro, timestamp, seq)))) {
-                    seq++;
-                }
-                rutaDestino = backupsDir.resolve(String.format("%s_%s_%d.db", prefijoSeguro, timestamp, seq));
-            } else {
-                rutaDestino = candidato;
-            }
-        } else {
-            String fileName = destino.getFileName().toString();
-            if (!fileName.toLowerCase().endsWith(".db")) {
-                rutaDestino = destino.resolveSibling(fileName + ".db");
-            } else {
-                rutaDestino = destino;
+        Path resultado = generarSnapshotInterno(destino, prefijoSeguro);
+
+        if (auditoriaService != null && !AppConfig.PRE_RESTORE_BACKUP_PREFIX.equals(prefijoSeguro)) {
+            auditoriaService.registrar(
+                    AccionAuditoria.CREAR_BACKUP,
+                    "BACKUP",
+                    resultado.getFileName().toString(),
+                    "Respaldo generado en: " + resultado,
+                    ResultadoAuditoria.EXITO
+            );
+        }
+
+        return resultado;
+    }
+
+    /**
+     * Asegura la existencia del respaldo automático diario al iniciar el sistema o cruzar la medianoche (CU-025, RN-034, VP-030).
+     * Si ya existe un archivo íntegro {@code creditos_auto_yyyy-MM-dd_*.db} para la fecha actual, no genera duplicados.
+     * Se ejecuta en contexto de sistema (sin requerir rol ADMINISTRADOR).
+     *
+     * @return Path al archivo de respaldo automático vigente del día actual.
+     */
+    public Path asegurarBackupDiarioApertura() {
+        List<Path> existentesHoy = listarArchivosAutomaticosDeFecha(LocalDate.now(clock));
+        for (Path existente : existentesHoy) {
+            if (esArchivoBackupValidoSilencioso(existente)) {
+                purgarBackupsAntiguos();
+                return existente.toAbsolutePath();
             }
         }
 
+        Path nuevoRespaldo = generarSnapshotInterno(null, AppConfig.AUTO_BACKUP_PREFIX);
+        validarArchivoBackup(nuevoRespaldo);
+        int purgados = purgarBackupsAntiguos();
+
+        if (auditoriaService != null) {
+            auditoriaService.registrar(
+                    AccionAuditoria.BACKUP_AUTOMATICO,
+                    "BACKUP",
+                    nuevoRespaldo.getFileName().toString(),
+                    "Respaldo automático diario de apertura generado: " + nuevoRespaldo.getFileName()
+                            + " (purgados por retención: " + purgados + ")",
+                    ResultadoAuditoria.EXITO
+            );
+        }
+
+        return nuevoRespaldo;
+    }
+
+    /**
+     * Genera el respaldo automático final al cerrar la sesión o la aplicación, verifica su integridad
+     * y reemplaza cualquier copia automática previa de la misma fecha, garantizando un único archivo
+     * diario consolidado con el 100% de las operaciones del día (CU-025, RN-034, VP-030).
+     * Se ejecuta en contexto de sistema (sin requerir rol ADMINISTRADOR).
+     *
+     * @return Path al archivo consolidado definitivo del día.
+     */
+    public Path consolidarBackupDiarioCierre() {
+        LocalDate hoy = LocalDate.now(clock);
+        List<Path> previosDeHoy = listarArchivosAutomaticosDeFecha(hoy);
+
+        Path nuevoConsolidado = generarSnapshotInterno(null, AppConfig.AUTO_BACKUP_PREFIX);
+        validarArchivoBackup(nuevoConsolidado);
+
+        Path consolidadoNormalizado = nuevoConsolidado.toAbsolutePath().normalize();
+        for (Path previo : previosDeHoy) {
+            Path previoNormalizado = previo.toAbsolutePath().normalize();
+            if (!previoNormalizado.equals(consolidadoNormalizado)) {
+                try {
+                    Files.deleteIfExists(previoNormalizado);
+                } catch (IOException e) {
+                    System.err.println("Advertencia al remover copia previa del día: " + e.getMessage());
+                }
+            }
+        }
+
+        // Si el archivo consolidado se generó en el mismo segundo que la copia previa y recibió sufijo (_1),
+        // lo renombramos al nombre canónico limpio una vez eliminada la copia previa.
+        nuevoConsolidado = normalizarNombreSinSufijoColision(nuevoConsolidado);
+
+        int purgados = purgarBackupsAntiguos();
+
+        if (auditoriaService != null) {
+            auditoriaService.registrar(
+                    AccionAuditoria.BACKUP_AUTOMATICO,
+                    "BACKUP",
+                    nuevoConsolidado.getFileName().toString(),
+                    "Respaldo automático diario consolidado al cierre: " + nuevoConsolidado.getFileName()
+                            + " (copias previas del día reemplazadas: " + previosDeHoy.size()
+                            + ", purgados por retención: " + purgados + ")",
+                    ResultadoAuditoria.EXITO
+            );
+        }
+
+        return nuevoConsolidado;
+    }
+
+    /**
+     * Ejecuta la política triple de retención y purga automática sobre {@code backupsDir} (CU-025, RN-034, VP-031):
+     * <ol>
+     *   <li>Automáticos ({@code creditos_auto_*.db}): conserva las {@link AppConfig#MAX_AUTO_BACKUPS} (15) copias más recientes.</li>
+     *   <li>Manuales ({@code creditos_backup_*.db} en {@code backupsDir}): elimina los que superen {@link AppConfig#MANUAL_BACKUP_RETENTION_DAYS} (30) días calendario.</li>
+     *   <li>Preventivos ({@code pre_restauracion_*.db}): conserva los {@link AppConfig#MAX_PRE_RESTORE_BACKUPS} (5) más recientes.</li>
+     * </ol>
+     * Las copias exportadas fuera de {@code backupsDir} permanecen intactas.
+     *
+     * @return Cantidad total de archivos de respaldo antiguos eliminados.
+     */
+    public int purgarBackupsAntiguos() {
+        if (!Files.exists(backupsDir)) {
+            return 0;
+        }
+
+        List<Path> automaticos = new ArrayList<>();
+        List<Path> manuales = new ArrayList<>();
+        List<Path> preventivos = new ArrayList<>();
+
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(backupsDir, "*.db")) {
+            for (Path path : stream) {
+                if (!Files.isRegularFile(path)) {
+                    continue;
+                }
+                String fileName = path.getFileName().toString().toLowerCase(Locale.ROOT);
+                if (fileName.startsWith(AppConfig.AUTO_BACKUP_PREFIX + "_")) {
+                    automaticos.add(path);
+                } else if (fileName.startsWith(AppConfig.MANUAL_BACKUP_PREFIX + "_")) {
+                    manuales.add(path);
+                } else if (fileName.startsWith(AppConfig.PRE_RESTORE_BACKUP_PREFIX + "_")) {
+                    preventivos.add(path);
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Advertencia al inspeccionar directorio de backups para purga: " + e.getMessage());
+            return 0;
+        }
+
+        int eliminados = 0;
+        Comparator<Path> masRecientePrimero = crearComparadorMasRecientePrimero();
+
+        // 1. Retención de respaldos automáticos: conservar máximo 15 más recientes
+        automaticos.sort(masRecientePrimero);
+        for (int i = AppConfig.MAX_AUTO_BACKUPS; i < automaticos.size(); i++) {
+            if (eliminarSilenciosamente(automaticos.get(i))) {
+                eliminados++;
+            }
+        }
+
+        // 2. Retención de respaldos manuales en backupsDir: plazo máximo de 30 días desde su modificación
+        Instant limiteManual = Instant.now(clock).minus(Duration.ofDays(AppConfig.MANUAL_BACKUP_RETENTION_DAYS));
+        for (Path manual : manuales) {
+            Instant instanteArchivo = obtenerInstanteParaRetencionManual(manual);
+            if (instanteArchivo.isBefore(limiteManual)) {
+                if (eliminarSilenciosamente(manual)) {
+                    eliminados++;
+                }
+            }
+        }
+
+        // 3. Retención de respaldos preventivos pre_restauracion: conservar máximo 5 más recientes
+        preventivos.sort(masRecientePrimero);
+        for (int i = AppConfig.MAX_PRE_RESTORE_BACKUPS; i < preventivos.size(); i++) {
+            if (eliminarSilenciosamente(preventivos.get(i))) {
+                eliminados++;
+            }
+        }
+
+        return eliminados;
+    }
+
+    /**
+     * Consulta si existe un respaldo automático correspondiente al día actual en {@code backupsDir}.
+     *
+     * @return Optional con los metadatos {@link BackupInfo} del respaldo automático de hoy.
+     */
+    public Optional<BackupInfo> obtenerRespaldoAutomaticoDeHoy() {
+        List<Path> archivosHoy = listarArchivosAutomaticosDeFecha(LocalDate.now(clock));
+        if (archivosHoy.isEmpty()) {
+            return Optional.empty();
+        }
+        archivosHoy.sort(crearComparadorMasRecientePrimero());
+        Path masReciente = archivosHoy.getFirst();
         try {
-            if (rutaDestino.getParent() != null) {
-                Files.createDirectories(rutaDestino.getParent());
-            }
-
-            // Confirmar transacciones pendientes antes de iniciar el snapshot
-            if (!connection.getAutoCommit()) {
-                connection.commit();
-            }
-
-            // Si el archivo ya existía, se elimina previamente porque SQLite VACUUM INTO requiere archivo nuevo
-            Files.deleteIfExists(rutaDestino);
-
-            String pathNormalizado = rutaDestino.toAbsolutePath().toString().replace("\\", "/");
-            String sql = "VACUUM INTO '" + pathNormalizado + "'";
-
-            try (Statement stmt = connection.createStatement()) {
-                stmt.executeUpdate(sql);
-            }
-
-            Path resultado = rutaDestino.toAbsolutePath();
-
-            if (auditoriaService != null && !"pre_restauracion".equals(prefijo)) {
-                auditoriaService.registrar(
-                        AccionAuditoria.CREAR_BACKUP,
-                        "BACKUP",
-                        resultado.getFileName().toString(),
-                        "Respaldo generado en: " + resultado,
-                        ResultadoAuditoria.EXITO
-                );
-            }
-
-            return resultado;
-
-        } catch (SQLException | IOException e) {
-            throw new BackupException("No se pudo crear la copia de seguridad: " + e.getMessage(), e);
+            return Optional.of(construirBackupInfo(masReciente));
+        } catch (IOException e) {
+            return Optional.empty();
         }
     }
 
@@ -228,7 +402,7 @@ public class BackupService {
 
     /**
      * Valida un archivo de respaldo, crea un respaldo preventivo de la base activa y restaura los datos (CU-015, RN-018, RN-029).
-     * Reemplaza exclusivamente las 4 tablas de negocio, preservando usuarios y auditoría intactos (VP-024).
+     * Reemplaza exclusivamente las 4 tablas de negocio, preservando usuarios, auditoría y control de licencia intactos (VP-024, VP-029).
      *
      * @param rutaOrigen Ruta al archivo .db validado.
      * @return Path del respaldo preventivo automático 'pre_restauracion_*.db' generado.
@@ -237,8 +411,9 @@ public class BackupService {
         autorizador.requirePermission(Permiso.BACKUP_GESTIONAR);
         validarArchivoBackup(rutaOrigen);
 
-        // 1. Crear respaldo preventivo automático antes de sobrescribir
-        Path respaldoPreventivo = crearBackup(null, "pre_restauracion");
+        // 1. Crear respaldo preventivo automático antes de sobrescribir y aplicar retención de preventivos
+        Path respaldoPreventivo = generarSnapshotInterno(null, AppConfig.PRE_RESTORE_BACKUP_PREFIX);
+        purgarBackupsAntiguos();
 
         boolean autoCommitOriginal = true;
         boolean attached = false;
@@ -368,19 +543,7 @@ public class BackupService {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(backupsDir, "*.db")) {
             for (Path path : stream) {
                 if (Files.isRegularFile(path)) {
-                    BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
-                    long sizeBytes = attrs.size();
-                    double sizeKb = Math.round((sizeBytes / 1024.0) * 10.0) / 10.0;
-                    Instant instant = attrs.lastModifiedTime().toInstant();
-                    LocalDateTime fechaMod = LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
-
-                    backups.add(new BackupInfo(
-                            path.getFileName().toString(),
-                            path.toAbsolutePath().toString(),
-                            sizeBytes,
-                            sizeKb,
-                            fechaMod
-                    ));
+                    backups.add(construirBackupInfo(path));
                 }
             }
         } catch (IOException e) {
@@ -396,5 +559,201 @@ public class BackupService {
      */
     public Path getBackupsDir() {
         return backupsDir;
+    }
+
+    private Path generarSnapshotInterno(Path destino, String prefijoSeguro) {
+        Path rutaDestino;
+        if (destino == null) {
+            String timestamp = LocalDateTime.now(clock).format(TIMESTAMP_FORMATTER).toLowerCase(Locale.ROOT);
+            Path candidato = backupsDir.resolve(String.format("%s_%s.db", prefijoSeguro, timestamp));
+            if (Files.exists(candidato)) {
+                int seq = 1;
+                while (Files.exists(backupsDir.resolve(String.format("%s_%s_%d.db", prefijoSeguro, timestamp, seq)))) {
+                    seq++;
+                }
+                rutaDestino = backupsDir.resolve(String.format("%s_%s_%d.db", prefijoSeguro, timestamp, seq));
+            } else {
+                rutaDestino = candidato;
+            }
+        } else {
+            String fileName = destino.getFileName().toString();
+            if (!fileName.toLowerCase(Locale.ROOT).endsWith(".db")) {
+                rutaDestino = destino.resolveSibling(fileName + ".db");
+            } else {
+                rutaDestino = destino;
+            }
+        }
+
+        try {
+            if (rutaDestino.getParent() != null) {
+                Files.createDirectories(rutaDestino.getParent());
+            }
+
+            // Confirmar transacciones pendientes antes de iniciar el snapshot
+            if (!connection.getAutoCommit()) {
+                connection.commit();
+            }
+
+            // Si el archivo ya existía, se elimina previamente porque SQLite VACUUM INTO requiere archivo nuevo
+            Files.deleteIfExists(rutaDestino);
+
+            String pathNormalizado = rutaDestino.toAbsolutePath().toString().replace("\\", "/");
+            String sql = "VACUUM INTO '" + pathNormalizado + "'";
+
+            try (Statement stmt = connection.createStatement()) {
+                stmt.executeUpdate(sql);
+            }
+
+            Path resultado = rutaDestino.toAbsolutePath();
+            try {
+                Files.setLastModifiedTime(resultado, FileTime.from(Instant.now(clock)));
+            } catch (IOException ignored) {
+            }
+
+            return resultado;
+
+        } catch (SQLException | IOException e) {
+            throw new BackupException("No se pudo crear la copia de seguridad: " + e.getMessage(), e);
+        }
+    }
+
+    private List<Path> listarArchivosAutomaticosDeFecha(LocalDate fecha) {
+        if (!Files.exists(backupsDir)) {
+            return List.of();
+        }
+        String prefijoDia = (AppConfig.AUTO_BACKUP_PREFIX + "_" + fecha.format(DateTimeFormatter.ISO_LOCAL_DATE) + "_")
+                .toLowerCase(Locale.ROOT);
+        List<Path> encontrados = new ArrayList<>();
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(backupsDir, "*.db")) {
+            for (Path path : stream) {
+                if (Files.isRegularFile(path)) {
+                    String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
+                    if (name.startsWith(prefijoDia)) {
+                        encontrados.add(path);
+                    }
+                }
+            }
+        } catch (IOException e) {
+            return List.of();
+        }
+        encontrados.sort(crearComparadorMasRecientePrimero());
+        return encontrados;
+    }
+
+    private Path normalizarNombreSinSufijoColision(Path archivo) {
+        String nombre = archivo.getFileName().toString();
+        Matcher m = FILENAME_TIMESTAMP_PATTERN.matcher(nombre);
+        if (m.find() && m.group(2) != null) {
+            String nombreLimpio = nombre.substring(0, m.start(2) - 1) + ".db";
+            Path destinoLimpio = archivo.resolveSibling(nombreLimpio);
+            if (!Files.exists(destinoLimpio)) {
+                try {
+                    return Files.move(archivo, destinoLimpio, StandardCopyOption.REPLACE_EXISTING).toAbsolutePath();
+                } catch (IOException ignored) {
+                }
+            }
+        }
+        return archivo;
+    }
+
+    private boolean esArchivoBackupValidoSilencioso(Path ruta) {
+        try {
+            return validarArchivoBackup(ruta);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private Comparator<Path> crearComparadorMasRecientePrimero() {
+        return (p1, p2) -> {
+            Instant i1 = obtenerInstanteOrdenamiento(p1);
+            Instant i2 = obtenerInstanteOrdenamiento(p2);
+            int cmp = i2.compareTo(i1);
+            if (cmp != 0) {
+                return cmp;
+            }
+            int seq1 = extraerSecuenciaColision(p1);
+            int seq2 = extraerSecuenciaColision(p2);
+            int seqCmp = Integer.compare(seq2, seq1);
+            if (seqCmp != 0) {
+                return seqCmp;
+            }
+            return p2.getFileName().toString().compareToIgnoreCase(p1.getFileName().toString());
+        };
+    }
+
+    private Instant obtenerInstanteOrdenamiento(Path path) {
+        Optional<Instant> fromName = extraerInstanteDeNombre(path);
+        if (fromName.isPresent()) {
+            return fromName.get();
+        }
+        try {
+            return Files.getLastModifiedTime(path).toInstant();
+        } catch (IOException e) {
+            return Instant.EPOCH;
+        }
+    }
+
+    private Instant obtenerInstanteParaRetencionManual(Path path) {
+        Instant lastMod = Instant.now(clock);
+        try {
+            lastMod = Files.getLastModifiedTime(path).toInstant();
+        } catch (IOException ignored) {
+        }
+        Optional<Instant> fromName = extraerInstanteDeNombre(path);
+        if (fromName.isPresent() && fromName.get().isBefore(lastMod)) {
+            return fromName.get();
+        }
+        return lastMod;
+    }
+
+    private Optional<Instant> extraerInstanteDeNombre(Path path) {
+        String name = path.getFileName().toString();
+        Matcher matcher = FILENAME_TIMESTAMP_PATTERN.matcher(name);
+        if (matcher.find()) {
+            try {
+                LocalDateTime ldt = LocalDateTime.parse(matcher.group(1), TIMESTAMP_FORMATTER);
+                return Optional.of(ldt.atZone(clock.getZone()).toInstant());
+            } catch (Exception ignored) {
+            }
+        }
+        return Optional.empty();
+    }
+
+    private int extraerSecuenciaColision(Path path) {
+        String name = path.getFileName().toString();
+        Matcher matcher = FILENAME_TIMESTAMP_PATTERN.matcher(name);
+        if (matcher.find() && matcher.group(2) != null) {
+            try {
+                return Integer.parseInt(matcher.group(2));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return 0;
+    }
+
+    private boolean eliminarSilenciosamente(Path path) {
+        try {
+            return Files.deleteIfExists(path);
+        } catch (IOException e) {
+            System.err.println("Advertencia al purgar respaldo antiguo " + path + ": " + e.getMessage());
+            return false;
+        }
+    }
+
+    private BackupInfo construirBackupInfo(Path path) throws IOException {
+        BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
+        long sizeBytes = attrs.size();
+        double sizeKb = Math.round((sizeBytes / 1024.0) * 10.0) / 10.0;
+        Instant instant = attrs.lastModifiedTime().toInstant();
+        LocalDateTime fechaMod = LocalDateTime.ofInstant(instant, clock.getZone());
+
+        return new BackupInfo(
+                path.getFileName().toString(),
+                path.toAbsolutePath().toString(),
+                sizeBytes,
+                sizeKb,
+                fechaMod
+        );
     }
 }

@@ -756,13 +756,13 @@ flowchart TD
   - `VP-030`: Apertura genera `creditos_auto_*_am.db` inicial; registros de pagos durante el día; cierre genera `creditos_auto_*_pm.db` con los datos actualizados y remueve la copia de la mañana, dejando exactamente 1 archivo diario íntegro.
   - `VP-031`: Simulación de 17 respaldos automáticos de fechas distintas $\to$ purga conserva exactamente los 15 más recientes; simulación de respaldos manuales con más de 30 días $\to$ purga elimina los vencidos y conserva los menores a 30 días; simulación de 7 preventivos $\to$ conserva los 5 más recientes.
 - **Tareas de la fase:**
-  - [ ] Añadir constantes de retención (`MAX_AUTO_BACKUPS`, `MANUAL_BACKUP_RETENTION_DAYS`, `MAX_PRE_RESTORE_BACKUPS`) en `AppConfig.java`.
-  - [ ] Añadir evento `BACKUP_AUTOMATICO` en `AccionAuditoria.java`.
-  - [ ] Implementar en `BackupService.java` los métodos de respaldo diario de apertura, consolidación al cierre y motor de purga de retención con soporte de `Clock`.
-  - [ ] Integrar el ciclo de vida de respaldos automáticos en `CrediNodaApplication.java` (`initializeBackend`, `startDayRolloverMonitor`, `stop`, `cerrarSesionYReautenticar`).
-  - [ ] Actualizar `BackupDialog.java` para reflejar la vigencia del respaldo automático diario y la política de retención.
-  - [ ] Desarrollar suites de pruebas unitarias en `BackupServiceTest.java` validando `VP-030` y `VP-031`.
-- **Criterio de finalización:** 100% de tests en verde (`mvn test`), verificación de creación automática en arranque, actualización sin duplicación en cierre de la app, y purga estricta manteniendo 15 automáticas, manuales $\le 30$ días y 5 preventivas.
+  - [x] Añadir constantes de retención (`MAX_AUTO_BACKUPS`, `MANUAL_BACKUP_RETENTION_DAYS`, `MAX_PRE_RESTORE_BACKUPS`) en `AppConfig.java`.
+  - [x] Añadir evento `BACKUP_AUTOMATICO` en `AccionAuditoria.java`.
+  - [x] Implementar en `BackupService.java` los métodos de respaldo diario de apertura, consolidación al cierre y motor de purga de retención con soporte de `Clock`.
+  - [x] Integrar el ciclo de vida de respaldos automáticos en `CrediNodaApplication.java` (`initializeBackend`, `startDayRolloverMonitor`, `stop`, `cerrarSesionYReautenticar`).
+  - [x] Actualizar `BackupDialog.java` para reflejar la vigencia del respaldo automático diario y la política de retención.
+  - [x] Desarrollar suites de pruebas unitarias en `BackupServiceTest.java` validando `VP-030` y `VP-031`.
+- **Criterio de finalización:** 100% de tests en verde (`mvn test`), verificación de creación automática en arranque, actualización sin duplicación en cierre de la app, y purga estricta manteniendo 15 automáticas, manuales $\le 30$ días y 5 preventivas. (Completada: 274/274 tests en verde).
 
 ---
 
