@@ -21,6 +21,7 @@ public enum AccionAuditoria {
     GENERAR_PDF("Generación de comprobante PDF", "Emisión o reimpresión de recibo con código QR"),
 
     CREAR_BACKUP("Creación de respaldo", "Generación de copia de seguridad de la base de datos"),
+    BACKUP_AUTOMATICO("Respaldo automático diario", "Generación o consolidación automática de copia de seguridad y purga de retención"),
     RESTAURAR_BACKUP("Restauración de respaldo", "Restauración de datos de negocio desde copia"),
 
     CREAR_USUARIO("Creación de usuario", "Alta de nuevo usuario en el sistema"),
